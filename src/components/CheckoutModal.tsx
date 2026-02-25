@@ -52,11 +52,20 @@ export function CheckoutModal({
   // Form fields
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [street, setStreet] = useState(''); // Rua
+  const [houseNumber, setHouseNumber] = useState(''); // Número
+  const [neighborhood, setNeighborhood] = useState(''); // Bairro/Setor
+  const [address, setAddress] = useState(''); // Computed: rua + número + bairro (backward compat)
   const [reference, setReference] = useState('');
   const [deliverySector, setDeliverySector] = useState(''); // 🆕 Setor de entrega
   const [changeFor, setChangeFor] = useState(''); // 🆕 Troco para quanto?
   const [cardType, setCardType] = useState<'credit' | 'debit' | ''>(''); // 🆕 Tipo de cartão (crédito/débito)
+  
+  // 🆕 Pagamento misto (duas formas)
+  const [splitPayment, setSplitPayment] = useState(false);
+  const [splitMethod1, setSplitMethod1] = useState<PaymentMethod>('pix');
+  const [splitMethod2, setSplitMethod2] = useState<PaymentMethod>('cash');
+  const [splitAmount1, setSplitAmount1] = useState('');
   
   // 🆕 Setores disponíveis
   const [availableSectors, setAvailableSectors] = useState<Array<{id: string, name: string, color: string}>>([]);
@@ -100,7 +109,11 @@ export function CheckoutModal({
          if (parsed.name && !name) setName(parsed.name);
          if (parsed.phone && !phone) setPhone(parsed.phone);
          // Auto-fill address info if available and not set
-         if (parsed.address && !address) setAddress(parsed.address);
+         if (parsed.street && !street) setStreet(parsed.street);
+         if (parsed.houseNumber && !houseNumber) setHouseNumber(parsed.houseNumber);
+         if (parsed.neighborhood && !neighborhood) setNeighborhood(parsed.neighborhood);
+         // Backward compat: old format had single address field
+         if (!parsed.street && parsed.address && !street) setStreet(parsed.address);
          if (parsed.reference && !reference) setReference(parsed.reference);
          if (parsed.deliverySector && !deliverySector) setDeliverySector(parsed.deliverySector);
        } catch (e) {
@@ -109,6 +122,12 @@ export function CheckoutModal({
     }
   }, []);
 
+  // Computar endereço completo a partir de rua + número + bairro
+  useEffect(() => {
+    const parts = [street.trim(), houseNumber.trim(), neighborhood.trim()].filter(Boolean);
+    setAddress(parts.join(', '));
+  }, [street, houseNumber, neighborhood]);
+
   useEffect(() => {
     // Auto-fill if customer exists (Tem prioridade sobre localStorage cru)
     if (customer) {
@@ -116,8 +135,15 @@ export function CheckoutModal({
       setPhone(customer.phone);
       if (customer.addresses.length > 0) {
         setUseSavedAddress(true);
-        // Default to first address
-        setAddress(customer.addresses[0].street);
+        // Default to first address - try to split if comma-separated
+        const fullAddr = customer.addresses[0].street || '';
+        const commaIdx = fullAddr.indexOf(',');
+        if (commaIdx > 0) {
+          setStreet(fullAddr.substring(0, commaIdx).trim());
+          setHouseNumber(fullAddr.substring(commaIdx + 1).trim());
+        } else {
+          setStreet(fullAddr);
+        }
         setReference(customer.addresses[0].reference || '');
       }
     }
@@ -286,8 +312,18 @@ export function CheckoutModal({
       return;
     }
 
-    if (deliveryType === 'delivery' && !address.trim()) {
-      alert('Por favor, preencha o endereço de entrega');
+    if (deliveryType === 'delivery' && !street.trim()) {
+      alert('Por favor, preencha a rua');
+      return;
+    }
+
+    if (deliveryType === 'delivery' && !houseNumber.trim()) {
+      alert('Por favor, preencha o número');
+      return;
+    }
+
+    if (deliveryType === 'delivery' && !neighborhood.trim()) {
+      alert('Por favor, preencha o bairro/setor');
       return;
     }
 
@@ -298,9 +334,24 @@ export function CheckoutModal({
     }
 
     // 🆕 Validação de tipo de cartão
-    if (paymentMethod === 'card' && !cardType) {
+    if (!splitPayment && paymentMethod === 'card' && !cardType) {
       alert('Por favor, selecione se o pagamento será no Crédito ou Débito');
       return;
+    }
+
+    // 🆕 Validação de pagamento misto
+    if (splitPayment) {
+      const total = getTotalWithDiscount();
+      const amt1 = parseFloat(splitAmount1) || 0;
+      const amt2 = parseFloat((total - amt1).toFixed(2));
+      if (amt1 <= 0 || amt2 <= 0) {
+        alert('Os valores do pagamento misto devem ser maiores que zero');
+        return;
+      }
+      if (splitMethod1 === splitMethod2) {
+        alert('Selecione duas formas de pagamento diferentes');
+        return;
+      }
     }
 
     // 🚀 IMPORTANTE: Sistema SEMPRE aceita pedidos, mesmo sem entregadores online
@@ -311,6 +362,21 @@ export function CheckoutModal({
 
     try {
       setIsSubmitting(true);
+      
+      // Montar info de pagamento
+      const paymentInfo = splitPayment ? {
+        paymentMethod: 'split' as any,
+        splitPayment: true,
+        splitMethod1,
+        splitMethod2,
+        splitAmount1: parseFloat(splitAmount1) || 0,
+        splitAmount2: parseFloat((getTotalWithDiscount() - (parseFloat(splitAmount1) || 0)).toFixed(2)),
+      } : {
+        paymentMethod,
+        cardType: paymentMethod === 'card' ? cardType : null,
+        changeFor: paymentMethod === 'cash' && changeFor ? parseFloat(changeFor) : null,
+      };
+      
       // Salvar pedido no banco de dados
       const orderData = {
         customerName: sanitizeName(name),
@@ -318,10 +384,8 @@ export function CheckoutModal({
         deliveryType,
         address: deliveryType === 'delivery' ? sanitizeAddress(address) : PICKUP_ADDRESS,
         reference: reference ? sanitizeText(reference, 300) : null,
-        deliverySector: deliveryType === 'delivery' && deliverySector ? deliverySector : null, // 🆕 Setor de entrega
-        paymentMethod,
-        cardType: paymentMethod === 'card' ? cardType : null, // 🆕 Tipo de cartão
-        changeFor: paymentMethod === 'cash' && changeFor ? parseFloat(changeFor) : null, // 🆕 Troco
+        deliverySector: deliveryType === 'delivery' && deliverySector ? deliverySector : null,
+        ...paymentInfo,
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -639,7 +703,13 @@ export function CheckoutModal({
     
     // Forma de pagamento atualizada
     let paymentText = '';
-    if (paymentMethod === 'pix') {
+    if (splitPayment) {
+      const amt1 = parseFloat(splitAmount1) || 0;
+      const amt2 = parseFloat((getTotalWithDiscount() - amt1).toFixed(2));
+      const m1Name = splitMethod1 === 'pix' ? 'PIX' : splitMethod1 === 'card' ? 'Cartão' : 'Dinheiro';
+      const m2Name = splitMethod2 === 'pix' ? 'PIX' : splitMethod2 === 'card' ? 'Cartão' : 'Dinheiro';
+      paymentText = `Misto: ${m1Name} R$ ${amt1.toFixed(2).replace('.', ',')} + ${m2Name} R$ ${amt2.toFixed(2).replace('.', ',')}`;
+    } else if (paymentMethod === 'pix') {
       paymentText = 'PIX (Comprovante enviado)';
     } else if (paymentMethod === 'card') {
       paymentText = 'Cartão (Maquininha na entrega/retirada)';
@@ -672,6 +742,9 @@ export function CheckoutModal({
     localStorage.setItem('faroeste_customer_info', JSON.stringify({ 
       name, 
       phone,
+      street: deliveryType === 'delivery' ? street : undefined,
+      houseNumber: deliveryType === 'delivery' ? houseNumber : undefined,
+      neighborhood: deliveryType === 'delivery' ? neighborhood : undefined,
       address: deliveryType === 'delivery' ? address : undefined,
       reference: deliveryType === 'delivery' ? reference : undefined,
       deliverySector: deliveryType === 'delivery' ? deliverySector : undefined
@@ -717,6 +790,9 @@ export function CheckoutModal({
     setIsSubmitting(false);
     setName('');
     setPhone('');
+    setStreet('');
+    setHouseNumber('');
+    setNeighborhood('');
     setAddress('');
     setReference('');
     setDeliveryType('delivery');
@@ -729,6 +805,11 @@ export function CheckoutModal({
     setCouponError('');
     // Limpar acompanhamentos
     setSelectedAcompanhamentos([]);
+    // Limpar pagamento misto
+    setSplitPayment(false);
+    setSplitMethod1('pix');
+    setSplitMethod2('cash');
+    setSplitAmount1('');
   };
 
   const handleClose = () => {
@@ -808,8 +889,8 @@ export function CheckoutModal({
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+        <div className="bg-white dark:bg-zinc-900 rounded-none sm:rounded-lg shadow-2xl w-full sm:max-w-2xl min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="bg-amber-600 text-white p-4 flex items-center justify-between sticky top-0">
             <div className="flex items-center gap-2">
@@ -834,7 +915,7 @@ export function CheckoutModal({
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="px-4 py-5 sm:p-6">
             {/* Progress Steps */}
             <div className="flex items-center justify-center mb-8">
               <div className="flex items-center gap-2">
@@ -1043,7 +1124,15 @@ export function CheckoutModal({
                                 checked={useSavedAddress && address === addr.street}
                                 onChange={() => {
                                   setUseSavedAddress(true);
-                                  setAddress(addr.street);
+                                  const fullAddr = addr.street || '';
+                                  const commaIdx = fullAddr.indexOf(',');
+                                  if (commaIdx > 0) {
+                                    setStreet(fullAddr.substring(0, commaIdx).trim());
+                                    setHouseNumber(fullAddr.substring(commaIdx + 1).trim());
+                                  } else {
+                                    setStreet(fullAddr);
+                                    setHouseNumber('');
+                                  }
                                   setReference(addr.reference || '');
                                 }}
                                 className="mt-1.5 text-amber-600 focus:ring-amber-500 bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
@@ -1061,7 +1150,9 @@ export function CheckoutModal({
                               checked={!useSavedAddress}
                               onChange={() => {
                                 setUseSavedAddress(false);
-                                setAddress('');
+                                setStreet('');
+                                setHouseNumber('');
+                                setNeighborhood('');
                                 setReference('');
                               }}
                               className="text-amber-600 focus:ring-amber-500 bg-white dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
@@ -1072,17 +1163,43 @@ export function CheckoutModal({
                       </div>
                     )}
 
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2 block ml-1">Rua *</label>
+                        <input
+                          type="text"
+                          value={street}
+                          onChange={(e) => {
+                            setStreet(e.target.value);
+                            if (useSavedAddress) setUseSavedAddress(false);
+                          }}
+                          className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all ${useSavedAddress ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500' : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
+                          placeholder="Nome da rua"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2 block ml-1">Nº *</label>
+                        <input
+                          type="text"
+                          value={houseNumber}
+                          onChange={(e) => {
+                            setHouseNumber(e.target.value);
+                            if (useSavedAddress) setUseSavedAddress(false);
+                          }}
+                          className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all ${useSavedAddress ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500' : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
+                          placeholder="123"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2 block ml-1">Endereço Completo *</label>
-                      <textarea
-                        value={address}
-                        onChange={(e) => {
-                          setAddress(e.target.value);
-                          if (useSavedAddress) setUseSavedAddress(false);
-                        }}
-                        rows={3}
-                        className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all ${useSavedAddress ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500' : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
-                        placeholder="Rua, número, bairro..."
+                      <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2 block ml-1">Bairro/Setor *</label>
+                      <input
+                        type="text"
+                        value={neighborhood}
+                        onChange={(e) => setNeighborhood(e.target.value)}
+                        className="w-full px-4 py-3 border border-zinc-300 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                        placeholder="Ex: Centro, Setor Sul..."
                       />
                     </div>
 
@@ -1187,7 +1304,7 @@ export function CheckoutModal({
                   </button>
                   <button
                     onClick={() => setStep(3)}
-                    disabled={deliveryType === 'delivery' && !address.trim()}
+                    disabled={deliveryType === 'delivery' && (!street.trim() || !houseNumber.trim() || !neighborhood.trim())}
                     className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20"
                   >
                     Continuar
@@ -1284,8 +1401,105 @@ export function CheckoutModal({
                   </button>
                 </div>
 
+                {/* Toggle Pagamento Misto */}
+                <div className="mt-4">
+                  <button
+                    onClick={() => {
+                      setSplitPayment(!splitPayment);
+                      if (!splitPayment) {
+                        setSplitAmount1('');
+                        setSplitMethod1('pix');
+                        setSplitMethod2('cash');
+                      }
+                    }}
+                    className={`w-full py-3 px-4 rounded-xl border-2 transition-all font-bold text-sm flex items-center justify-center gap-2 ${
+                      splitPayment
+                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400'
+                        : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-purple-300'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    {splitPayment ? '✓ Pagamento Misto Ativado' : 'Pagar com duas formas'}
+                  </button>
+                </div>
+
+                {/* Pagamento Misto UI */}
+                {splitPayment && (
+                  <div className="mt-4 bg-purple-50/50 dark:bg-purple-900/10 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/30 space-y-4">
+                    <p className="text-sm font-bold text-purple-800 dark:text-purple-400 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" /> Dividir pagamento em duas formas
+                    </p>
+                    
+                    {/* Forma 1 */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">1ª Forma de Pagamento</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['pix', 'card', 'cash'] as PaymentMethod[]).map(m => (
+                          <button
+                            key={`s1-${m}`}
+                            onClick={() => setSplitMethod1(m)}
+                            className={`py-2 px-3 rounded-lg border-2 text-xs font-bold transition-all ${
+                              splitMethod1 === m
+                                ? 'border-purple-600 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                                : 'border-zinc-200 dark:border-zinc-700 text-zinc-500'
+                            }`}
+                          >
+                            {m === 'pix' ? 'Pix' : m === 'card' ? 'Cartão' : 'Dinheiro'}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={splitAmount1}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+                          setSplitAmount1(v);
+                        }}
+                        placeholder="R$ 0,00"
+                        className="w-full px-4 py-3 border border-purple-300 dark:border-purple-800/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-lg font-bold bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                      />
+                    </div>
+
+                    {/* Forma 2 */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">2ª Forma de Pagamento</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['pix', 'card', 'cash'] as PaymentMethod[]).map(m => (
+                          <button
+                            key={`s2-${m}`}
+                            onClick={() => setSplitMethod2(m)}
+                            className={`py-2 px-3 rounded-lg border-2 text-xs font-bold transition-all ${
+                              splitMethod2 === m
+                                ? 'border-purple-600 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                                : 'border-zinc-200 dark:border-zinc-700 text-zinc-500'
+                            }`}
+                          >
+                            {m === 'pix' ? 'Pix' : m === 'card' ? 'Cartão' : 'Dinheiro'}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="w-full px-4 py-3 border border-purple-200 dark:border-purple-800/30 rounded-xl bg-purple-50 dark:bg-zinc-800/50 text-lg font-bold text-purple-700 dark:text-purple-400">
+                        R$ {(Math.max(0, getTotalWithDiscount() - (parseFloat(splitAmount1) || 0))).toFixed(2).replace('.', ',')}
+                      </div>
+                    </div>
+
+                    {/* Aviso se valores não batem */}
+                    {splitAmount1 && parseFloat(splitAmount1) > 0 && parseFloat(splitAmount1) < getTotalWithDiscount() && (
+                      <div className="text-xs text-center text-purple-600 dark:text-purple-400 font-medium">
+                        ✓ Total: R$ {(parseFloat(splitAmount1) || 0).toFixed(2).replace('.', ',')} + R$ {(getTotalWithDiscount() - (parseFloat(splitAmount1) || 0)).toFixed(2).replace('.', ',')} = R$ {getTotalWithDiscount().toFixed(2).replace('.', ',')}
+                      </div>
+                    )}
+                    {splitMethod1 === splitMethod2 && (
+                      <div className="text-xs text-center text-red-500 font-medium">
+                        ⚠ Selecione duas formas diferentes
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Campo de Troco */}
-                {paymentMethod === 'cash' && (
+                {!splitPayment && paymentMethod === 'cash' && (
                   <div className="mt-6 bg-emerald-50/30 dark:bg-emerald-900/10 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/30">
                     <label className="text-sm font-bold text-emerald-800 dark:text-emerald-400 mb-3 block flex items-center gap-2">
                       <Banknote className="w-4 h-4" /> Precisa de troco?
@@ -1383,7 +1597,7 @@ export function CheckoutModal({
                     </h4>
                   </div>
                   
-                  <div className="p-5 space-y-6">
+                  <div className="p-3 sm:p-5 space-y-6">
                     {/* Dados do Cliente */}
                     <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800/50 shadow-sm">
                       <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -1487,17 +1701,17 @@ export function CheckoutModal({
                   </div>
                 </div>
 
-                <div className="flex gap-4 mt-10">
+                <div className="flex gap-3 mt-8">
                   <button
                     onClick={() => setStep(2)}
-                    className="flex-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 py-4 rounded-xl font-bold transition-all border border-zinc-200 dark:border-zinc-700"
+                    className="flex-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 py-4 rounded-xl font-bold transition-all border border-zinc-200 dark:border-zinc-700 text-center"
                   >
                     Voltar
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                    className="flex-[2] bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
                     {isSubmitting ? (
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
