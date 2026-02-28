@@ -23,9 +23,23 @@ const SocialIcons: Record<string, React.FC<{className?: string}>> = {
   ),
 };
 
+const SocialBrandColors: Record<string, string> = {
+  instagram: '#E1306C',
+  facebook: '#1877F2',
+  tiktok: '#000000',
+  youtube: '#FF0000',
+  twitter: '#000000',
+};
+
 export function Header() {
   const { config } = useConfig();
   const [isMobile, setIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 768);
+
+  // Cores das redes: config > fallback brand colors
+  const socialColors = config.socialMediaColors || {};
+  const getSocialColor = (network: string) => {
+    return (socialColors as any)[network] || SocialBrandColors[network] || config.themeColor || '#d97706';
+  };
 
   React.useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -179,7 +193,7 @@ export function Header() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all hover:scale-105 hover:shadow-lg"
-                    style={{ backgroundColor: themeColor }}
+                    style={{ backgroundColor: getSocialColor(network) }}
                     title={label}
                   >
                     <Icon className="w-4 h-4 text-white" />

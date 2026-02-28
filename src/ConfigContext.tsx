@@ -59,6 +59,8 @@ export interface SystemConfig {
   hiddenBestSellers?: string[]; // IDs de produtos ocultos dos "Mais Pedidos"
   popularProducts?: Array<{ productId: string; count: number }>; // Lista de populares (salva pelo admin)
   popularUpdatedAt?: string;
+  noveltyProductIds?: string[]; // IDs de produtos selecionados como "Novidades"
+  socialMediaColors?: Record<string, string>; // Cores personalizadas dos ícones de redes sociais
   // Banner cards antes do footer
   bannerCards?: Array<{ imageUrl: string; link?: string }>;
   // Redes sociais

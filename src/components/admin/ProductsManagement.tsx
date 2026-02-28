@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BestSellersManager } from './BestSellersManager';
-import { Plus, Edit, Trash2, Image as ImageIcon, X, Save, Loader, Settings, Trophy, AlertTriangle, Package, BoxSelect, Utensils, Search, ChevronDown, ChevronUp, Percent, TrendingUp } from 'lucide-react';
+import { NovitiesManager } from './NovitiesManager';
+import { Plus, Edit, Trash2, Image as ImageIcon, X, Save, Loader, Settings, Trophy, AlertTriangle, Package, BoxSelect, Utensils, Search, ChevronDown, ChevronUp, Percent, TrendingUp, Sparkles } from 'lucide-react';
 import * as api from '../../utils/api';
 import type { Product } from '../../App';
 import { CategoryManager } from './CategoryManager';
@@ -22,6 +23,7 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
   const [showTopRatedManager, setShowTopRatedManager] = useState(false);
   const [showPromotionsManager, setShowPromotionsManager] = useState(false);
   const [showBestSellersManager, setShowBestSellersManager] = useState(false);
+  const [showNovitiesManager, setShowNovitiesManager] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
@@ -366,6 +368,7 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
   // Combine system categories with managed categories for filtering
   const filterCategories = [
     { id: 'all', label: 'Todos' },
+    { id: 'novidades', label: 'Novidades' }, // System category
     { id: 'mais-pedidos', label: 'Mais Pedidos' }, // System category
     { id: 'promocoes', label: 'Promoções' }, // System category
     ...categories.map(c => ({ id: c.id, label: c.label }))
@@ -471,6 +474,7 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
               setSelectedCategory(cat.id);
               setShowPromotionsManager(cat.id === 'promocoes');
               setShowBestSellersManager(cat.id === 'mais-pedidos');
+              setShowNovitiesManager(cat.id === 'novidades');
             }}
             className={`px-4 py-2 rounded-lg transition-colors whitespace-nowrap border flex items-center gap-1.5 ${
               selectedCategory === cat.id
@@ -478,12 +482,15 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   ? 'bg-red-600 text-white border-red-600'
                   : cat.id === 'mais-pedidos'
                     ? 'bg-amber-600 text-white border-amber-600'
-                    : 'bg-green-600 text-white border-green-600'
+                    : cat.id === 'novidades'
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-green-600 text-white border-green-600'
                 : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
             }`}
           >
             {cat.id === 'promocoes' && <Percent className="w-3.5 h-3.5" />}
             {cat.id === 'mais-pedidos' && <TrendingUp className="w-3.5 h-3.5" />}
+            {cat.id === 'novidades' && <Sparkles className="w-3.5 h-3.5" />}
             {cat.label}
           </button>
         ))}
@@ -502,8 +509,13 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         <BestSellersManager />
       )}
 
-      {/* Lista de Produtos — oculta quando PromotionsManager ou BestSellersManager está ativo */}
-      {!showPromotionsManager && !showBestSellersManager && (filteredProducts.length === 0 ? (
+      {/* Novities Manager — quando filtro Novidades está ativo */}
+      {showNovitiesManager && selectedCategory === 'novidades' && (
+        <NovitiesManager />
+      )}
+
+      {/* Lista de Produtos — oculta quando um manager especial está ativo */}
+      {!showPromotionsManager && !showBestSellersManager && !showNovitiesManager && (filteredProducts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-600 mb-4">Nenhum produto encontrado no servidor.</p>
           
@@ -584,7 +596,8 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
                     {categories.find(c => c.id === product.category)?.label || 
                      (product.category === 'promocoes' ? 'Promoções' : 
-                      product.category === 'mais-pedidos' ? 'Mais Pedidos' : product.category)}
+                      product.category === 'mais-pedidos' ? 'Mais Pedidos' : 
+                      product.category === 'novidades' ? 'Novidades' : product.category)}
                   </span>
                   {stockEnabled && unavailableProducts.includes(product.id) && (
                     <span className="px-2 py-1 rounded text-xs font-bold bg-red-200 text-red-800 flex items-center gap-1">

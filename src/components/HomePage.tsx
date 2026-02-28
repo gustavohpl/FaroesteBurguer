@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Percent, Clock, TrendingUp } from 'lucide-react';
+import { Percent, Clock, TrendingUp, Sparkles } from 'lucide-react';
 import type { Product } from '../App';
 import { ProductCard } from './ProductCard';
 import { TopRatedProducts } from './TopRatedProducts';
@@ -37,6 +37,12 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
 
     setBestSellers(topProducts);
   }, [products, config.popularProducts, config.hiddenBestSellers]);
+
+  // Novidades: lê IDs do config (selecionados pelo admin)
+  const noveltyIds: string[] = (config as any).noveltyProductIds || [];
+  const novidades = noveltyIds
+    .map(id => products.find(p => p.id === id))
+    .filter((p): p is Product => p !== undefined && p.available !== false);
 
   const promotions = products.filter(p => p.category === 'promocoes');
 
@@ -111,6 +117,27 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
             <img src={config.homeBannerUrl} alt="Banner" className="w-full h-auto object-contain" />
           )}
         </div>
+      )}
+
+      {/* Novidades - SÓ aparece se admin adicionou produtos */}
+      {novidades.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-purple-500 text-white p-3 rounded-lg shadow-md">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">Novidades</h2>
+          </div>
+          <HorizontalScroll>
+            {novidades.map(product => 
+              renderScrollCard(product, {
+                text: 'NOVIDADE',
+                color: 'bg-purple-500',
+                icon: <Sparkles className="w-4 h-4" />
+              })
+            )}
+          </HorizontalScroll>
+        </section>
       )}
 
       {/* Promoções - Grid normal */}
