@@ -7,6 +7,7 @@ export interface SystemConfig {
   themeColor: string;
   phone: string;
   address: string;
+  googleMapsUrl?: string;
   logoUrl?: string;
   headerBackgroundUrl?: string;
   headerBackgroundMobileUrl?: string; // Imagem do header para mobile
@@ -56,6 +57,7 @@ export interface SystemConfig {
   // Banner entre boas-vindas e promoções
   homeBannerUrl?: string;
   homeBannerLink?: string;
+  homeBanners?: Array<{ imageUrl: string; link?: string }>;
   hiddenBestSellers?: string[]; // IDs de produtos ocultos dos "Mais Pedidos"
   popularProducts?: Array<{ productId: string; count: number }>; // Lista de populares (salva pelo admin)
   popularUpdatedAt?: string;
@@ -71,6 +73,36 @@ export interface SystemConfig {
     youtube?: string;
     twitter?: string;
   };
+  // Sistema de Franquias (SaaS)
+  franchise?: {
+    enabled: boolean;
+    cities: FranchiseCity[];
+    switchPassword?: string; // Senha para admin trocar de franquia
+  };
+}
+
+// Tipo de cidade no sistema de franquias
+export interface FranchiseCity {
+  id: string;        // slug: "goiatuba", "jatai"
+  name: string;      // "Goiatuba"
+  units: FranchiseUnit[]; // Franquias/unidades da cidade
+}
+
+// Tipo de unidade/franquia dentro de uma cidade
+export interface FranchiseUnit {
+  id: string;         // slug: "centro-goiatuba"
+  name: string;       // "NewBurguer Centro"
+  phone: string;
+  address: string;
+  googleMapsUrl?: string;
+  openingHours?: string;
+  deliveryFee?: number;
+  isOpen?: boolean;
+  sectors?: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
 }
 
 interface ConfigContextType {
