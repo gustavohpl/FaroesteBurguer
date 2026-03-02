@@ -199,6 +199,8 @@ export function MasterDashboard() {
   const [editingCityId, setEditingCityId] = useState<string | null>(null);
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [newCityName, setNewCityName] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string } | null>(null);
   
   // Estado para descobrir IP do servidor
   const [isDiscoveringIP, setIsDiscoveringIP] = useState(false);
@@ -2597,6 +2599,75 @@ export function MasterDashboard() {
                       );
                     })}
                   </div>
+
+                  {/* Migração de dados */}
+                  {(config.franchise?.cities || []).some(c => c.units.length > 0) && (
+                    <div className="bg-white rounded-lg shadow-md p-6 border border-amber-200">
+                      <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                        <RefreshCw className="w-5 h-5 text-amber-600" />
+                        Migrar Dados Existentes
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Se você já tinha produtos, pedidos, cupons e setores cadastrados <strong>antes</strong> de ativar o sistema de franquias, 
+                        use o botão abaixo para copiar esses dados para uma unidade. Os dados originais não serão apagados.
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <select
+                          id="migrate-target-unit"
+                          className="flex-1 min-w-[200px] p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                        >
+                          <option value="">Selecione a unidade de destino...</option>
+                          {(config.franchise?.cities || []).map(city => 
+                            city.units.map(unit => (
+                              <option key={unit.id} value={unit.id}>
+                                {city.name} → {unit.name}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        <button
+                          onClick={async () => {
+                            const select = document.getElementById('migrate-target-unit') as HTMLSelectElement;
+                            const unitId = select?.value;
+                            if (!unitId) { alert('Selecione uma unidade'); return; }
+                            if (!confirm(`Migrar todos os dados existentes para a unidade "${unitId}"?\n\nProdutos, pedidos, cupons, setores e estoque serão copiados. Os dados originais não serão apagados.`)) return;
+                            
+                            setIsMigrating(true);
+                            setMigrationResult(null);
+                            try {
+                              const result = await api.migrateFranchiseData(token, unitId);
+                              setMigrationResult({
+                                success: result.success !== false,
+                                message: result.message || `${result.migrated || 0} itens migrados com sucesso!`
+                              });
+                            } catch (e) {
+                              setMigrationResult({ success: false, message: `Erro: ${e}` });
+                            }
+                            setIsMigrating(false);
+                          }}
+                          disabled={isMigrating}
+                          className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 whitespace-nowrap"
+                        >
+                          {isMigrating ? (
+                            <><RefreshCw className="w-4 h-4 animate-spin" /> Migrando...</>
+                          ) : (
+                            <><RefreshCw className="w-4 h-4" /> Migrar Dados</>
+                          )}
+                        </button>
+                      </div>
+
+                      {migrationResult && (
+                        <div className={`mt-3 p-3 rounded-lg text-sm font-medium ${
+                          migrationResult.success 
+                            ? 'bg-green-50 text-green-700 border border-green-200' 
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}>
+                          {migrationResult.success ? '✅' : '❌'} {migrationResult.message}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 /* === MODO NORMAL (sem franquia) === */
