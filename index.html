@@ -2,11 +2,36 @@
 <html lang="pt-BR" translate="no" class="notranslate">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/icons/favicon-64.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Faroeste" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="NewBurguer Lanches - Delivery" />
+    <meta name="description" content="Faroeste Burguer - Delivery" />
     <meta name="google" content="notranslate" />
-    <title>NewBurguer Lanches</title>
+    <title>Faroeste Burguer</title>
+    <style>
+      html[data-abre="escuro"], html[data-abre="escuro"] body, html[data-abre="escuro"] .carregando-inicial { background: #000; }
+      html[data-abre="escuro"] .carregando-inicial > div { border-color: #fff; }
+    </style>
+    <script>
+      // Prime e app instalado abrem no preto da abertura, sem piscar branco antes do JS
+      try {
+        var d = new URLSearchParams(location.search).get('design') || JSON.parse(localStorage.getItem('faroeste_system_config') || '{}').designStyle;
+        if (d === 'prime' || matchMedia('(display-mode: standalone)').matches) document.documentElement.dataset.abre = 'escuro';
+      } catch (e) {}
+    </script>
+    <!-- Fonte display do tema 3D (Playfair Display SC) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

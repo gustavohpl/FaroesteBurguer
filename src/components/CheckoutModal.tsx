@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Home, UtensilsCrossed, Copy, Check, CheckCircle, ChevronLeft, User, LogOut, Clock, RotateCcw, Trash2, Phone, CreditCard, Banknote, Ticket, ReceiptText, Droplets } from 'lucide-react';
 import type { CartItem } from '../App';
 import * as api from '../utils/api';
+import { toast } from 'sonner';
 import { sanitizeName, sanitizePhone, sanitizeText, sanitizeAddress } from '../utils/sanitize';
 import { PixPayment } from './PixPayment';
 import { PixPaymentPagSeguro } from './PixPaymentPagSeguro';
@@ -23,12 +24,14 @@ interface CheckoutModalProps {
   isStoreOpen: boolean;
   deliveryFee: number;
   allProducts?: Array<{ id: string; recipe?: any; promoItems?: any[] }>;
+  prime?: boolean;
 }
 
 type DeliveryType = 'delivery' | 'pickup' | 'dine-in';
 type PaymentMethod = 'pix' | 'card' | 'cash';
 
 export function CheckoutModal({
+  prime,
   isOpen,
   onClose,
   items,
@@ -42,6 +45,15 @@ export function CheckoutModal({
   const { config } = useConfig();
   const { unitOverrides } = useFranchise();
   const [step, setStep] = useState(1);
+  const miolo = useRef<HTMLDivElement>(null);
+  useEffect(() => { miolo.current?.scrollTo({ top: 0 }); }, [step]);
+  const [pergunta, setPergunta] = useState<{ texto: string; responder: (ok: boolean) => void } | null>(null);
+  // no Prime, avisos e perguntas no visual do app em vez das caixas nativas do navegador
+  const avisar = (texto: string) => (prime ? toast.error(texto) : alert(texto));
+  const perguntar = (texto: string) => (prime
+    ? new Promise<boolean>((responder) => setPergunta({ texto, responder }))
+    : Promise.resolve(window.confirm(texto)));
+  const responder = (ok: boolean) => { pergunta?.responder(ok); setPergunta(null); };
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   
@@ -322,40 +334,40 @@ export function CheckoutModal({
 
     // Verificar se a loja está aberta
     if (!isStoreOpen) {
-      alert('🕒 Desculpe, a loja está fechada no momento!\n\n⏰ Horário de funcionamento: A partir das 18h30\n\nAguardamos você!');
+      avisar('🕒 Desculpe, a loja está fechada no momento!\n\n⏰ Horário de funcionamento: A partir das 18h30\n\nAguardamos você!');
       return;
     }
     
     // Validações
     if (!name.trim() || !phone.trim()) {
-      alert('Por favor, preencha nome e telefone');
+      avisar('Por favor, preencha nome e telefone');
       return;
     }
 
     if (deliveryType === 'delivery' && !street.trim()) {
-      alert('Por favor, preencha a rua');
+      avisar('Por favor, preencha a rua');
       return;
     }
 
     if (deliveryType === 'delivery' && !houseNumber.trim()) {
-      alert('Por favor, preencha o número');
+      avisar('Por favor, preencha o número');
       return;
     }
 
     if (deliveryType === 'delivery' && !neighborhood.trim()) {
-      alert('Por favor, preencha o bairro/setor');
+      avisar('Por favor, preencha o bairro/setor');
       return;
     }
 
     // 🆕 Validação de setor (obrigatório quando há setores disponíveis)
     if (deliveryType === 'delivery' && availableSectors.length > 0 && !deliverySector) {
-      alert('📍 Por favor, selecione o setor de entrega');
+      avisar('📍 Por favor, selecione o setor de entrega');
       return;
     }
 
     // 🆕 Validação de tipo de cartão
     if (!splitPayment && paymentMethod === 'card' && !cardType) {
-      alert('Por favor, selecione se o pagamento será no Crédito ou Débito');
+      avisar('Por favor, selecione se o pagamento será no Crédito ou Débito');
       return;
     }
 
@@ -365,11 +377,11 @@ export function CheckoutModal({
       const amt1 = parseFloat(splitAmount1) || 0;
       const amt2 = parseFloat((total - amt1).toFixed(2));
       if (amt1 <= 0 || amt2 <= 0) {
-        alert('Os valores do pagamento misto devem ser maiores que zero');
+        avisar('Os valores do pagamento misto devem ser maiores que zero');
         return;
       }
       if (splitMethod1 === splitMethod2) {
-        alert('Selecione duas formas de pagamento diferentes');
+        avisar('Selecione duas formas de pagamento diferentes');
         return;
       }
     }
@@ -412,6 +424,7 @@ export function CheckoutModal({
           quantity: item.quantity,
           price: item.price,
           notes: item.notes ? sanitizeText(item.notes, 300) : undefined,
+          selectedAddons: item.selectedAddons || [],
         })),
         total: getTotalWithDiscount(),
         totalBeforeDiscount: getFinalTotal(),
@@ -436,7 +449,7 @@ export function CheckoutModal({
       
       if (!response.success) {
         console.error('❌ [CHECKOUT] Erro ao criar pedido:', response.error);
-        alert('Erro ao criar pedido. Tente novamente.');
+        avisar('Erro ao criar pedido. Tente novamente.');
         setIsSubmitting(false);
         return;
       }
@@ -493,7 +506,7 @@ export function CheckoutModal({
           console.log('💳 [CHECKOUT] Cartão Manual - Perguntar antes de enviar WhatsApp');
           
           // 🆕 PERGUNTAR ANTES DE ENVIAR WHATSAPP
-          const shouldSendWhatsApp = window.confirm(
+          const shouldSendWhatsApp = await perguntar(
             '✅ Pedido confirmado com sucesso!\n\n' +
             '💳 Pagamento: Cartão na Entrega\n\n' +
             'Deseja enviar os detalhes do pedido para o WhatsApp da loja?'
@@ -513,7 +526,7 @@ export function CheckoutModal({
         console.log('💵 [CHECKOUT] Dinheiro - Perguntar antes de enviar WhatsApp');
         
         // 🆕 PERGUNTAR ANTES DE ENVIAR WHATSAPP
-        const shouldSendWhatsApp = window.confirm(
+        const shouldSendWhatsApp = await perguntar(
           '✅ Pedido confirmado com sucesso!\n\n' +
           '💵 Pagamento: Dinheiro na Entrega\n\n' +
           'Deseja enviar os detalhes do pedido para o WhatsApp da loja?'
@@ -529,7 +542,7 @@ export function CheckoutModal({
 
     } catch (error) {
       console.error('❌ [CHECKOUT] Erro ao processar pedido:', error);
-      alert('Erro ao processar pedido. Tente novamente.');
+      avisar('Erro ao processar pedido. Tente novamente.');
       setIsSubmitting(false);
     }
   };
@@ -636,13 +649,13 @@ export function CheckoutModal({
     
     if (!orderId) {
       console.error('❌ [WHATSAPP] Erro: orderId está vazio!');
-      alert('Erro: ID do pedido não encontrado. Tente novamente.');
+      avisar('Erro: ID do pedido não encontrado. Tente novamente.');
       return;
     }
     
     // Gerar mensagem do WhatsApp usando template literals normais
     const nl = '\n'; // quebra de linha
-    let message = '🍔 *NOVO PEDIDO - NEWBURGUER LANCHES*' + nl + nl;
+    let message = '🍔 *NOVO PEDIDO - ' + (config.siteName || 'NewBurguer Lanches').replace(/\p{Extended_Pictographic}/gu, '').trim().toUpperCase() + '*' + nl + nl;
     message += '📋 *Código do Pedido:* #' + orderId + nl;
     message += '👤 *Nome:* ' + name + nl;
     message += '📱 *Telefone:* ' + phone + nl + nl;
@@ -679,10 +692,21 @@ export function CheckoutModal({
     message += '━━━━━━━━━━━━━━━━━━' + nl;
     
     items.forEach((item, index) => {
+      const addonsTotal = (item.selectedAddons || []).reduce((a: number, addon: any) => a + addon.price, 0);
+      const unitPrice = item.price + addonsTotal;
       message += nl + (index + 1) + '. *' + item.name + '*' + nl;
       message += '   📦 Quantidade: ' + item.quantity + 'x' + nl;
       message += '   💵 Preço Unit.: R$ ' + item.price.toFixed(2).replace('.', ',') + nl;
-      message += '   💰 Subtotal: R$ ' + (item.price * item.quantity).toFixed(2).replace('.', ',') + nl;
+      
+      // Adicionais selecionados
+      if (item.selectedAddons && item.selectedAddons.length > 0) {
+        message += '   🛒 *Adicionais:*' + nl;
+        item.selectedAddons.forEach((addon: any) => {
+          message += '      • ' + addon.name + (addon.price > 0 ? ' (+R$ ' + addon.price.toFixed(2).replace('.', ',') + ')' : ' (grátis)') + nl;
+        });
+      }
+      
+      message += '   💰 Subtotal: R$ ' + (unitPrice * item.quantity).toFixed(2).replace('.', ',') + nl;
       
       if (item.notes) {
         message += '   🗒️ *Observação:* ' + item.notes + nl;
@@ -755,7 +779,7 @@ export function CheckoutModal({
       console.log('✅ [WHATSAPP] WhatsApp aberto com sucesso!');
     } catch (error) {
       console.error('❌ [WHATSAPP] Erro ao abrir WhatsApp:', error);
-      alert('Erro ao abrir WhatsApp. Por favor, tente novamente.');
+      avisar('Erro ao abrir WhatsApp. Por favor, tente novamente.');
     }
 
     // Salvar dados básicos no localStorage para auto-preenchimento futuro (backup)
@@ -797,7 +821,7 @@ export function CheckoutModal({
     // enviar a mensagem de confirmação do pedido
     if (!currentOrderId) {
       console.error('❌ [PIX] Erro: currentOrderId está vazio!');
-      alert('Erro: ID do pedido não encontrado. Por favor, entre em contato conosco.');
+      avisar('Erro: ID do pedido não encontrado. Por favor, entre em contato conosco.');
       return;
     }
     
@@ -904,20 +928,22 @@ export function CheckoutModal({
 
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className={prime ? 'pr-veu' : 'fixed inset-0 bg-black bg-opacity-50 z-40'}
         onClick={handleClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-        <div className="bg-white dark:bg-zinc-900 rounded-none sm:rounded-lg shadow-2xl w-full sm:max-w-2xl min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto">
+      <div className={prime ? 'ck-palco' : 'fixed inset-0 z-50 flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto'}>
+        <div className={prime ? 'pr-folha ck' : 'bg-white dark:bg-zinc-900 rounded-none sm:rounded-lg shadow-2xl w-full sm:max-w-2xl min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto'}
+          {...(prime ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Finalizar pedido' } : {})}>
+          {prime && <span className="pegador" aria-hidden />}
           {/* Header */}
-          <div className="bg-amber-600 text-white p-4 flex items-center justify-between sticky top-0">
+          <div className={prime ? 'ck-cab' : 'bg-amber-600 text-white p-4 flex items-center justify-between sticky top-0'}>
             <div className="flex items-center gap-2">
               {step > 1 && (
                 <button
                   onClick={() => setStep(step - 1)}
-                  className="hover:bg-amber-700 p-2 rounded transition-colors flex items-center gap-1"
+                  className={prime ? 'ck-voltar' : 'hover:bg-amber-700 p-2 rounded transition-colors flex items-center gap-1'}
                   title="Voltar"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -928,15 +954,25 @@ export function CheckoutModal({
             </div>
             <button
               onClick={handleClose}
-              className="hover:bg-amber-700 p-1 rounded transition-colors"
+              className={prime ? 'pc-x' : 'hover:bg-amber-700 p-1 rounded transition-colors'}
+              aria-label="Fechar"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="px-4 py-5 sm:p-6">
+          <div ref={miolo} className={prime ? 'ck-miolo rola' : 'px-4 py-5 sm:p-6'}>
             {/* Progress Steps */}
+            {prime ? (
+              <ol className="ck-passos">
+                {['Seus dados', 'Entrega', 'Pagamento'].map((t, i) => (
+                  <li key={t} className={step > i + 1 ? 'feito' : step === i + 1 ? 'atual' : ''}>
+                    <i>{step > i + 1 ? <Check className="w-3.5 h-3.5" /> : i + 1}</i>{t}
+                  </li>
+                ))}
+              </ol>
+            ) : (
             <div className="flex items-center justify-center mb-8">
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-amber-600 text-white' : 'bg-gray-300 dark:bg-zinc-700'}`}>
@@ -952,6 +988,7 @@ export function CheckoutModal({
                 </div>
               </div>
             </div>
+            )}
 
             {/* Step 1: Customer Info */}
             {step === 1 && (
@@ -1658,16 +1695,33 @@ export function CheckoutModal({
                     {/* Itens */}
                     <div className="space-y-3">
                       <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Itens Selecionados</p>
-                      {items.map(item => (
-                        <div key={item.id} className="flex justify-between items-center text-sm bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-50 dark:border-zinc-800/30">
-                          <span className="text-zinc-700 dark:text-zinc-300 font-medium">
-                            <span className="text-amber-600 font-bold mr-2">{item.quantity}x</span> {item.name}
-                          </span>
-                          <span className="text-zinc-900 dark:text-zinc-100 font-bold">
-                            R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
-                          </span>
-                        </div>
-                      ))}
+                      {items.map((item, idx) => {
+                        const addonsTotal = (item.selectedAddons || []).reduce((a: number, addon: any) => a + addon.price, 0);
+                        return (
+                          <div key={`${item.id}-${idx}`} className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-50 dark:border-zinc-800/30">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+                                <span className="text-amber-600 font-bold mr-2">{item.quantity}x</span> {item.name}
+                              </span>
+                              <span className="text-zinc-900 dark:text-zinc-100 font-bold">
+                                R$ {((item.price + addonsTotal) * item.quantity).toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                            {item.selectedAddons && item.selectedAddons.length > 0 && (
+                              <div className="mt-1.5 pl-8 space-y-0.5">
+                                {item.selectedAddons.map((addon: any) => (
+                                  <div key={addon.id} className="flex justify-between text-[11px]">
+                                    <span className="text-purple-600 dark:text-purple-400">+ {addon.name}</span>
+                                    <span className="text-purple-600 dark:text-purple-400 font-medium">
+                                      {addon.price > 0 ? `R$ ${addon.price.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Acompanhamentos selecionados */}
@@ -1746,6 +1800,18 @@ export function CheckoutModal({
           </div>
         </div>
       </div>
+
+      {pergunta && (
+        <div className="ck-pergunta">
+          <div role="alertdialog" aria-modal="true">
+            <p>{pergunta.texto}</p>
+            <div className="acoes">
+              <button onClick={() => responder(false)}>Agora não</button>
+              <button className="ok" onClick={() => responder(true)}>Enviar no WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

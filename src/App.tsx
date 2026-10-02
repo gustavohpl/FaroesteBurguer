@@ -6,6 +6,8 @@ import { CategoryPage } from './components/CategoryPage';
 import { HomePage } from './components/HomePage';
 import { Footer } from './components/Footer';
 import { Cart } from './components/Cart';
+import { PrimeCart } from './components/prime/PrimeCart';
+import { PrimeEscopo } from './components/prime/PrimeEscopo';
 import { MiniCart } from './components/MiniCart';
 import { CheckoutModal } from './components/CheckoutModal';
 import { OrderTracking } from './components/OrderTracking';
@@ -20,6 +22,12 @@ import * as api from './utils/api';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { MetaPixel } from './components/MetaPixel';
 import { ConfigProvider, useConfig } from './ConfigContext';
+import { useDesign } from './useDesign';
+import { CleanLayout } from './components/clean/CleanLayout';
+import { RusticLayout } from './components/rustic/RusticLayout';
+import { PrimeLayout } from './components/prime/PrimeLayout';
+import { ThreeDBackground } from './components/three-d/ThreeDBackground';
+import './components/three-d/threed-theme.css';
 import { FranchiseProvider, useFranchise } from './FranchiseContext';
 import { FranchiseSelectionModal } from './components/FranchiseSelectionModal';
 import { MasterDashboard } from './components/master/MasterDashboard';
@@ -56,18 +64,36 @@ export interface Product {
       hideFromClient: boolean;
     }>;
   };
+  // 🛒 Adicionais que o cliente pode escolher ao comprar
+  addons?: Array<{
+    id: string;
+    name: string;
+    price: number;         // 0 = grátis
+    ingredientId?: string; // Vínculo com ingrediente do estoque (opcional)
+  }>;
 }
 
 export interface CartItem extends Product {
   quantity: number;
   notes?: string; // Campo de observações
   selectedAcompanhamentos?: string[]; // IDs dos acompanhamentos selecionados pelo cliente
+  // 🛒 Adicionais selecionados pelo cliente
+  selectedAddons?: Array<{
+    id: string;
+    name: string;
+    price: number;
+  }>;
 }
 
 import { useCustomer } from './hooks/useCustomer';
 
 function AppContent() {
   const { config, updateConfigLocal } = useConfig();
+  const design = useDesign();
+  const isClean = design.headerLayout === 'minimal';
+  const isRustic = design.id === 'rustic';
+  const isThreeD = design.id === 'threed';
+  const isPrime = design.id === 'prime';
   const { unitOverrides, franchiseEnabled, selectedUnit, needsSelection } = useFranchise();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   
@@ -630,22 +656,29 @@ function AppContent() {
     window.history.pushState({}, '', '/');
   };
 
-  const addToCart = (product: Product, notes?: string, quantity?: number) => {
+  const addToCart = (product: Product, notes?: string, quantity?: number, selectedAddons?: Array<{id: string; name: string; price: number}>) => {
     const qty = quantity || 1;
     setCartItems(prev => {
-      const existingItem = prev.find(item => item.id === product.id && item.notes === notes);
+      // Comparar produto + notas + adicionais para determinar se é o mesmo item
+      const addonsKey = selectedAddons?.map(a => a.id).sort().join(',') || '';
+      const existingItem = prev.find(item => {
+        const itemAddonsKey = item.selectedAddons?.map(a => a.id).sort().join(',') || '';
+        return item.id === product.id && item.notes === notes && itemAddonsKey === addonsKey;
+      });
       
       if (existingItem) {
-        // Se já existe item idêntico (mesmo produto e mesmas observações), incrementa quantidade
-        return prev.map(item =>
-          item.id === product.id && item.notes === notes
+        // Se já existe item idêntico (mesmo produto, observações e adicionais), incrementa quantidade
+        const addonsKey2 = selectedAddons?.map(a => a.id).sort().join(',') || '';
+        return prev.map(item => {
+          const itemAddonsKey = item.selectedAddons?.map(a => a.id).sort().join(',') || '';
+          return item.id === product.id && item.notes === notes && itemAddonsKey === addonsKey2
             ? { ...item, quantity: item.quantity + qty }
-            : item
-        );
+            : item;
+        });
       }
       
-      // Se não existe ou tem observações diferentes, adiciona como novo item
-      return [...prev, { ...product, quantity: qty, notes }];
+      // Se não existe ou tem adicionais/observações diferentes, adiciona como novo item
+      return [...prev, { ...product, quantity: qty, notes, selectedAddons }];
     });
   };
 
@@ -670,7 +703,10 @@ function AppContent() {
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return cartItems.reduce((sum, item) => {
+      const addonsTotal = (item.selectedAddons || []).reduce((a, addon) => a + addon.price, 0);
+      return sum + (item.price + addonsTotal) * item.quantity;
+    }, 0);
   };
 
   const handleCheckout = () => {
@@ -730,11 +766,11 @@ function AppContent() {
       ) : (
         <div 
           id="client-app" 
-          className={`min-h-screen bg-background text-foreground flex flex-col transition-colors duration-300 ${isDarkMode ? 'dark' : ''}`}
+          className={`min-h-screen ${isClean ? 'bg-zinc-50 text-zinc-900' : 'bg-background text-foreground'} flex flex-col transition-colors duration-300 ${isDarkMode && !isClean ? 'dark' : ''} ${isThreeD ? 'design-threed' : ''}`}
           style={{ position: 'relative' }}
         >
-          {/* Imagem de fundo fixa com zoom suave (Ken Burns) */}
-          {(config.contentBackgroundUrl || config.contentBackgroundMobileUrl) && (
+          {/* Imagem de fundo fixa com zoom suave (Ken Burns) — apenas no Clássico */}
+          {!isClean && !isRustic && !isThreeD && !isPrime && (config.contentBackgroundUrl || config.contentBackgroundMobileUrl) && (
             <>
               {/* Preload da imagem em alta qualidade */}
               <link 
@@ -769,10 +805,40 @@ function AppContent() {
               />
             </>
           )}
+          {/* Fundo 3D fixo — substitui a imagem do Clássico no design "3D".
+              O conteúdo Clássico (header/menus/footer) fica por cima, transparente. */}
+          {isThreeD && <ThreeDBackground />}
           {showDelivery ? (
             <DeliverymanPage />
           ) : (
             <div className="relative flex flex-col flex-1 z-[1]">
+              {isClean ? (
+                <CleanLayout
+                  products={products}
+                  onAddToCart={addToCart}
+                  cartCount={cartItems.reduce((s, i) => s + (i.quantity || 1), 0)}
+                  onOpenCart={() => setIsCartOpen(true)}
+                  isStoreOpen={effectiveIsOpen}
+                />
+              ) : isRustic ? (
+                <RusticLayout
+                  products={products}
+                  onAddToCart={addToCart}
+                  cartCount={cartItems.reduce((s, i) => s + (i.quantity || 1), 0)}
+                  onOpenCart={() => setIsCartOpen(true)}
+                  isStoreOpen={effectiveIsOpen}
+                />
+              ) : isPrime ? (
+                <PrimeLayout
+                  products={products}
+                  onAddToCart={addToCart}
+                  cartCount={cartItems.reduce((s, i) => s + (i.quantity || 1), 0)}
+                  onOpenCart={() => setIsCartOpen(true)}
+                  isStoreOpen={effectiveIsOpen}
+                  onMeusPedidos={() => setIsOrderSearchOpen(true)}
+                />
+              ) : (
+              <>
               <Header />
 
               <StatusBar 
@@ -822,87 +888,106 @@ function AppContent() {
               )}
 
               <Footer />
+              </>
+              )}
 
-              <Cart
-                isOpen={isCartOpen}
-                onClose={() => setIsCartOpen(false)}
-                items={cartItems}
-                onUpdateQuantity={updateQuantity}
-                onRemove={removeFromCart}
-                totalPrice={getTotalPrice()}
-                onCheckout={handleCheckout}
-              />
-
-              <MiniCart
-                items={cartItems}
-                totalPrice={getTotalPrice()}
-                onOpenFullCart={() => setIsCartOpen(true)}
-                onRemove={removeFromCart}
-                onUpdateQuantity={updateQuantity}
-              />
+              {isPrime ? (
+                <PrimeCart
+                  isOpen={isCartOpen}
+                  onClose={() => setIsCartOpen(false)}
+                  items={cartItems}
+                  onUpdateQuantity={updateQuantity}
+                  onRemove={removeFromCart}
+                  totalPrice={getTotalPrice()}
+                  onCheckout={handleCheckout}
+                />
+              ) : (
+                <>
+                  <Cart
+                    isOpen={isCartOpen}
+                    onClose={() => setIsCartOpen(false)}
+                    items={cartItems}
+                    onUpdateQuantity={updateQuantity}
+                    onRemove={removeFromCart}
+                    totalPrice={getTotalPrice()}
+                    onCheckout={handleCheckout}
+                  />
+                  <MiniCart
+                    items={cartItems}
+                    totalPrice={getTotalPrice()}
+                    onOpenFullCart={() => setIsCartOpen(true)}
+                    onRemove={removeFromCart}
+                    onUpdateQuantity={updateQuantity}
+                  />
+                </>
+              )}
 
               {/* 📋 Botão flutuante — Meus Pedidos (canto inferior esquerdo) */}
-              <button
-                onClick={() => setIsOrderSearchOpen(true)}
-                className="fixed bottom-6 left-4 z-40 flex items-center gap-2 px-4 py-3 rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all text-white font-bold text-sm"
-                style={{ 
-                  backgroundColor: config.themeColor || '#d97706',
-                  boxShadow: `0 4px 20px ${config.themeColor || '#d97706'}66`
-                }}
-                title="Meus Pedidos"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span className="hidden sm:inline">Meus Pedidos</span>
-              </button>
+              {!isPrime && (
+                <button
+                  onClick={() => setIsOrderSearchOpen(true)}
+                  className="fixed bottom-6 left-4 z-40 w-16 h-16 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-white"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${config.themeColor || '#d97706'}, ${config.themeColor || '#d97706'}cc)`,
+                    boxShadow: `0 4px 20px ${config.themeColor || '#d97706'}66`
+                  }}
+                  title="Meus Pedidos"
+                >
+                  <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                </button>
+              )}
 
-              <CheckoutModal
-                isOpen={isCheckoutOpen}
-                onClose={() => setIsCheckoutOpen(false)}
-                items={cartItems}
-                totalPrice={getTotalPrice()}
-                onOrderComplete={handleOrderComplete}
-                onOrderCreated={handleOrderCreated}
-                isStoreOpen={effectiveIsOpen}
-                deliveryFee={effectiveDeliveryFee}
-                allProducts={products}
-              />
+              <PrimeEscopo ativo={isPrime}>
+                <CheckoutModal
+                  prime={isPrime}
+                  isOpen={isCheckoutOpen}
+                  onClose={() => setIsCheckoutOpen(false)}
+                  items={cartItems}
+                  totalPrice={getTotalPrice()}
+                  onOrderComplete={handleOrderComplete}
+                  onOrderCreated={handleOrderCreated}
+                  isStoreOpen={effectiveIsOpen}
+                  deliveryFee={effectiveDeliveryFee}
+                  allProducts={products}
+                />
 
-              <OrderSearchModal
-                isOpen={isOrderSearchOpen}
-                onClose={() => setIsOrderSearchOpen(false)}
-                onOrderFound={(orderId) => {
-                  setCurrentOrderId(orderId);
-                  setIsOrderTrackingOpen(true);
-                }}
-              />
-
-              <OrderTracking
-                isOpen={isOrderTrackingOpen}
-                onClose={() => setIsOrderTrackingOpen(false)}
-                orderId={currentOrderId}
-              />
-              
-              {/* Modal de Pedido Confirmado - Aparece quando admin confirma o pagamento */}
-              {showSuccessModal && completedOrderData && (
-                <OrderConfirmedModal
-                  orderId={completedOrderData.orderId}
-                  customerName={completedOrderData.customerName || 'Cliente'}
-                  total={completedOrderData.total}
-                  estimatedTime={45} // Tempo padrão, pode ser dinâmico no futuro
-                  deliveryType={completedOrderData.deliveryType || 'delivery'}
-                  address={completedOrderData.address}
-                  enableTracking={config.features?.orderTracking !== false}
-                  onClose={() => {
-                    console.log('🚪 [MODAL] Usuário fechou o modal manualmente para pedido:', completedOrderData.orderId);
-                    // Marcar que o usuário fechou manualmente para não reabrir
-                    localStorage.setItem(`modal_shown_${completedOrderData.orderId}_closed`, 'true');
-                    setShowSuccessModal(false);
-                    setCompletedOrderData(null);
+                <OrderSearchModal
+                  isOpen={isOrderSearchOpen}
+                  onClose={() => setIsOrderSearchOpen(false)}
+                  onOrderFound={(orderId) => {
+                    setCurrentOrderId(orderId);
+                    setIsOrderTrackingOpen(true);
                   }}
                 />
-              )}
+
+                <OrderTracking
+                  isOpen={isOrderTrackingOpen}
+                  onClose={() => setIsOrderTrackingOpen(false)}
+                  orderId={currentOrderId}
+                />
+              
+                {/* Modal de Pedido Confirmado - Aparece quando admin confirma o pagamento */}
+                {showSuccessModal && completedOrderData && (
+                  <OrderConfirmedModal
+                    orderId={completedOrderData.orderId}
+                    customerName={completedOrderData.customerName || 'Cliente'}
+                    total={completedOrderData.total}
+                    estimatedTime={45} // Tempo padrão, pode ser dinâmico no futuro
+                    deliveryType={completedOrderData.deliveryType || 'delivery'}
+                    address={completedOrderData.address}
+                    enableTracking={config.features?.orderTracking !== false}
+                    onClose={() => {
+                      console.log('🚪 [MODAL] Usuário fechou o modal manualmente para pedido:', completedOrderData.orderId);
+                      // Marcar que o usuário fechou manualmente para não reabrir
+                      localStorage.setItem(`modal_shown_${completedOrderData.orderId}_closed`, 'true');
+                      setShowSuccessModal(false);
+                      setCompletedOrderData(null);
+                    }}
+                  />
+                )}
+              </PrimeEscopo>
             </div>
           )}
         </div>

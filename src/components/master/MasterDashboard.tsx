@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { hexToRgba } from '../../utils/colorUtils';
 import { 
   Palette, 
+  CheckCircle,
   Settings, 
   Key, 
   Globe, 
@@ -161,6 +162,138 @@ function ImageConfig({ label, value, onChange, placeholder, helpText, token }: a
           placeholder={placeholder}
         />
       )}
+    </div>
+  );
+}
+
+// Componente para upload/definição do modelo 3D (.glb) do Hero Awwwards
+function ModelConfig({ value, onChange, token }: any) {
+  const [uploading, setUploading] = useState(false);
+  const [showInput, setShowInput] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.glb') && !name.endsWith('.gltf')) {
+      alert('Envie um arquivo .glb (ou .gltf).');
+      return;
+    }
+    // Limite do servidor: 60MB para modelos 3D.
+    if (file.size > 60 * 1024 * 1024) {
+      alert('Esse modelo tem mais de 60MB, que é o limite do servidor. Reduza/otimize o .glb (ex.: gltf-transform, Draco) e tente novamente.');
+      return;
+    }
+    // Aviso de desempenho no celular (não bloqueia).
+    if (file.size > 30 * 1024 * 1024) {
+      const mb = (file.size / (1024 * 1024)).toFixed(0);
+      const ok = confirm(`Esse modelo tem ${mb}MB e pode deixar o site lento no celular. Recomendo otimizar o .glb. Deseja enviar mesmo assim?`);
+      if (!ok) return;
+    }
+
+    if (!token) {
+      alert('Sessão expirada. Faça login novamente.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const response = await api.uploadMasterImage(token, file);
+      if (response.success && response.url) {
+        onChange(response.url);
+      } else {
+        alert('Erro ao enviar o modelo: ' + (response.error || 'o servidor pode não aceitar arquivos .glb. Use o campo de URL abaixo como alternativa.'));
+      }
+    } catch (error) {
+      console.error('Erro no upload do GLB:', error);
+      alert('Erro ao enviar o modelo. Você pode colar uma URL manualmente abaixo.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+      <div className="flex justify-between items-start mb-3">
+        <label className="block text-sm font-bold text-gray-700">🍔 Modelo 3D do Hero (.glb)</label>
+        <button
+          onClick={() => setShowInput(!showInput)}
+          className="text-xs bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-50 text-gray-600"
+        >
+          {showInput ? 'Ocultar URL' : 'Editar URL Manualmente'}
+        </button>
+      </div>
+
+      <div className="mb-3 flex items-center gap-4">
+        <div className="relative w-24 h-24 bg-zinc-800 rounded-lg overflow-hidden border border-gray-600 flex items-center justify-center shrink-0">
+          {uploading ? (
+            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+          ) : value ? (
+            <div className="text-center px-1">
+              <span className="text-3xl">🍔</span>
+              <p className="text-[9px] text-green-400 mt-1 leading-tight">Modelo definido</p>
+            </div>
+          ) : (
+            <div className="text-center px-1">
+              <span className="text-3xl opacity-40">🍔</span>
+              <p className="text-[9px] text-gray-400 mt-1 leading-tight">Nenhum modelo</p>
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".glb,.gltf,model/gltf-binary"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors mb-2"
+          >
+            {uploading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4" />
+                Carregar arquivo .glb
+              </>
+            )}
+          </button>
+          {value && (
+            <button
+              onClick={() => onChange('')}
+              className="ml-2 text-xs text-red-600 hover:text-red-700 underline"
+            >
+              Remover
+            </button>
+          )}
+          <p className="text-xs text-gray-500">
+            Aceita .glb/.gltf até 60MB (ideal otimizar p/ celular). Aparece no design 3D e na rota /hero3d.
+          </p>
+        </div>
+      </div>
+
+      {showInput && (
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          placeholder="/burger.glb ou https://.../modelo.glb"
+        />
+      )}
+      <p className="text-[11px] text-gray-400 mt-1">
+        Dica: se preferir, coloque o arquivo em <code>public/burger.glb</code> no projeto e deixe este campo vazio.
+      </p>
     </div>
   );
 }
@@ -874,6 +1007,295 @@ export function MasterDashboard() {
           {/* TAB: APARÊNCIA */}
           {activeTab === 'appearance' && (
             <div className="space-y-6 animate-in fade-in">
+              {/* 🎨 SELETOR DE DESIGN */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+                  <Palette className="w-5 h-5 text-purple-600" />
+                  Estilo de Design do Site
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Escolha o visual geral do site. A logo, cores e conteúdo continuam os mesmos — muda só o estilo.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Design Clássico */}
+                  {(() => {
+                    const isActive = (config.designStyle || 'classic') === 'classic';
+                    return (
+                      <button
+                        onClick={() => {
+                          setConfig({ ...config, designStyle: 'classic' });
+                          updateConfigLocal({ designStyle: 'classic' });
+                        }}
+                        className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
+                      >
+                        {/* Miniatura Clássico */}
+                        <div className="h-32 relative" style={{ background: `linear-gradient(135deg, ${config.themeColor || '#d97706'}, #1a1a1a)` }}>
+                          <div className="absolute inset-0 bg-black/30" />
+                          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-white/90 shadow" />
+                          <div className="absolute bottom-3 left-3 right-3 flex gap-2">
+                            <div className="flex-1 h-8 rounded-lg bg-white/90 shadow" />
+                            <div className="flex-1 h-8 rounded-lg bg-white/90 shadow" />
+                          </div>
+                        </div>
+                        <div className="p-3 flex items-center justify-between">
+                          <div>
+                            <span className="block font-bold text-gray-800">Clássico</span>
+                            <span className="text-xs text-gray-500">Imersivo, imagem de fundo, cards escuros</span>
+                          </div>
+                          {isActive && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Design Clean */}
+                  {(() => {
+                    const isActive = config.designStyle === 'clean';
+                    return (
+                      <button
+                        onClick={() => {
+                          setConfig({ ...config, designStyle: 'clean' });
+                          updateConfigLocal({ designStyle: 'clean' });
+                        }}
+                        className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
+                      >
+                        {/* Miniatura Clean */}
+                        <div className="h-32 relative bg-zinc-50 border-b border-zinc-200">
+                          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full shadow" style={{ backgroundColor: config.themeColor || '#d97706' }} />
+                          <div className="absolute top-14 left-1/2 -translate-x-1/2 w-16 h-1.5 rounded-full bg-zinc-300" />
+                          <div className="absolute bottom-3 left-3 right-3 flex gap-2">
+                            <div className="flex-1 h-8 rounded-lg bg-white border border-zinc-200 shadow-sm" />
+                            <div className="flex-1 h-8 rounded-lg bg-white border border-zinc-200 shadow-sm" />
+                          </div>
+                        </div>
+                        <div className="p-3 flex items-center justify-between">
+                          <div>
+                            <span className="block font-bold text-gray-800">Clean</span>
+                            <span className="text-xs text-gray-500">Minimalista, fundo claro, cantos suaves</span>
+                          </div>
+                          {isActive && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Design Rústico */}
+                  {(() => {
+                    const isActive = config.designStyle === 'rustic';
+                    return (
+                      <button
+                        onClick={() => {
+                          setConfig({ ...config, designStyle: 'rustic' });
+                          updateConfigLocal({ designStyle: 'rustic' });
+                        }}
+                        className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
+                      >
+                        {/* Miniatura Rústico */}
+                        <div className="h-32 relative" style={{ background: 'linear-gradient(135deg, #2a1f16, #140f0c)' }}>
+                          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full shadow" style={{ backgroundColor: config.themeColor || '#d97706' }} />
+                          <div className="absolute top-14 left-0 right-0 flex justify-center gap-2">
+                            {[0, 1, 2].map((i) => (
+                              <div key={i} className="w-6 h-6 rounded-full border-2" style={{ borderColor: `${config.themeColor || '#d97706'}88`, backgroundColor: 'rgba(40,30,22,0.9)' }} />
+                            ))}
+                          </div>
+                          <div className="absolute bottom-3 left-3 right-3 flex gap-2">
+                            <div className="flex-1 h-8 rounded-lg border" style={{ backgroundColor: 'rgba(28,22,18,0.9)', borderColor: `${config.themeColor || '#d97706'}55` }} />
+                            <div className="flex-1 h-8 rounded-lg border" style={{ backgroundColor: 'rgba(28,22,18,0.9)', borderColor: `${config.themeColor || '#d97706'}55` }} />
+                          </div>
+                        </div>
+                        <div className="p-3 flex items-center justify-between">
+                          <div>
+                            <span className="block font-bold text-gray-800">Rústico</span>
+                            <span className="text-xs text-gray-500">Dark dourado, textura madeira, categorias em círculos</span>
+                          </div>
+                          {isActive && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Design 3D */}
+                  {(() => {
+                    const isActive = config.designStyle === 'threed';
+                    const g = config.themeColor || '#fbbf24';
+                    return (
+                      <button
+                        onClick={() => {
+                          setConfig({ ...config, designStyle: 'threed' });
+                          updateConfigLocal({ designStyle: 'threed' });
+                        }}
+                        className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
+                      >
+                        {/* Miniatura 3D */}
+                        <div className="h-32 relative overflow-hidden" style={{ background: 'radial-gradient(circle at 50% 40%, #241a12, #0d0b0a 70%)' }}>
+                          {/* "modelo" 3D estilizado */}
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${g}, ${g}55 60%, transparent)`, boxShadow: `0 0 24px ${g}88` }} />
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 w-16 h-2 rounded-full bg-black/50 blur-sm" />
+                          <span className="absolute top-3 left-1/2 -translate-x-1/2 text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: g }}>3D</span>
+                        </div>
+                        <div className="p-3 flex items-center justify-between">
+                          <div>
+                            <span className="block font-bold text-gray-800">3D</span>
+                            <span className="text-xs text-gray-500">Hero imersivo com modelo 3D girando ao scroll (usa o .glb)</span>
+                          </div>
+                          {isActive && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Design PRIME */}
+                  {(() => {
+                    const isActive = config.designStyle === 'prime';
+                    const a = config.themeColor || '#f5a524';
+                    return (
+                      <button
+                        onClick={() => {
+                          setConfig({ ...config, designStyle: 'prime' });
+                          updateConfigLocal({ designStyle: 'prime' });
+                        }}
+                        className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
+                      >
+                        {/* Miniatura PRIME */}
+                        <div className="h-32 relative overflow-hidden" style={{ background: config.primeHeroUrl ? `linear-gradient(90deg, #0a0a0bdd, #0a0a0b22), url(${config.primeHeroUrl}) center/cover` : `radial-gradient(ellipse at 70% 60%, ${a}55, #0a0a0b 60%)` }}>
+                          {/* cantoneiras */}
+                          <span className="absolute top-2 left-2 w-3 h-3 border-t border-l border-white/70" />
+                          <span className="absolute top-2 right-2 w-3 h-3 border-t border-r border-white/70" />
+                          <span className="absolute bottom-2 left-2 w-3 h-3 border-b border-l border-white/70" />
+                          <span className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-white/70" />
+                          <div className="absolute top-4 left-4 text-[8px] font-mono uppercase tracking-widest" style={{ color: a }}>// 01</div>
+                          <span className="absolute top-8 left-4 text-2xl font-extrabold uppercase text-white leading-none" style={{ fontStretch: 'condensed' }}>PRIME</span>
+                          <span className="absolute top-[54px] left-4 text-[11px] font-extrabold uppercase text-white"><span style={{ color: a }}>//</span> THE STACK</span>
+                          <div className="absolute bottom-5 left-4 h-4 w-16" style={{ backgroundColor: a }} />
+                          <div className="absolute bottom-3 left-6 right-6 h-1.5" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.4) 0 1px, transparent 1px 5px)' }} />
+                        </div>
+                        <div className="p-3 flex items-center justify-between">
+                          <div>
+                            <span className="block font-bold text-gray-800">Prime</span>
+                            <span className="text-xs text-gray-500">Cinematográfico HUD: fotos de tela cheia, contador de chapa e montador</span>
+                          </div>
+                          {isActive && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                        </div>
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                {/* 🍔 Modelo 3D do Hero (aparece no design com Hero Awwwards) */}
+                <div className="mt-5 pt-5 border-t border-gray-100">
+                  <ModelConfig
+                    value={config.heroModelUrl}
+                    onChange={(val: string) => {
+                      setConfig({ ...config, heroModelUrl: val });
+                      updateConfigLocal({ heroModelUrl: val });
+                    }}
+                    token={token}
+                  />
+                </div>
+
+                {/* ✨ Efeitos 3D do Hero (design 3D) */}
+                <div className="mt-5 pt-5 border-t border-gray-100">
+                  <label className="block text-sm font-bold text-gray-800 mb-1">✨ Efeitos 3D do Hero</label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Efeitos extras na cena 3D, na cor do tema. Sem nenhum marcado, usa o padrão (partículas douradas).
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { id: 'sparkles', label: 'Partículas douradas', desc: 'Brilhos flutuando ao redor do modelo' },
+                      { id: 'ring', label: 'Anel de luz', desc: 'Anel dourado girando sob o modelo' },
+                      { id: 'orbiters', label: 'Esferas em órbita', desc: 'Pontos de luz orbitando o modelo' },
+                      { id: 'stars', label: 'Céu estrelado', desc: 'Campo de estrelas ao fundo' },
+                    ].map((fx) => {
+                      const current = config.heroEffects || [];
+                      const checked = current.includes(fx.id);
+                      return (
+                        <label
+                          key={fx.id}
+                          className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${checked ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const next = checked
+                                ? current.filter((id) => id !== fx.id)
+                                : [...current, fx.id];
+                              setConfig({ ...config, heroEffects: next });
+                              updateConfigLocal({ heroEffects: next });
+                            }}
+                            className="mt-0.5 w-4 h-4 accent-purple-600"
+                          />
+                          <span>
+                            <span className="block text-sm font-bold text-gray-800">{fx.label}</span>
+                            <span className="block text-xs text-gray-500">{fx.desc}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* 🔥 IMAGENS E TEXTOS DO ESTILO PRIME */}
+              {config.designStyle === 'prime' && (() => {
+                const setPrime = (updates: Record<string, string>) => {
+                  setConfig({ ...config, ...updates });
+                  updateConfigLocal(updates);
+                };
+                const imageFields: Array<{ key: string; label: string; help: string }> = [
+                  { key: 'primeHeroUrl', label: '// 01 Hero — Desktop', help: 'Foto de tela cheia do topo (horizontal, 1920x1080+). Deixe o lanche mais à direita: o título fica à esquerda.' },
+                  { key: 'primeHeroMobileUrl', label: '// 01 Hero — Mobile', help: 'Vertical (1080x1920). Se vazio, usa a do desktop.' },
+                  { key: 'primeSearUrl', label: '// 02 A Chapa — Desktop', help: 'Carne na chapa/grelha, fogo, cozinha. Fica presa na tela enquanto o contador de temperatura sobe.' },
+                  { key: 'primeSearMobileUrl', label: '// 02 A Chapa — Mobile', help: 'Vertical. Se vazio, usa a do desktop.' },
+                  { key: 'primeBuilderUrl', label: '// 04 Montador — Reserva', help: 'Usada na prévia do montador quando o produto escolhido não tem foto.' },
+                ];
+                const textFields: Array<{ key: string; label: string; placeholder: string }> = [
+                  { key: 'primeHeroTitle', label: 'Título do hero', placeholder: (config.siteName || 'NewBurguer').split(' ')[0].toUpperCase() },
+                  { key: 'primeHeroTagline', label: 'Linha "//" do hero', placeholder: 'The Stack' },
+                  { key: 'primeSearTitle', label: 'Título da seção da chapa', placeholder: 'Selado na chapa' },
+                ];
+                return (
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">🔥 Imagens do estilo Prime</h3>
+                    <p className="text-xs text-gray-500 mb-5">
+                      O Prime depende de fotos boas de ponta a ponta. Sem imagem, o hero usa o fundo do site ou a foto do produto mais caro, e a chapa é desenhada.
+                      O montador usa os produtos que têm <b>adicionais</b> cadastrados. Clique em <b>Salvar</b> no fim.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {imageFields.map((f) => (
+                        <div key={f.key}>
+                          <ImageConfig
+                            label={f.label}
+                            value={(config as any)[f.key] || ''}
+                            onChange={(url: string) => setPrime({ [f.key]: url })}
+                            placeholder="https://..."
+                            helpText={f.help}
+                            token={token}
+                          />
+                          {(config as any)[f.key] && (
+                            <button onClick={() => setPrime({ [f.key]: '' })} className="mt-2 text-xs text-red-500 hover:text-red-700 font-bold">✕ Remover</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-5 border-t border-gray-100">
+                      {textFields.map((f) => (
+                        <label key={f.key} className="block">
+                          <span className="block text-sm font-bold text-gray-800 mb-1">{f.label}</span>
+                          <input
+                            value={(config as any)[f.key] || ''}
+                            onChange={(e) => setPrime({ [f.key]: e.target.value })}
+                            placeholder={f.placeholder}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Palette className="w-5 h-5 text-purple-600" />
