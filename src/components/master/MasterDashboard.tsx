@@ -60,7 +60,6 @@ interface DeliverySector {
   color: string;
 }
 
-// Componente auxiliar para Input de Imagem com Preview e Upload
 function ImageConfig({ label, value, onChange, placeholder, helpText, token }: any) {
   const [showInput, setShowInput] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -80,11 +79,8 @@ function ImageConfig({ label, value, onChange, placeholder, helpText, token }: a
       const response = await api.uploadMasterImage(token, file);
       
       if (response.success && response.url) {
-        // Forçar atualização da imagem adicionando timestamp para evitar cache do navegador
         const urlWithCacheBust = `${response.url}?t=${Date.now()}`;
-        onChange(response.url); // Salva a URL original
-        // Mas podemos usar a urlWithCacheBust para preview se quisermos, 
-        // mas aqui estamos passando para o parent component, que renderiza.
+        onChange(response.url);
       } else {
         alert('Erro ao enviar imagem: ' + (response.error || 'Erro desconhecido no servidor'));
       }
@@ -93,7 +89,6 @@ function ImageConfig({ label, value, onChange, placeholder, helpText, token }: a
       alert('Erro ao enviar imagem.');
     } finally {
       setUploading(false);
-      // Limpar input para permitir re-selecionar o mesmo arquivo se necessário
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -112,7 +107,6 @@ function ImageConfig({ label, value, onChange, placeholder, helpText, token }: a
         </button>
       </div>
       
-      {/* Preview Area */}
       <div className="mb-4 flex items-center gap-4">
         <div className="relative w-24 h-24 bg-zinc-800 rounded-lg overflow-hidden border border-gray-600 flex items-center justify-center shrink-0">
           {uploading ? (
@@ -154,7 +148,6 @@ function ImageConfig({ label, value, onChange, placeholder, helpText, token }: a
         </div>
       </div>
 
-      {/* Input de URL (Opcional/Fallback) */}
       {showInput && (
         <input
           type="text"
@@ -170,43 +163,35 @@ function ImageConfig({ label, value, onChange, placeholder, helpText, token }: a
 
 export function MasterDashboard() {
   const { refreshConfig, updateConfigLocal } = useConfig();
-  // Alterado para sessionStorage para exigir login sempre que fechar o navegador
   const [token, setToken] = useState<string | null>(sessionStorage.getItem('faroeste_master_token'));
   const [verifying, setVerifying] = useState(!!sessionStorage.getItem('faroeste_master_token'));
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'integrations' | 'features' | 'admin' | 'delivery' | 'tests' | 'audit' | 'security' | 'analytics'>('general');
   const [designAba, setDesignAba] = useState<string | null>(null);
   
-  // Login State
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Config State
   const [config, setConfig] = useState<any>({});
   const [hasAdminPassword, setHasAdminPassword] = useState(false);
   
-  // Admin Password Reset
   const [newAdminPass, setNewAdminPass] = useState('');
   const [showAdminPass, setShowAdminPass] = useState(false);
   
-  // Emoji Picker State
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Delivery Sectors State
   const [sectors, setSectors] = useState<DeliverySector[]>([]);
   const [isLoadingSectors, setIsLoadingSectors] = useState(false);
   const [newSectorName, setNewSectorName] = useState('');
   const [editingSector, setEditingSector] = useState<DeliverySector | null>(null);
   
-  // Franchise city management
   const [editingCityId, setEditingCityId] = useState<string | null>(null);
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [newCityName, setNewCityName] = useState('');
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationResult, setMigrationResult] = useState<{ success: boolean; message: string } | null>(null);
   
-  // Estado para descobrir IP do servidor
   const [isDiscoveringIP, setIsDiscoveringIP] = useState(false);
   const [showAdvancedColors, setShowAdvancedColors] = useState(false);
 
@@ -215,12 +200,10 @@ export function MasterDashboard() {
       loadConfig();
     } else {
       setVerifying(false);
-      // Pre-aquecer deteccao WebRTC enquanto o usuario ve o formulario de login
       warmupWebRTCDetection();
     }
   }, [token]);
 
-  // Load sectors when tab is delivery
   useEffect(() => {
     if (activeTab === 'delivery' && token) {
       loadSectors();
@@ -247,7 +230,6 @@ export function MasterDashboard() {
       return;
     }
 
-    // Auto-assign random color since user can't pick
     const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#F97316', '#14B8A6'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -301,7 +283,6 @@ export function MasterDashboard() {
     }
   };
 
-  // Fechar emoji picker ao clicar fora
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -321,21 +302,19 @@ export function MasterDashboard() {
 
   const loadConfig = async () => {
     if (!token) return;
-    setLoading(true); // Loading interno do dashboard
+    setLoading(true);
     
-    // Validar token buscando configs
     const response = await api.getMasterConfig(token);
     
     if (response.success) {
       setConfig(semUnidadesRepetidas(response.config));
       setHasAdminPassword(response.config.hasAdminPassword);
     } else {
-      // Token inválido ou expirado
       setToken(null);
       sessionStorage.removeItem('faroeste_master_token');
     }
     setLoading(false);
-    setVerifying(false); // Fim da verificação inicial
+    setVerifying(false);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -349,7 +328,6 @@ export function MasterDashboard() {
       const newToken = response.token;
       setToken(newToken);
       sessionStorage.setItem('faroeste_master_token', newToken);
-      // O useEffect vai disparar loadConfig automaticamente
     } else {
       setLoginError(response.error || 'Credenciais inválidas');
       setLoading(false);
@@ -360,12 +338,10 @@ export function MasterDashboard() {
     if (!token) return;
     setLoading(true);
     
-    // 🐛 DEBUG: Log do config atual antes de salvar
     console.log('🔍 [MASTER DASHBOARD] Config antes de salvar:', config);
     console.log('🔍 [MASTER DASHBOARD] Novo admin pass?', !!newAdminPass);
     console.log('🔍 [MASTER DASHBOARD] Config keys:', config ? Object.keys(config) : 'undefined');
     
-    // Validar se config existe
     if (!config || Object.keys(config).length === 0) {
       console.error('❌ [MASTER DASHBOARD] Config vazio! Não é possível salvar.');
       alert('❌ Erro: Configuração vazia. Tente recarregar a página.');
@@ -373,8 +349,6 @@ export function MasterDashboard() {
       return;
     }
     
-    // ✅ CORREÇÃO: Enviar apenas o config + adminPassword se houver
-    // A função saveMasterConfig já faz o wrap { config: {...}, adminPassword: ... }
     console.log('📤 [MASTER DASHBOARD] Enviando config para API...');
 
     const response = await api.saveMasterConfig(token, {
@@ -388,7 +362,7 @@ export function MasterDashboard() {
         setNewAdminPass('');
         setHasAdminPassword(true);
       }
-      refreshConfig(); // Atualiza o site em tempo real
+      refreshConfig();
     } else {
       alert('❌ Erro ao salvar: ' + response.error);
     }
@@ -397,7 +371,7 @@ export function MasterDashboard() {
 
   const handleColorChange = (color: string) => {
     setConfig({ ...config, themeColor: color });
-    applyTheme(color); // Preview em tempo real
+    applyTheme(color);
     updateConfigLocal({ themeColor: color });
   };
 
@@ -479,7 +453,6 @@ export function MasterDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white hidden md:flex flex-col">
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -565,7 +538,6 @@ export function MasterDashboard() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="painel flex-1 overflow-y-auto min-w-0 pb-24 md:pb-0">
         <header className="bg-white shadow-sm p-4 md:p-6 flex flex-nowrap justify-between items-center gap-3 sticky top-0 z-10">
           <h2 className="text-lg md:text-2xl font-bold text-gray-800 truncate">
@@ -592,7 +564,6 @@ export function MasterDashboard() {
         </header>
 
         <div className={`p-4 md:p-8 mx-auto ${activeTab === 'audit' || activeTab === 'analytics' || activeTab === 'tests' ? 'max-w-6xl' : 'max-w-4xl'}`}>
-          {/* TAB: GERAL */}
           {activeTab === 'general' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -768,7 +739,6 @@ export function MasterDashboard() {
                 </div>
               </div>
 
-              {/* REDES SOCIAIS */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                   📱 Redes Sociais
@@ -875,7 +845,6 @@ export function MasterDashboard() {
             </div>
           )}
 
-          {/* TAB: APARÊNCIA */}
           {activeTab === 'appearance' && (() => {
             const designAtivo = config.designStyle || 'classic';
             const aba = designAba || designAtivo;
@@ -960,10 +929,10 @@ export function MasterDashboard() {
                   <button
                     onClick={() => {
                       const updates = { 
-                        backgroundColor: '#f9fafb', // Gray-50
-                        cardColor: '#ffffff', // White
-                        textColor: '#111827', // Gray-900
-                        forceDarkMode: false // 🌓 Forçar Modo Claro
+                        backgroundColor: '#f9fafb',
+                        cardColor: '#ffffff',
+                        textColor: '#111827',
+                        forceDarkMode: false
                       };
                       setConfig({ ...config, ...updates });
                       updateConfigLocal(updates);
@@ -982,10 +951,10 @@ export function MasterDashboard() {
                   <button
                     onClick={() => {
                        const updates = { 
-                        backgroundColor: '#202124', // Chrome Dark
-                        cardColor: '#292A2D', // Chrome Card
-                        textColor: '#E8EAED', // Chrome Text
-                        forceDarkMode: true // 🌓 Forçar Modo Escuro
+                        backgroundColor: '#202124',
+                        cardColor: '#292A2D',
+                        textColor: '#E8EAED',
+                        forceDarkMode: true
                       };
                       setConfig({ ...config, ...updates });
                       updateConfigLocal(updates);
@@ -1002,7 +971,6 @@ export function MasterDashboard() {
                   </button>
                 </div>
 
-                {/* CUSTOMIZAÇÃO AVANÇADA DE CORES */}
                 <div className="mt-6 pt-6 border-t border-gray-200">
                    <button 
                       onClick={() => setShowAdvancedColors(!showAdvancedColors)}
@@ -1131,7 +1099,6 @@ export function MasterDashboard() {
                   <label className="text-sm font-bold text-gray-800">Efeito Animado no Cabeçalho</label>
                 </div>
 
-                {/* Seletor de Formato do Efeito */}
                 <div className="mb-6">
                   <p className="text-xs text-gray-600 mb-3 font-medium">Formato do Efeito:</p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -1173,7 +1140,6 @@ export function MasterDashboard() {
                   </div>
                 </div>
 
-                {/* Controle de Quantidade de Efeitos */}
                 <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
                   <label className="block text-xs font-bold text-gray-800 mb-2">Quantidade de Efeitos Pulsantes</label>
                   <div className="flex items-center gap-4">
@@ -1199,7 +1165,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* Toggle de Posição Aleatória com Botão Refresh */}
                 <div className="p-4 bg-white rounded-lg border border-gray-200">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
@@ -1228,7 +1193,6 @@ export function MasterDashboard() {
                     </button>
                   </div>
 
-                  {/* Botão de Refresh - Só aparece quando modo aleatório está ativado */}
                   {config.headerEffectRandomPosition && (
                     <button
                       onClick={() => {
@@ -1287,7 +1251,6 @@ export function MasterDashboard() {
                     Escolha o visual do site. A cor do tema e a logo valem para todos; o resto fica na configuração de cada design, logo abaixo.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Design Clássico */}
                     {(() => {
                       const isActive = (config.designStyle || 'classic') === 'classic';
                       return (
@@ -1299,7 +1262,6 @@ export function MasterDashboard() {
                           }}
                           className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
                         >
-                          {/* Miniatura Clássico */}
                           <div className="h-32 relative" style={{ background: `linear-gradient(135deg, ${config.themeColor || '#d97706'}, #1a1a1a)` }}>
                             <div className="absolute inset-0 bg-black/30" />
                             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-white/90 shadow" />
@@ -1319,7 +1281,6 @@ export function MasterDashboard() {
                       );
                     })()}
 
-                    {/* Design Clean */}
                     {(() => {
                       const isActive = config.designStyle === 'clean';
                       return (
@@ -1331,7 +1292,6 @@ export function MasterDashboard() {
                           }}
                           className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
                         >
-                          {/* Miniatura Clean */}
                           <div className="h-32 relative bg-zinc-50 border-b border-zinc-200">
                             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full shadow" style={{ backgroundColor: config.themeColor || '#d97706' }} />
                             <div className="absolute top-14 left-1/2 -translate-x-1/2 w-16 h-1.5 rounded-full bg-zinc-300" />
@@ -1351,7 +1311,6 @@ export function MasterDashboard() {
                       );
                     })()}
 
-                    {/* Design Rústico */}
                     {(() => {
                       const isActive = config.designStyle === 'rustic';
                       return (
@@ -1363,7 +1322,6 @@ export function MasterDashboard() {
                           }}
                           className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
                         >
-                          {/* Miniatura Rústico */}
                           <div className="h-32 relative" style={{ background: 'linear-gradient(135deg, #2a1f16, #140f0c)' }}>
                             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full shadow" style={{ backgroundColor: config.themeColor || '#d97706' }} />
                             <div className="absolute top-14 left-0 right-0 flex justify-center gap-2">
@@ -1387,7 +1345,6 @@ export function MasterDashboard() {
                       );
                     })()}
 
-                    {/* Design PRIME */}
                     {(() => {
                       const isActive = config.designStyle === 'prime';
                       const a = config.themeColor || '#f5a524';
@@ -1400,9 +1357,7 @@ export function MasterDashboard() {
                           }}
                           className={`text-left border-2 rounded-xl overflow-hidden transition-all ${isActive ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'}`}
                         >
-                          {/* Miniatura PRIME */}
                           <div className="h-32 relative overflow-hidden" style={{ background: config.primeHeroUrl ? `linear-gradient(90deg, #0a0a0bdd, #0a0a0b22), url(${config.primeHeroUrl}) center/cover` : `radial-gradient(ellipse at 70% 60%, ${a}55, #0a0a0b 60%)` }}>
-                            {/* cantoneiras */}
                             <span className="absolute top-2 left-2 w-3 h-3 border-t border-l border-white/70" />
                             <span className="absolute top-2 right-2 w-3 h-3 border-t border-r border-white/70" />
                             <span className="absolute bottom-2 left-2 w-3 h-3 border-b border-l border-white/70" />
@@ -1467,7 +1422,6 @@ export function MasterDashboard() {
                         </h4>
 
                         <div className="space-y-6">
-                          {/* Botão */}
                           <div>
                             <p className="text-xs text-gray-400 mb-2">Botões Principais</p>
                             <button 
@@ -1478,8 +1432,6 @@ export function MasterDashboard() {
                             </button>
                           </div>
 
-
-                          {/* Input Focus */}
                           <div>
                             <p className="text-xs text-gray-400 mb-2">Campos de Texto</p>
                             <input 
@@ -1582,7 +1534,6 @@ export function MasterDashboard() {
                               )}
                             </div>
                           </div>
-                          {/* Toggle animação */}
                           {(config.contentBackgroundUrl || config.contentBackgroundMobileUrl) && (
                             <div className="mt-4 flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
                               <div>
@@ -1649,10 +1600,8 @@ export function MasterDashboard() {
             );
           })()}
 
-          {/* TAB: INTEGRAÇÕES */}
           {activeTab === 'integrations' && (
             <div className="space-y-6 animate-in fade-in">
-              {/* Domínio */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Globe className="w-5 h-5 text-blue-600" />
@@ -1678,7 +1627,6 @@ export function MasterDashboard() {
                         type="text"
                         value={config.whatsappNumber || ''}
                         onChange={(e) => {
-                          // Permitir apenas números para evitar erros
                           const val = e.target.value.replace(/\D/g, '');
                           setConfig({ ...config, whatsappNumber: val });
                         }}
@@ -1691,7 +1639,6 @@ export function MasterDashboard() {
                 </div>
               </div>
 
-              {/* Pagamento */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-green-600" />
@@ -1699,7 +1646,6 @@ export function MasterDashboard() {
                 </h3>
                 
                 <div className="space-y-4">
-                  {/* Chave PIX Manual */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Chave PIX (Modo Manual)</label>
                     <input
@@ -1735,7 +1681,6 @@ export function MasterDashboard() {
                         placeholder="Cole o token do PagSeguro aqui..."
                       />
                     
-                      {/* Campo de Email do PagSeguro - OBRIGATÓRIO para API funcionar */}
                       <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
                         📧 Email do PagSeguro (Obrigatório)
                       </label>
@@ -1750,7 +1695,6 @@ export function MasterDashboard() {
                         ⚠️ Use o mesmo email que você faz login no PagSeguro. Ambos (token + email) são necessários para a API funcionar.
                       </p>
                     
-                      {/* Botão para descobrir IP do servidor (Whitelist PagSeguro) */}
                       <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                           <Globe className="w-4 h-4" />
@@ -1841,8 +1785,6 @@ export function MasterDashboard() {
                 </div>
               </div>
 
-
-              {/* Meta / Facebook */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Facebook className="w-5 h-5 text-blue-800" />
@@ -1867,7 +1809,6 @@ export function MasterDashboard() {
             </div>
           )}
 
-          {/* TAB: FEATURES (SAAS) */}
           {activeTab === 'features' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="bg-gradient-to-r from-purple-900 to-indigo-900 p-8 rounded-xl shadow-lg text-white mb-8">
@@ -1881,7 +1822,6 @@ export function MasterDashboard() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Módulo: Pagamento Automático */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.automaticPaymentAllowed !== false ? 'bg-white border-emerald-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -1921,7 +1861,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* Módulo: Impressora Térmica */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.thermalPrinter !== false ? 'bg-white border-green-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -1959,7 +1898,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* Módulo: Cupons de Desconto */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.coupons !== false ? 'bg-white border-blue-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -1997,7 +1935,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* Módulo: Sistema de Entregas */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.deliverySystem !== false ? 'bg-white border-orange-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2041,7 +1978,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* 🆕 FEATURE: CONSUMIR NO LOCAL (DINE-IN) */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.dineIn !== false ? 'bg-white border-green-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2081,7 +2017,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* FEATURE: AVALIAÇÕES */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.reviews !== false ? 'bg-white border-yellow-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2119,7 +2054,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* FEATURE: ACOMPANHAMENTO DE PEDIDO */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.orderTracking !== false ? 'bg-white border-blue-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2157,7 +2091,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* FEATURE: TRÁFEGO PAGO */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.paidTraffic !== false ? 'bg-white border-purple-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2195,7 +2128,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* FEATURE: CONTROLE DE ESTOQUE */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.features?.stockControl ? 'bg-white border-teal-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2235,7 +2167,6 @@ export function MasterDashboard() {
                   </p>
                 </div>
 
-                {/* 🏙️ FEATURE: SISTEMA DE FRANQUIAS */}
                 <div className={`p-6 rounded-xl border-2 transition-all ${
                   config.franchise?.enabled ? 'bg-white border-indigo-500 shadow-md' : 'bg-gray-50 border-gray-200 opacity-75'
                 }`}>
@@ -2281,11 +2212,9 @@ export function MasterDashboard() {
             </div>
           )}
 
-          {/* TAB: DELIVERY SECTORS / FRANQUIAS */}
           {activeTab === 'delivery' && (
             <div className="space-y-6 animate-in fade-in">
 
-              {/* === MODO FRANQUIA === */}
               {config.franchise?.enabled ? (
                 <>
                   <div className="bg-gradient-to-r from-indigo-900 to-purple-900 p-8 rounded-xl shadow-lg text-white mb-8">
@@ -2298,7 +2227,6 @@ export function MasterDashboard() {
                     </p>
                   </div>
 
-                  {/* Adicionar Cidade */}
                   <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                       <Plus className="w-5 h-5 text-indigo-600" />
@@ -2354,7 +2282,6 @@ export function MasterDashboard() {
                     </div>
                   </div>
 
-                  {/* Lista de Cidades */}
                   <div className="space-y-4">
                     <h3 className="font-bold text-gray-800 ml-1 text-lg">
                       Cidades ({(config.franchise?.cities || []).length})
@@ -2372,7 +2299,6 @@ export function MasterDashboard() {
                       const isCityOpen = editingCityId === city.id;
                       return (
                         <div key={city.id} className={`bg-white rounded-xl shadow-md border-2 overflow-hidden transition-all ${isCityOpen ? 'border-indigo-500' : 'border-gray-200'}`}>
-                          {/* City Header */}
                           <div 
                             className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                             onClick={() => setEditingCityId(isCityOpen ? null : city.id)}
@@ -2407,10 +2333,8 @@ export function MasterDashboard() {
                             </div>
                           </div>
 
-                          {/* City Content (expandido) */}
                           {isCityOpen && (
                             <div className="border-t border-gray-200 p-5 space-y-5 bg-gray-50">
-                              {/* Nome da cidade */}
                               <div className="max-w-sm">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Cidade</label>
                                 <input
@@ -2429,7 +2353,6 @@ export function MasterDashboard() {
 
                               <SetoresDaCidade cidade={city} aoMudar={(sectors) => setConfig((prev: any) => ({ ...prev, franchise: { ...prev.franchise!, cities: (prev.franchise?.cities || []).map((c: any) => (c.id === city.id ? { ...c, sectors } : c)) } }))} />
 
-                              {/* Unidades desta cidade */}
                               <div className="pt-3 border-t border-gray-200">
                                 <div className="flex items-center justify-between mb-4">
                                   <h4 className="font-bold text-gray-700 flex items-center gap-2">
@@ -2442,13 +2365,11 @@ export function MasterDashboard() {
                                   <p className="text-sm text-gray-400 italic mb-3">Nenhuma unidade. Adicione abaixo.</p>
                                 )}
 
-                                {/* Lista de unidades */}
                                 <div className="space-y-3 mb-4">
                                   {city.units.map((unit, unitIndex) => {
                                     const isUnitOpen = editingUnitId === unit.id;
                                     return (
                                       <div key={unit.id} className={`bg-white rounded-lg border overflow-hidden transition-all ${isUnitOpen ? 'border-purple-400 shadow-md' : 'border-gray-200'}`}>
-                                        {/* Unit header */}
                                         <div 
                                           className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
                                           onClick={() => setEditingUnitId(isUnitOpen ? null : unit.id)}
@@ -2485,7 +2406,6 @@ export function MasterDashboard() {
                                           </div>
                                         </div>
 
-                                        {/* Unit details */}
                                         {isUnitOpen && (
                                           <div className="border-t border-gray-100 p-4 space-y-3 bg-purple-50/30">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2597,7 +2517,6 @@ export function MasterDashboard() {
                                   })}
                                 </div>
 
-                                {/* Adicionar unidade */}
                                 <div className="flex gap-2">
                                   <input
                                     type="text"
@@ -2644,7 +2563,6 @@ export function MasterDashboard() {
                     })}
                   </div>
 
-                  {/* Migração de dados */}
                   {(config.franchise?.cities || []).some(c => c.units.length > 0) && (
                     <div className="bg-white rounded-lg shadow-md p-6 border border-amber-200">
                       <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
@@ -2714,7 +2632,6 @@ export function MasterDashboard() {
                   )}
                 </>
               ) : (
-                /* === MODO NORMAL (sem franquia) === */
                 <>
                   <div className="bg-gradient-to-r from-orange-900 to-amber-900 p-8 rounded-xl shadow-lg text-white mb-8">
                     <div className="flex items-center gap-3 mb-2">
@@ -2806,7 +2723,6 @@ export function MasterDashboard() {
             </div>
           )}
 
-          {/* TAB: ADMIN */}
           {activeTab === 'admin' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-amber-500">
@@ -2861,7 +2777,6 @@ export function MasterDashboard() {
             </div>
           )}
 
-          {/* TAB: TESTES */}
           {activeTab === 'tests' && (
             <div className="space-y-8">
               <TestRunner 
@@ -2875,7 +2790,6 @@ export function MasterDashboard() {
             </div>
           )}
 
-          {/* TAB: LOGS DE AUDITORIA */}
           {activeTab === 'audit' && (
             <AuditLogs 
               fetchFn={masterFetch} 
@@ -2883,17 +2797,14 @@ export function MasterDashboard() {
             />
           )}
 
-          {/* TAB: SECURITY ANALYTICS */}
           {activeTab === 'analytics' && (
             <SecurityDashboard 
               fetchFn={masterFetch}
             />
           )}
 
-
         </div>
       </main>
-
 
       <BarraCelular
         itens={[
@@ -2916,7 +2827,6 @@ export function MasterDashboard() {
   );
 }
 
-// config antiga com duas unidades de mesmo id: a repetida ganha id novo (vale ao salvar)
 function semUnidadesRepetidas(config: any) {
   if (!config?.franchise?.cities) return config;
   const vistos = new Set<string>();
@@ -2929,7 +2839,6 @@ function semUnidadesRepetidas(config: any) {
   return { ...config, franchise: { ...config.franchise, cities } };
 }
 
-// id de unidade nunca repete (duas unidades com o mesmo id misturariam pedidos e cardápio)
 function idUnicoDeUnidade(base: string, cidades: any[]) {
   const slug = base.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const usados = new Set(cidades.flatMap((c: any) => (c.units || []).map((u: any) => u.id)));
@@ -2938,7 +2847,6 @@ function idUnicoDeUnidade(base: string, cidades: any[]) {
   return id;
 }
 
-// setores de entrega da cidade: todas as unidades dela entregam nos mesmos setores
 function SetoresDaCidade({ cidade, aoMudar }: { cidade: any; aoMudar: (setores: any[]) => void }) {
   const herdados = (cidade.units || []).flatMap((u: any) => u.sectors || []).filter((s: any, i: number, todos: any[]) => todos.findIndex((x) => x.id === s.id) === i);
   const setores: any[] = cidade.sectors ?? herdados;
@@ -2974,7 +2882,6 @@ function SetoresDaCidade({ cidade, aoMudar }: { cidade: any; aoMudar: (setores: 
   );
 }
 
-// coordenada da cidade (OpenStreetMap) para o celular do cliente/entregador abrir a cidade certa
 async function buscarCoordenadas(nome: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&city=${encodeURIComponent(nome)}`);
@@ -3001,7 +2908,6 @@ function LocalCidade({ cidade, aoMudar }: { cidade: any; aoMudar: (c: { lat?: nu
   );
 }
 
-// senha do Admin da unidade: só entra (o servidor nunca devolve)
 function SenhaUnidade({ unitId, definida }: { unitId: string; definida?: boolean }) {
   const [senha, setSenha] = useState('');
   const [aviso, setAviso] = useState('');

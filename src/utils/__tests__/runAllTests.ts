@@ -1,8 +1,3 @@
-// ==========================================
-// 🧪 RUNNER AGREGADO — Executa todos os testes unitários do frontend
-// Importável como: import { runAllFrontendTests } from './utils/__tests__/runAllTests'
-// ==========================================
-
 import { runColorUtilsTests } from './colorUtils.test';
 import { runIngredientUtilsTests } from './ingredientUtils.test';
 import { runI18nTests } from './i18n.test';

@@ -12,14 +12,14 @@ export interface OrderStatus {
   total: number;
   deliveryType: 'delivery' | 'pickup' | 'dine-in';
   address?: string;
-  deliverySector?: string; // 🆕 Adicionado setor
-  paymentMethod?: string; // 🆕 Adicionado método
-  cardType?: 'credit' | 'debit'; // 🆕 Adicionado tipo de cartão
-  changeFor?: number; // 🆕 Adicionado troco
+  deliverySector?: string;
+  paymentMethod?: string;
+  cardType?: 'credit' | 'debit';
+  changeFor?: number;
   status: 'pending' | 'preparing' | 'packing' | 'ready_for_delivery' | 'out_for_delivery' | 'ready_for_pickup' | 'completed' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
-  reviews?: Array<{ productName: string, rating: number, comment: string }>; // Adicionado campo de reviews
+  reviews?: Array<{ productName: string, rating: number, comment: string }>;
 }
 
 interface OrderTrackingProps {
@@ -34,21 +34,19 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [estimates, setEstimates] = useState<api.TimeEstimates | null>(null);
-  const [sectors, setSectors] = useState<any[]>([]); // 🆕 Estado para nomes dos setores
+  const [sectors, setSectors] = useState<any[]>([]);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [showThankYouMessage, setShowThankYouMessage] = useState(false);
-  const isLoadingRef = useRef(false); // 🆕 useRef para evitar re-renders e múltiplas requisições
+  const isLoadingRef = useRef(false);
 
   useEffect(() => {
     if (isOpen && orderId) {
       loadOrder();
       loadEstimates();
-      loadSectors(); // 🆕 Carregar setores para traduzir ID em nome
+      loadSectors();
       setShowThankYouMessage(false);
       
-      // Atualizar status a cada 5 segundos (reduzido de 1s para evitar sobrecarga)
       const interval = setInterval(() => {
-        // 🆕 Só fazer polling se não estiver carregando
         if (!isLoadingRef.current) {
           loadOrder();
         }
@@ -90,19 +88,17 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
   };
 
   const loadOrder = async () => {
-    // 🆕 Prevenir múltiplas requisições simultâneas
     if (isLoadingRef.current) {
       console.log('⏸️ [ORDER TRACKING] Requisição já em andamento, pulando...');
       return;
     }
 
     try {
-      isLoadingRef.current = true; // 🆕 Marcar como "carregando"
+      isLoadingRef.current = true;
       console.log('🔄 [ORDER TRACKING] ===== INICIANDO CARREGAMENTO =====');
       console.log('🔄 [ORDER TRACKING] Order ID:', orderId);
       console.log('🔄 [ORDER TRACKING] Estado atual do order:', order);
       
-      // 🔥 CORREÇÃO: Só mostrar loading na primeira vez, não nas atualizações automáticas
       const isFirstLoad = !order;
       console.log('🔄 [ORDER TRACKING] É primeira carga?', isFirstLoad);
       
@@ -127,10 +123,8 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
         console.log('📦 [ORDER TRACKING] Dados processados:', orderData);
         setOrder(orderData);
         
-        // 💾 ATUALIZAR STATUS NO HISTÓRICO LOCAL
         updateLocalOrderStatus(orderId, response.order.status);
         
-        // Só desligar loading se foi a primeira carga
         if (isFirstLoad) {
           console.log('✅ [ORDER TRACKING] Setando isLoading = false (primeira carga completa)');
           setIsLoading(false);
@@ -147,23 +141,20 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
       setError('Erro ao carregar dados do pedido');
       setIsLoading(false);
     } finally {
-      isLoadingRef.current = false; // 🆕 Liberar flag
+      isLoadingRef.current = false;
       console.log('🔄 [ORDER TRACKING] ===== FIM DO CARREGAMENTO =====');
     }
   };
 
-  // Atualizar status do pedido no histórico local do dispositivo
   const updateLocalOrderStatus = (orderId: string, newStatus: string) => {
     try {
       const historyKey = 'faroeste_my_orders';
       const currentHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
       
-      // Encontrar e atualizar o pedido
       const updatedHistory = currentHistory.map((order: any) =>
         order.orderId === orderId ? { ...order, status: newStatus } : order
       );
       
-      // Salvar histórico atualizado
       localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
       console.log('💾 [HISTÓRICO] Status do pedido atualizado:', { orderId, newStatus });
     } catch (error) {
@@ -222,7 +213,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
         { key: 'completed', label: 'Retirado', icon: CheckCircle }
       ];
 
-  // Adicionar status "Cancelado" se o pedido foi cancelado
   if (order.status === 'cancelled') {
     statusSteps.push({ key: 'cancelled', label: 'Cancelado', icon: XCircle });
   }
@@ -232,7 +222,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-6 rounded-t-lg">
           <div className="flex justify-between items-start">
             <div>
@@ -249,7 +238,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
         </div>
 
         <div className="p-6">
-          {/* Informações do Pedido */}
           <div className="mb-8 bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
             <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-3">Informações do Pedido</h3>
             <div className="space-y-2 text-sm">
@@ -292,7 +280,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
             </div>
           </div>
 
-          {/* Estimativa de Tempo */}
           {getEstimateForType(order.deliveryType) && order.status !== 'completed' && order.status !== 'cancelled' && (
             <div className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-300 dark:border-amber-800 p-4 rounded-lg">
               <div className="flex items-center gap-3">
@@ -314,7 +301,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
             </div>
           )}
 
-          {/* Status Timeline */}
           <div className="mb-8">
             <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-6">Status do Pedido</h3>
             <div className="space-y-4">
@@ -326,7 +312,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
 
                 return (
                   <div key={step.key} className="flex items-start gap-4">
-                    {/* Ícone */}
                     <div className="relative">
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
@@ -339,7 +324,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
                       >
                         <StepIcon className="w-6 h-6" />
                       </div>
-                      {/* Linha conectora */}
                       {index < statusSteps.length - 1 && (
                         <div
                           className={`absolute left-1/2 top-12 w-0.5 h-8 -ml-px transition-colors ${
@@ -349,7 +333,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
                       )}
                     </div>
 
-                    {/* Texto */}
                     <div className="flex-1 pt-2">
                       <p
                         className={`font-medium transition-colors ${
@@ -379,7 +362,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
             </div>
           </div>
 
-          {/* Itens do Pedido */}
           <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
             <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-3">Itens do Pedido</h3>
             <div className="space-y-2">
@@ -407,7 +389,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
             </div>
           </div>
 
-          {/* Mensagem de Agradecimento (Pós-Avaliação imediata) */}
           {showThankYouMessage && (
              <div className="mt-6 p-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center animate-in fade-in zoom-in duration-300 shadow-sm">
                <div className="bg-green-100 dark:bg-green-900/40 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -418,7 +399,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
              </div>
           )}
 
-          {/* Botão de Avaliação (Apenas se concluído, não avaliado e funcionalidade ativada) */}
           {config.features?.reviews !== false && order.status === 'completed' && (!order.reviews || order.reviews.length === 0) && !showThankYouMessage && (
             <div className="mt-6">
               <button
@@ -431,7 +411,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
             </div>
           )}
 
-          {/* Se já foi avaliado (Histórico) - Apenas se funcionalidade ativada */}
           {config.features?.reviews !== false && order.status === 'completed' && order.reviews && order.reviews.length > 0 && !showThankYouMessage && (
              <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl text-center">
                <p className="text-yellow-800 dark:text-yellow-100 font-bold flex items-center justify-center gap-2">
@@ -442,7 +421,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
              </div>
           )}
 
-          {/* Mensagem de ajuda */}
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <p className="text-sm text-blue-800 dark:text-blue-200">
               💡 Esta página é atualizada automaticamente. Você pode acompanhar seu pedido em tempo real!
@@ -451,7 +429,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
         </div>
       </div>
       
-      {/* Modal de Avaliação */}
       <ReviewModal 
         isOpen={isReviewModalOpen}
         onClose={() => setIsReviewModalOpen(false)}
@@ -459,22 +436,18 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
         onReviewSubmitted={(reviews) => {
           console.log('✅ [REVIEW] Avaliação recebida:', reviews);
           
-          // Atualização Otimista do estado local
           if (order) {
             const updatedOrder = { ...order, reviews: reviews };
             setOrder(updatedOrder);
             
-            // 💾 ATUALIZAR NO HISTÓRICO LOCAL
             try {
               const historyKey = 'faroeste_my_orders';
               const currentHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
               
-              // Encontrar e atualizar o pedido com as reviews
               const updatedHistory = currentHistory.map((o: any) =>
                 o.orderId === order.orderId ? { ...o, reviews: reviews } : o
               );
               
-              // Salvar histórico atualizado
               localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
               console.log('💾 [HISTÓRICO] Reviews salvas localmente:', { orderId: order.orderId, reviews });
             } catch (error) {
@@ -485,7 +458,6 @@ export function OrderTracking({ isOpen, onClose, orderId }: OrderTrackingProps) 
           setShowThankYouMessage(true);
           setIsReviewModalOpen(false);
           
-          // Recarregar do servidor em background (sem bloquear UI)
           setTimeout(() => {
             loadOrder();
           }, 500);

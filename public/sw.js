@@ -1,10 +1,8 @@
-// app instalável: página sempre da rede (cai na última cópia se offline); arquivos estáticos do cache; API nunca passa por aqui
 const CACHE = 'fa-v3';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(
   caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
 ));
-// a Vercel responde index.html (200) para arquivo que não existe: isso nunca pode virar CSS/JS no cache
 const valido = (r) => r && r.ok && !(r.headers.get('content-type') || '').includes('text/html');
 self.addEventListener('fetch', (e) => {
   const req = e.request;

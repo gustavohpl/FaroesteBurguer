@@ -19,7 +19,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
   const themeColor = config.themeColor || '#d97706';
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
 
-  // Ler "Mais Pedidos" direto do config (salvo pelo admin)
   useEffect(() => {
     const popularData = config.popularProducts as Array<{ productId: string; count: number }> | undefined;
     if (!popularData || popularData.length === 0 || products.length === 0) return;
@@ -38,7 +37,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
     setBestSellers(topProducts);
   }, [products, config.popularProducts, config.hiddenBestSellers]);
 
-  // Novidades: lê IDs do config (selecionados pelo admin)
   const noveltyIds: string[] = (config as any).noveltyProductIds || [];
   const novidades = noveltyIds
     .map(id => products.find(p => p.id === id))
@@ -46,7 +44,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
 
   const promotions = products.filter(p => p.category === 'promocoes');
 
-  // Pedir Novamente: só disponíveis
   const availableOrderHistory = orderHistory
     .map(historyProduct => {
       const currentProduct = products.find(p => p.id === historyProduct.id);
@@ -94,7 +91,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
 
   return (
     <div className="space-y-10">
-      {/* Banner de Boas-vindas */}
       <div 
         className="text-white rounded-lg p-8 text-center shadow-xl border-2 transition-all"
         style={{
@@ -106,9 +102,7 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
         <p className="text-lg">{config.siteSubtitle || 'Os melhores lanches da região!'}</p>
       </div>
 
-      {/* Banners promocionais */}
       {(() => {
-        // Suporte ao novo array de banners + compatibilidade com banner antigo
         const banners = (config.homeBanners && config.homeBanners.length > 0) 
           ? config.homeBanners 
           : config.homeBannerUrl 
@@ -134,7 +128,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
         );
       })()}
 
-      {/* Novidades - SÓ aparece se admin adicionou produtos */}
       {novidades.length > 0 && (
         <section>
           <div className="flex items-center gap-3 mb-6">
@@ -155,7 +148,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
         </section>
       )}
 
-      {/* Promoções - Grid normal */}
       <section>
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-red-500 text-white p-3 rounded-lg shadow-md">
@@ -180,7 +172,6 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
         )}
       </section>
 
-      {/* Mais Pedidos - SÓ APARECE se admin salvou dados e tem produtos disponíveis */}
       {bestSellers.length > 0 && (
         <section>
           <div className="flex items-center gap-3 mb-6">
@@ -204,10 +195,8 @@ export function HomePage({ products, onAddToCart, orderHistory }: HomePageProps)
         </section>
       )}
 
-      {/* Top 3 Avaliados - SCROLL HORIZONTAL */}
       <TopRatedProducts products={products} onAddToCart={onAddToCart} />
 
-      {/* Comprar Novamente - SÓ disponíveis */}
       {availableOrderHistory.length > 0 && (
         <section>
           <div className="flex items-center gap-3 mb-6">

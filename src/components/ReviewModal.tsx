@@ -31,7 +31,6 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
   };
 
   const handleSubmit = async () => {
-    // Validar se todos os itens foram avaliados
     const allRated = order.items.every((item: any) => ratings[item.name] > 0);
     
     if (!allRated) {
@@ -52,14 +51,12 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
       const response = await api.submitOrderReview(order.orderId, reviews);
 
       if (response.success) {
-        // Sucesso: Mostrar estado de sucesso
         setIsSuccess(true);
-        onReviewSubmitted(reviews); // Notificar pai
+        onReviewSubmitted(reviews);
         
-        // Fechar automaticamente após 3 segundos
         setTimeout(() => {
            onClose();
-           setIsSuccess(false); // Resetar para próxima vez
+           setIsSuccess(false);
         }, 3000);
       } else {
         alert('Erro ao enviar avaliação: ' + response.error);
@@ -89,7 +86,6 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
   return (
     <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
         <div 
           className="p-4 flex items-center justify-between text-white"
           style={{ backgroundColor: themeColor }}
@@ -103,7 +99,6 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <p className="text-gray-600 dark:text-gray-300 text-sm text-center">
             Sua opinião é muito importante para nós! Avalie os itens que você consumiu:
@@ -115,7 +110,6 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
                 <span className="font-bold text-gray-800 dark:text-gray-100">{item.quantity}x {item.name}</span>
               </div>
 
-              {/* Estrelas */}
               <div className="flex items-center gap-2 mb-3">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -134,7 +128,6 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
                 ))}
               </div>
 
-              {/* Comentário */}
               <div className="relative">
                 <MessageSquare className="w-4 h-4 text-gray-400 absolute top-3 left-3" />
                 <textarea
@@ -149,7 +142,6 @@ export function ReviewModal({ isOpen, onClose, order, onReviewSubmitted }: Revie
           ))}
         </div>
 
-        {/* Footer */}
         <div className="p-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800">
           <button
             onClick={handleSubmit}

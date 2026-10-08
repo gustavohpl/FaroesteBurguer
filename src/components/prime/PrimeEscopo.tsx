@@ -4,7 +4,6 @@ import { useConfig } from '../../ConfigContext';
 import { legivelSobre } from './primeArte';
 import './prime.css';
 
-// modais compartilhados no Prime: portal fora do #client-app (que tem .dark) + tokens/fonte do Prime
 export function PrimeEscopo({ ativo, children }: { ativo: boolean; children: React.ReactNode }) {
   const { config } = useConfig();
   if (!ativo) return <>{children}</>;

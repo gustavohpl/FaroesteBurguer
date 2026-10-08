@@ -11,12 +11,10 @@ export function Footer() {
 
   return (
     <footer className="text-white pt-16 pb-8 mt-0 relative overflow-hidden">
-      {/* Degradê: transparente → escuro (inverso do header) */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,0.85) 100%)'
       }} />
       <div className="container mx-auto px-4 relative z-10">
-        {/* Taxa de Entrega */}
         <div className="flex justify-center mb-6">
           <div 
             className="group relative px-8 py-3 rounded-xl overflow-hidden shadow-lg transition-all duration-300 flex items-center justify-center gap-3"
@@ -34,7 +32,6 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Logo no centro */}
         <div className="flex justify-center mb-4">
           <img 
             src={currentLogo} 
@@ -43,7 +40,6 @@ export function Footer() {
           />
         </div>
 
-        {/* Texto simples */}
         <div className="text-center">
           <p className="text-sm text-gray-400">{config.siteName} - Todos os direitos reservados</p>
         </div>

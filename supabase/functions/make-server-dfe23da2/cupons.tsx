@@ -1,8 +1,6 @@
 import * as kv from "./kv_retry.tsx";
 import { unidadeAtual } from "./kv_retry.tsx";
 
-// cupom da unidade: coupon:<id>. Compartilhado entre unidades da cidade: cupom_compartilhado:item:<id> (chave da cidade),
-// com `unidades` e um limite de usos só, somado entre elas
 const ITEM = 'cupom_compartilhado:item:';
 export const ehCompartilhado = (id: string) => id.startsWith('cshared_');
 export const chaveDoCupom = (id: string) => (ehCompartilhado(id) ? `${ITEM}${id}` : `coupon:${id}`);
@@ -19,7 +17,6 @@ export async function acharCupom(code: string): Promise<any | null> {
   return (await cuponsDaUnidade()).find((c: any) => c.code?.toUpperCase() === alvo) || null;
 }
 
-// reserva um uso de forma atômica (cada uso é uma chave única): duas unidades ao mesmo tempo não passam do limite
 export async function usarCupom(cupom: any): Promise<boolean> {
   const chave = chaveDoCupom(cupom.id);
   const atual: any = await kv.get(chave);

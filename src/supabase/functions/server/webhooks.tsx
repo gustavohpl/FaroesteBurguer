@@ -1,9 +1,3 @@
-// ==========================================
-// 📡 WEBHOOK NOTIFICATION SYSTEM
-// Dispatch de eventos de segurança para webhooks externos
-// Suporte: Generic POST, Telegram Bot, Discord
-// ==========================================
-
 import * as kv from "./kv_retry.tsx";
 import type { WebhookConfig, WebhookLog } from "./types.tsx";
 

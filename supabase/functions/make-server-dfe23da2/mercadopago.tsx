@@ -1,22 +1,16 @@
-// Pagamento automático pelo Mercado Pago (mesmo desenho do Engaja Aí):
-// - o valor sai sempre do pedido salvo no servidor, nunca do navegador;
-// - Pix pela API de pagamentos; cartão pelo Checkout Pro (o cartão nunca passa por aqui);
-// - confirmação só depois de buscar o pagamento na API do MP (webhook com assinatura ou consulta de status);
-// - pago = pedido continua na cozinha com paymentStatus 'paid' (nunca é concluído/arquivado por isso).
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { entrarNaUnidade, escopoDoPedido, configDaUnidade } from "./franquia.tsx";
 import { success, error } from "./server_utils.tsx";
 import { requireMaster } from "./middleware.tsx";
 
-// MP_API_URL só existe no ambiente de teste (simulador local da API)
 const API = Deno.env.get("MP_API_URL") || "https://api.mercadopago.com";
 const SEGREDOS = "mp_segredos";
 
 type Segredos = { accessToken?: string; webhookSecret?: string; atualizadoEm?: string };
 type PagamentoMP = {
   id: number;
-  status: string; // pending | approved | authorized | in_process | in_mediation | rejected | cancelled | refunded | charged_back
+  status: string;
   transaction_amount: number;
   external_reference: string | null;
   payment_type_id?: string;
@@ -46,12 +40,10 @@ async function chamar<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   return dados as T;
 }
 
-// MP quer a data como 2026-09-28T18:00:00.000-03:00
 const dataBrasilia = (d: Date) => new Date(d.getTime() - 3 * 3600_000).toISOString().replace("Z", "-03:00");
 
 const pedidoSalvo = async (id: string): Promise<any> => (await kv.get(`order:${id}`)) || (await kv.get(`archive:${id}`));
 
-// parte do pedido paga nesta forma (no misto, só a parte dela)
 export function valorDaForma(order: any, forma: "pix" | "card"): number {
   const total = Number(order?.total) || 0;
   if (order?.splitPayment) {
@@ -62,7 +54,6 @@ export function valorDaForma(order: any, forma: "pix" | "card"): number {
   return order?.paymentMethod === forma ? total : 0;
 }
 
-// o Admin vê o selo "aguardando pagamento online" enquanto o cliente paga
 async function marcarAguardando(order: any) {
   if (order.paymentStatus === "paid" || !(await kv.get(`order:${order.orderId}`))) return;
   await kv.set(`order:${order.orderId}`, { ...order, paymentStatus: "aguardando", paymentGateway: "mercadopago" });
@@ -70,7 +61,6 @@ async function marcarAguardando(order: any) {
 
 const urlWebhook = () => `${Deno.env.get("SUPABASE_URL")}/functions/v1/make-server-dfe23da2/payment/mp/webhook`;
 
-// https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks
 async function assinaturaValida(req: Request, dataId: string): Promise<boolean> {
   const { webhookSecret } = await segredosMP();
   const header = req.headers.get("x-signature");
@@ -80,7 +70,7 @@ async function assinaturaValida(req: Request, dataId: string): Promise<boolean> 
   const { ts, v1 } = partes;
   if (!ts || !v1) return false;
   const tsMs = Number(ts) > 1e12 ? Number(ts) : Number(ts) * 1000;
-  if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > 10 * 60_000) return false; // replay
+  if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > 10 * 60_000) return false;
   const id = /^[a-z0-9]+$/i.test(dataId) ? dataId.toLowerCase() : dataId;
   const chave = await crypto.subtle.importKey("raw", new TextEncoder().encode(webhookSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const assinatura = new Uint8Array(await crypto.subtle.sign("HMAC", chave, new TextEncoder().encode(`id:${id};request-id:${requestId};ts:${ts};`)));
@@ -91,7 +81,6 @@ async function assinaturaValida(req: Request, dataId: string): Promise<boolean> 
   return dif === 0;
 }
 
-// aplica o status REAL (buscado na API do MP) ao pedido; idempotente
 async function aplicarStatus(mp: PagamentoMP): Promise<string> {
   const orderId = String(mp.external_reference || "");
   const reg = await kv.get(`pagamento:${orderId}`) as Registro | null;
@@ -146,7 +135,6 @@ router.post("/payment/mp/pix", async (c) => {
     const expiraEm = new Date(Date.now() + 30 * 60_000);
     const mp = await chamar<PagamentoMP>("/v1/payments", {
       method: "POST",
-      // mesma chave em ~25 min: duas chamadas juntas (tela aberta duas vezes) devolvem o MESMO Pix
       headers: { "X-Idempotency-Key": `pix-${order.orderId}-${valor}-${Math.floor(Date.now() / (25 * 60_000))}` },
       body: JSON.stringify({
         transaction_amount: valor,
@@ -173,7 +161,6 @@ router.post("/payment/mp/pix", async (c) => {
   }
 });
 
-// cartão: página de pagamento do próprio Mercado Pago (Checkout Pro)
 router.post("/payment/mp/cartao", async (c) => {
   try {
     const { orderId } = await c.req.json();
@@ -212,7 +199,6 @@ router.post("/payment/mp/cartao", async (c) => {
   }
 });
 
-// consulta (o cliente na tela do Pix ou voltando do Checkout Pro com ?payment_id=)
 router.get("/payment/mp/status/:orderId", async (c) => {
   try {
     const orderId = c.req.param("orderId");
@@ -222,7 +208,6 @@ router.get("/payment/mp/status/:orderId", async (c) => {
     const reg = await kv.get(`pagamento:${orderId}`) as Registro | null;
     if (!reg) return success(c, { status: "pending" });
     const paymentId = (c.req.query("payment_id") || "").replace(/\D/g, "");
-    // sem id: procura no MP qualquer pagamento deste pedido (vários Pix, ou cartão antes do webhook chegar)
     const candidatos = paymentId
       ? [await chamar<PagamentoMP>(`/v1/payments/${paymentId}`)]
       : (await chamar<{ results: PagamentoMP[] }>(`/v1/payments/search?external_reference=${encodeURIComponent(orderId)}&sort=date_created&criteria=desc`)).results || [];
@@ -249,19 +234,16 @@ router.post("/payment/mp/webhook", async (c) => {
   if (tipo !== "payment") return c.json({ ok: true, ignorado: tipo });
   try {
     const pagamento = await chamar<PagamentoMP>(`/v1/payments/${encodeURIComponent(dataId)}`);
-    // o MP não manda cabeçalho de unidade: a unidade vem do índice gravado ao criar o pedido
     await entrarNaUnidade(await kv.get(`order_unit:${pagamento.external_reference}`));
     const r = await aplicarStatus(pagamento);
     console.log("💳 [MP] webhook", dataId, r);
     return c.json({ ok: true, resultado: r });
   } catch (e) {
-    // 500 faz o MP reenviar depois — seguro, a confirmação é idempotente
     console.error("❌ [MP] webhook:", e);
     return c.json({ error: "falha ao processar" }, 500);
   }
 });
 
-// Master: token e segredo só entram (nunca voltam para a tela)
 router.get("/master/pagamento/mercadopago", requireMaster, async (c) => {
   const s = await segredosMP();
   let conta: Record<string, unknown> | null = null, erroConta = "";

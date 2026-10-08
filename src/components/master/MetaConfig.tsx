@@ -4,8 +4,6 @@ import { masterFetch } from '../../utils/api';
 
 type Estado = { temToken: boolean; conta: string; pagina: string; instagram: string; pixel?: string; resultado?: { nome?: string; moeda?: string; pagina?: string | null } | null; erroConta?: string };
 
-// token do usuário do sistema vai direto para o servidor e nunca volta para a tela; os IDs não são segredo
-// com franquia, cada cidade tem a própria Meta (rede social da loja da cidade, a mesma para as unidades dela)
 export function MetaConfig({ cidades = [] }: { cidades?: { id: string; rotulo: string }[] }) {
   const [cidade, setCidade] = useState('');
   const [pixel, setPixel] = useState('');

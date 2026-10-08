@@ -3,7 +3,6 @@ import { authFetch, getAllProducts, getCoupons } from '../../utils/api';
 import { useFranchise } from '../../FranchiseContext';
 import { useConfig } from '../../ConfigContext';
 
-// Anúncios reais na Meta (Facebook/Instagram) — porte da tela do Engaja Aí. Toda campanha nasce pausada.
 type Metricas = { gasto: number; alcance: number; impressoes: number; cliques: number; cpc: number | null; ctr: number | null; cliques_link: number; visitas_pagina: number; compras: number };
 type Resumo = { conta: { nome: string; moeda: string; status: number; saldo_texto: string | null; minimo_diario: number | null }; instagram_conectado: boolean; pixel: boolean; metricas: Metricas };
 type Campanha = {
@@ -71,7 +70,6 @@ export function AnunciosMeta() {
   }, [periodo]);
 
   useEffect(() => { carregar(); }, [carregar]);
-  // números da Meta não avisam: atualiza a cada minuto com a aba aberta
   useEffect(() => {
     const id = setInterval(() => document.visibilityState === 'visible' && carregar(), 60_000);
     return () => clearInterval(id);
@@ -290,7 +288,6 @@ function NovaCampanha({ aoFechar, aoCriar, minimoDiario = null }: { aoFechar: ()
     getCoupons().then((r: any) => setCupons((r?.coupons || []).filter((x: any) => x.isActive !== false && x.active !== false))).catch(() => {});
   }, []);
 
-  // franquia: o link abre a cidade certa e o texto diz em quais unidades o cupom vale
   const { franchiseEnabled, selectedCity, selectedUnit } = useFranchise();
   const unidadesDaCidade = franchiseEnabled ? selectedCity?.units || [] : [];
   const [validoEm, setValidoEm] = useState<string[]>([]);
@@ -539,7 +536,6 @@ function NovaCampanha({ aoFechar, aoCriar, minimoDiario = null }: { aoFechar: ()
 const NOMES: Record<string, string> = { reels: 'Reels', story: 'Stories', stream: 'Feed', explore: 'Explorar', fb_feed: 'Facebook · Feed', fb_story: 'Facebook · Stories', fb_reels: 'Facebook · Reels' };
 const BASE: Record<string, string> = { fb_feed: 'stream', fb_story: 'story', fb_reels: 'reels' };
 
-// simulação aproximada de como o anúncio aparece (a Meta pode cortar texto e mover o botão)
 function PreviaAnuncio({ imagem, texto, titulo, botao, usuario, logo, posicoes }: { imagem: string | null; texto: string; titulo: string; botao: string; usuario: string; logo?: string; posicoes: string[] }) {
   const opcoes = posicoes.length ? posicoes : ['reels'];
   const [escolhida, setEscolhida] = useState(opcoes[0]);

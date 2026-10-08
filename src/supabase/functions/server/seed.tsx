@@ -1,6 +1,3 @@
-// Script para popular o banco com produtos iniciais
-// Este arquivo não é executado automaticamente, apenas como referência
-
 import * as kv from "./kv_retry.tsx";
 
 const INITIAL_PRODUCTS = [

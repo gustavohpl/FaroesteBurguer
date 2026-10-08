@@ -61,7 +61,6 @@ export function DeliverymanPage() {
   
   useEffect(() => {
     loadColors();
-    // Pre-aquecer deteccao WebRTC para capturar IP real no login
     warmupWebRTCDetection();
     const savedName = localStorage.getItem('delivery_user_name');
     const savedPhone = localStorage.getItem('delivery_user_phone');
@@ -84,7 +83,6 @@ export function DeliverymanPage() {
     }
   }, []);
 
-  // 🛡️ Escutar evento de sessão de driver expirada (force-logout ou TTL)
   useEffect(() => {
     const handleSessionExpired = () => {
       console.warn('⚠️ [DRIVER] Sessão expirada — forçando logout visual');
@@ -103,10 +101,8 @@ export function DeliverymanPage() {
   useEffect(() => {
     if (!isLoggedIn) return;
     loadData();
-    // Polling agora gerenciado pelo useDeliveryRealtime hook
   }, [isLoggedIn, activeTab, viewMode]);
 
-  // Realtime: substitui o polling de 3s
   const { isRealtimeConnected } = useDeliveryRealtime(useCallback(() => {
     if (isLoggedIn) loadData();
   }, [isLoggedIn]), isLoggedIn);
@@ -264,7 +260,6 @@ export function DeliverymanPage() {
         const failed = results.filter(r => r.status === 'rejected');
         const succeeded = results.filter(r => r.status === 'fulfilled');
         
-        // Verificar respostas de sucesso (servidor pode retornar success: false)
         const serverErrors = succeeded.filter(r => {
           const val = (r as PromiseFulfilledResult<any>).value;
           return val && val.success === false;
@@ -281,11 +276,9 @@ export function DeliverymanPage() {
         if (totalSuccess > 0) {
           setViewMode('selection');
           setActiveTab('completed');
-          // Carregar histórico para popular a aba de concluídos
           await loadHistory();
         }
         
-        // Recarregar pedidos atuais (para limpar os finalizados)
         await loadCurrentOrders();
     } catch (e) {
         console.error('❌ [DELIVERYMAN] Erro ao finalizar rota:', e);
@@ -317,7 +310,6 @@ export function DeliverymanPage() {
     const d = new Date(dateString);
     const today = new Date();
     
-    // Lógica de "Dia de Negócio": subtrair 4 horas
     const businessD = new Date(d.getTime() - (4 * 60 * 60 * 1000));
     const businessToday = new Date(today.getTime() - (4 * 60 * 60 * 1000));
     
@@ -424,7 +416,6 @@ export function DeliverymanPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-zinc-950 pb-20">
-      {/* Header */}
       <div 
         className="text-white p-4 shadow-lg sticky top-0 z-10"
         style={{ backgroundColor: currentUser?.color }}

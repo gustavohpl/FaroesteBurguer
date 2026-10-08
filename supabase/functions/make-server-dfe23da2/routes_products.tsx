@@ -1,8 +1,3 @@
-// ==========================================
-// 📦 ROTAS: Produtos + Categorias
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { success, error } from "./server_utils.tsx";
@@ -11,15 +6,10 @@ import type { ServerProduct, Category } from "./types.tsx";
 
 const router = new Hono();
 
-// ==========================================
-// 📦 PRODUTOS
-// ==========================================
-
 router.get('/products', async (c) => {
   try {
     const products: ServerProduct[] = await kv.getByPrefix('product:');
     
-    // Ordenar produtos por createdAt (mais antigos primeiro, novos por último)
     const sorted = products.sort((a: any, b: any) => {
       const dateA = new Date(a.createdAt || 0).getTime();
       const dateB = new Date(b.createdAt || 0).getTime();
@@ -84,10 +74,6 @@ router.delete('/products/all', requireAdmin, async (c) => {
   }
   return success(c, { message: 'Todos os produtos deletados' });
 });
-
-// ==========================================
-// 🏷️ CATEGORIAS
-// ==========================================
 
 router.get('/categories', async (c) => {
   try {

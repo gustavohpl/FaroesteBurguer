@@ -1,20 +1,11 @@
-// ==========================================
-// 🛠️ UTILITÁRIOS COMPARTILHADOS DO SERVIDOR
-// Funções de sanitização, helpers de resposta, etc.
-// ==========================================
-
 import type { Context } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
-
-// ---- Response Helpers ----
 
 export const success = (c: Context, data: Record<string, unknown>) =>
   c.json({ success: true, ...data });
 
 export const error = (c: Context, msg: string, status = 400) =>
   c.json({ success: false, error: msg }, status as 400);
-
-// ---- Sanitização de Inputs (XSS Prevention) ----
 
 export function stripTags(str: string): string {
   if (typeof str !== 'string') return '';
@@ -84,29 +75,22 @@ export function sanitizeReviews(reviews: unknown[]): Array<{ productId: string; 
   })).filter(r => r.productId || r.productName);
 }
 
-// ---- Helpers ----
-
 export function getClientIp(c: Context): string {
   return c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
     || c.req.header('x-real-ip')
     || 'unknown';
 }
 
-// ---- Constants ----
-
-export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
-export const DRIVER_SESSION_DURATION_MS = 12 * 60 * 60 * 1000; // 12 horas
+export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+export const DRIVER_SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
 
 export const RATE_LIMIT_MAX_ATTEMPTS = 5;
-export const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;  // 15 minutos
-export const RATE_LIMIT_LOCKOUT_MS = 15 * 60 * 1000;  // 15 minutos de bloqueio
+export const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+export const RATE_LIMIT_LOCKOUT_MS = 15 * 60 * 1000;
 
 export const DELIVERY_RATE_LIMIT_MAX = 10;
 export const DELIVERY_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
-// ---- Audit Log ----
-
-/** Gravar audit log no KV (usado por writeAuditLogWithGeo e rotas de auditoria) */
 export async function writeAuditLog(params: {
   action: string;
   username: string;
@@ -166,9 +150,6 @@ export async function writeAuditLog(params: {
   }
 }
 
-// ---- Helpers de Data/Hora (Fuso Horário Brasília) ----
-
-/** Obter data/hora de Brasília como ISO string */
 export function getBrasiliaISOString(): string {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -182,7 +163,6 @@ export function getBrasiliaISOString(): string {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}-03:00`;
 }
 
-/** Obter início do "dia operacional" (4h da manhã em Brasília) */
 export function getBusinessDayStart(): Date {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -201,7 +181,6 @@ export function getBusinessDayStart(): Date {
     4, 0, 0, 0
   );
 
-  // Se antes das 4h, o dia operacional começou ontem às 4h
   if (brasiliaHour < 4) {
     brasiliaDate.setDate(brasiliaDate.getDate() - 1);
   }

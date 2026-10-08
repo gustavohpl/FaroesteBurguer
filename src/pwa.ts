@@ -13,7 +13,6 @@ export function iniciarPwa() {
   }
 }
 
-// null enquanto o Chrome não liberar a instalação (ou já instalado)
 export function useInstalar() {
   const [pode, setPode] = useState(!!adiado);
   useEffect(() => {

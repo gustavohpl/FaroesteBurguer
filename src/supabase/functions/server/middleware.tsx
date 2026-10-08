@@ -1,8 +1,3 @@
-// ==========================================
-// 🛡️ MIDDLEWARE DE AUTENTICAÇÃO
-// requireAdmin, requireMaster, requireDriver, requireAdminOrDriver
-// ==========================================
-
 import type { Context, Next } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { error } from "./server_utils.tsx";
@@ -12,8 +7,6 @@ import {
   RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_LOCKOUT_MS,
 } from "./server_utils.tsx";
-
-// ---- Rate Limiting ----
 
 export async function checkRateLimit(route: string, ip: string): Promise<{ allowed: boolean; retryAfterSec?: number }> {
   const key = `rate_limit:${route}:${ip}`;
@@ -65,8 +58,6 @@ export async function clearRateLimit(route: string, ip: string): Promise<void> {
   await kv.del(`rate_limit:${route}:${ip}`);
 }
 
-// ---- Session Cleanup ----
-
 let lastCleanupTime = 0;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -103,12 +94,9 @@ export async function cleanupExpiredSessions(): Promise<number> {
   return cleaned;
 }
 
-/** Reseta o throttle de limpeza (usado pela rota master/cleanup-sessions) */
 export function resetCleanupThrottle(): void {
   lastCleanupTime = 0;
 }
-
-// ---- Auth Middleware ----
 
 export const requireAdmin = async (c: Context, next: Next) => {
   const token = c.req.header('X-Admin-Token');
@@ -129,9 +117,6 @@ export const requireAdmin = async (c: Context, next: Next) => {
     return error(c, 'Sessão de admin expirada. Faça login novamente.', 401);
   }
 
-  // CSRF validation for mutation requests
-  // Token CSRF é fixo durante a sessão (não rotaciona) para evitar
-  // dessincronia em requisições simultâneas que deslogava o admin.
   if (['POST', 'PUT', 'DELETE'].includes(c.req.method)) {
     const csrfToken = c.req.header('X-CSRF-Token');
     if (session.csrfToken && csrfToken !== session.csrfToken) {
@@ -187,12 +172,10 @@ export const requireDriver = async (c: Context, next: Next) => {
 };
 
 export const requireAdminOrDriver = async (c: Context, next: Next) => {
-  // Try admin first
   const adminToken = c.req.header('X-Admin-Token');
   if (adminToken) {
     const session = await kv.get(`admin_session:${adminToken}`) as AdminSession | null;
     if (session && (!session.expiresAt || new Date(session.expiresAt) > new Date())) {
-      // CSRF for mutations (token fixo na sessão, não rotaciona)
       if (['POST', 'PUT', 'DELETE'].includes(c.req.method)) {
         const csrf = c.req.header('X-CSRF-Token');
         if (session.csrfToken && csrf !== session.csrfToken) {
@@ -205,7 +188,6 @@ export const requireAdminOrDriver = async (c: Context, next: Next) => {
     }
   }
 
-  // Try driver
   const driverToken = c.req.header('X-Driver-Token');
   if (driverToken) {
     const session = await kv.get(`driver_session:${driverToken}`) as DriverSession | null;

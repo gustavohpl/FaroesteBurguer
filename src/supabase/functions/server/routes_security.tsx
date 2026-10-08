@@ -1,8 +1,3 @@
-// ==========================================
-// 🛡️ ROTAS: IP Reputation, Webhooks, Security Analytics
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { success, error } from "./server_utils.tsx";
@@ -13,10 +8,6 @@ import { generateSecurityAnalytics } from "./analytics.tsx";
 import type { IpReputationRecord, WebhookConfig, SecurityMetrics } from "./types.tsx";
 
 const router = new Hono();
-
-// ==========================================
-// 🎯 IP Reputation
-// ==========================================
 
 router.get('/admin/ip-reputation/:ip', requireAdmin, async (c) => {
   try {
@@ -56,10 +47,6 @@ router.get('/master/ip-reputation/top-threats', requireMaster, async (c) => {
   }
 });
 
-// ==========================================
-// 📡 Webhooks
-// ==========================================
-
 router.get('/master/webhooks/config', requireMaster, async (c) => {
   try {
     const configs = await getWebhookConfigs();
@@ -98,10 +85,6 @@ router.get('/master/webhooks/logs', requireMaster, async (c) => {
     return error(c, `Erro ao buscar logs de webhook: ${e}`, 500);
   }
 });
-
-// ==========================================
-// 📊 Security Analytics
-// ==========================================
 
 router.get('/admin/security/analytics', requireAdmin, async (c) => {
   try {

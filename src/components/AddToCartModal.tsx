@@ -11,7 +11,7 @@ interface AddToCartModalProps {
   product: Product;
   onConfirm: (product: Product, notes: string, quantity: number, selectedAddons?: Array<{id: string; name: string; price: number}>) => void;
   onClose: () => void;
-  categoryColor?: string; // Cor da categoria (classe Tailwind ou hex)
+  categoryColor?: string;
 }
 
 export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: AddToCartModalProps) {
@@ -24,19 +24,15 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
   const originalTotal = product.originalTotal;
   const hasPromo = promoData && promoData.length > 0 && originalTotal && originalTotal > product.price;
 
-  // Determinar cor efetiva: se feature ativa + cor da categoria existe, usar; senão fallback para themeColor
   const themeColor = config.themeColor || '#d97706';
   const resolvedCategoryColor = resolveColorToHex(categoryColor);
   const effectiveColor = (config.useCategoryColorInModals && resolvedCategoryColor) ? resolvedCategoryColor : themeColor;
   const effectiveColorDark = darkenHex(effectiveColor);
 
-  // Estado para hover do botão Adicionar
   const [addBtnHover, setAddBtnHover] = useState(false);
 
-  // Montar lista de ingredientes visíveis com quantidades
   const visibleIngredients = getVisibleIngredients(product);
 
-  // Adicionais do produto
   const availableAddons = product.addons || [];
   const hasAddons = availableAddons.length > 0;
 
@@ -49,12 +45,10 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
     });
   };
 
-  // Total dos adicionais selecionados
   const addonsTotal = availableAddons
     .filter(a => selectedAddonIds.has(a.id))
     .reduce((sum, a) => sum + a.price, 0);
 
-  // Preço unitário com adicionais
   const unitPrice = product.price + addonsTotal;
 
   const handleConfirm = () => {
@@ -62,7 +56,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
     onConfirm(product, notes.trim(), quantity, selected.length > 0 ? selected : undefined);
   };
 
-  // Permitir confirmar com Enter (se não tiver quebra de linha)
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -70,13 +63,11 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
     }
   };
 
-  // Estado para focus do textarea
   const [textareaFocused, setTextareaFocused] = useState(false);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Header — usa cor efetiva */}
         <div
           className="text-white p-4 flex items-center justify-between flex-shrink-0"
           style={{ backgroundColor: effectiveColor }}
@@ -94,12 +85,9 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
           </button>
         </div>
 
-        {/* Content — rola internamente quando maior que a tela (evita corte no mobile) */}
         <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
-          {/* Produto — imagem + nome/preço lado a lado */}
           <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden">
             <div className="flex">
-              {/* Imagem do produto */}
               {(product.imageUrl || product.image) && (
                 <div className="w-24 min-w-[6rem] h-24 flex-shrink-0">
                   <ImageWithFallback
@@ -109,11 +97,9 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
                   />
                 </div>
               )}
-              {/* Nome, promo badges, descrição, preço */}
               <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
                 <div>
                   <h4 className="font-bold text-gray-800 dark:text-white text-base leading-tight line-clamp-2">{product.name}</h4>
-                  {/* Itens da promoção */}
                   {hasPromo && promoData && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {promoData.map((item, idx) => (
@@ -123,7 +109,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
                       ))}
                     </div>
                   )}
-                  {/* Descrição só mostra quando NÃO há ingredientes visíveis e não é promo */}
                   {product.description && visibleIngredients.length === 0 && !hasPromo && (
                     <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 line-clamp-2">{product.description}</p>
                   )}
@@ -150,7 +135,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
             </div>
           </div>
 
-          {/* Ingredientes Visíveis — sem label "Ingredientes:" */}
           {visibleIngredients.length > 0 && (
             <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 text-sm">
               {visibleIngredients.map((ingredient, index) => (
@@ -159,7 +143,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
             </ul>
           )}
 
-          {/* 🛒 Adicionais disponíveis */}
           {hasAddons && (
             <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3">
               <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
@@ -210,7 +193,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
             </div>
           )}
 
-          {/* Seletor de Quantidade */}
           <div className="flex items-center justify-between bg-gray-50 dark:bg-zinc-800 rounded-lg px-4 py-3">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('cart.quantity')}</span>
             <div className="flex items-center gap-0">
@@ -238,7 +220,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
             </div>
           </div>
 
-          {/* Campo de Observações */}
           <div>
             <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2 text-sm">
               🗒️ {t('checkout.notes')} ({t('common.or')} {t('common.cancel').toLowerCase()})
@@ -263,7 +244,6 @@ export function AddToCartModal({ product, onConfirm, onClose, categoryColor }: A
             </p>
           </div>
 
-          {/* Botões */}
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}

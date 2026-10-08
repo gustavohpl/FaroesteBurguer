@@ -24,7 +24,6 @@ export function ProductCardWithBadge({ product, onAddToCart, badge }: ProductCar
         <span className="text-sm font-semibold">{badge.text}</span>
       </div>
       <div className="relative">
-        {/* Renderizar conteúdo interno do ProductCard sem wrapper duplicado */}
         <ProductCard product={product} onAddToCart={onAddToCart} noBorder />
       </div>
     </div>

@@ -63,7 +63,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
   const [showAllowModal, setShowAllowModal] = useState(false);
   const [pendingAllowIp, setPendingAllowIp] = useState('');
 
-  // ===== FETCH =====
   const fetchBlacklist = async () => {
     try {
       const res = await fetchFn('/master/ip-blacklist');
@@ -92,7 +91,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // ===== AÇÕES: BLACKLIST =====
   const addToBlacklist = async () => {
     if (!newIp.trim()) { setError('Informe o endereco IP'); return; }
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
@@ -132,7 +130,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
     }
   };
 
-  // ===== AÇÕES: WHITELIST =====
   const addToWhitelist = async (ip?: string, reason?: string) => {
     const targetIp = ip || newIp.trim();
     const targetReason = reason || newReason.trim() || 'Acesso permitido manualmente';
@@ -182,7 +179,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
     }
   };
 
-  // ===== PERMITIR IP (modal) =====
   const openAllowModal = (ip: string) => {
     setPendingAllowIp(ip);
     setAllowReason('');
@@ -194,7 +190,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
     addToWhitelist(pendingAllowIp, allowReason || `Permitido manualmente (anteriormente bloqueado)`);
   };
 
-  // ===== HELPERS =====
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 4000);
@@ -202,7 +197,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
 
   const isWhitelisted = (ip: string) => whitelist.some(e => e.ip === ip);
 
-  // Filtrar
   const filteredBlacklist = blacklist.filter(entry => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -227,7 +221,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -263,7 +256,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       </div>
 
-      {/* Msg sucesso */}
       {successMsg && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl text-sm flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4" />
@@ -271,7 +263,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       )}
 
-      {/* Modal: Permitir IP (de dentro da blacklist) */}
       {showAllowModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in-95">
@@ -333,7 +324,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       )}
 
-      {/* Form de adicionar (bloquear ou permitir) */}
       {showAddForm && (
         <div className={`bg-white rounded-xl shadow-sm border p-5 ${addMode === 'block' ? 'border-red-200' : 'border-emerald-200'}`}>
           <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2">
@@ -416,7 +406,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       )}
 
-      {/* Estatisticas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center gap-3">
@@ -466,7 +455,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       </div>
 
-      {/* Toggle view: Blacklist / Whitelist */}
       <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
         <button
           onClick={() => { setViewMode('blacklist'); setSearchTerm(''); }}
@@ -492,7 +480,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </button>
       </div>
 
-      {/* Busca */}
       {(viewMode === 'blacklist' ? blacklist.length : whitelist.length) > 0 && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -508,7 +495,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       )}
 
-      {/* ===== LISTA: BLACKLIST ===== */}
       {viewMode === 'blacklist' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
@@ -554,7 +540,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       )}
 
-      {/* ===== LISTA: WHITELIST ===== */}
       {viewMode === 'whitelist' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
@@ -602,7 +587,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
         </div>
       )}
 
-      {/* Disclaimer */}
       <p className="text-[10px] text-gray-400 text-center">
         A geolocalizacao exibida e aproximada (hub do ISP). IPs na whitelist fazem bypass completo da blacklist e do auto-bloqueio.
       </p>
@@ -610,7 +594,6 @@ export function IpBlacklist({ fetchFn = masterFetch }: IpBlacklistProps) {
   );
 }
 
-// ===== COMPONENTE: Card de IP (reutilizado para blacklist e whitelist) =====
 function IpEntryCard({
   ip, reason, timestamp, by, geo, type, isExpanded, onToggleExpand, onRemove, onAllow, isWhitelisted, allowingIp
 }: {
@@ -677,7 +660,6 @@ function IpEntryCard({
               )}
             </div>
 
-            {/* Expandir detalhes */}
             <button
               onClick={onToggleExpand}
               className="text-[10px] text-blue-600 hover:text-blue-800 mt-1.5 flex items-center gap-0.5"
@@ -711,7 +693,6 @@ function IpEntryCard({
           </div>
         </div>
         
-        {/* Ações */}
         <div className="flex flex-col gap-1 flex-shrink-0">
           {isBlock && onAllow && (
             <button

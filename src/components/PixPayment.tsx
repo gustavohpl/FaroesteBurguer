@@ -5,7 +5,7 @@ import { useConfig } from '../ConfigContext';
 interface PixPaymentProps {
   amount: number;
   onClose: () => void;
-  onSendMessage: () => void; // Nova prop para enviar mensagem completa
+  onSendMessage: () => void;
 }
 
 export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) {
@@ -23,11 +23,9 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
   };
 
   const handleSendReceipt = () => {
-    // Chamar a função que envia a mensagem completa do pedido
     onSendMessage();
     setReceiptSent(true);
     
-    // Após enviar, fechar o modal
     setTimeout(() => {
       onClose();
     }, 1000);
@@ -36,14 +34,11 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto overflow-hidden">
-        {/* Header */}
         <div className="bg-green-600 text-white p-3">
           <h2 className="text-lg font-bold text-center">Pagamento via PIX</h2>
         </div>
 
-        {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Valor */}
           <div className="text-center bg-green-50 dark:bg-zinc-800 p-3 rounded-lg border-2 border-green-200 dark:border-zinc-700">
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Valor a pagar:</p>
             <p className="text-2xl font-bold text-green-600 dark:text-green-500">
@@ -51,7 +46,6 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
             </p>
           </div>
 
-          {/* Chave PIX */}
           <div>
             <p className="text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium text-center">
               💳 Copie a chave PIX para fazer o pagamento:
@@ -85,7 +79,6 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
             )}
           </div>
 
-          {/* Instruções */}
           <div className="bg-blue-50 dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-lg p-3">
             <p className="text-xs text-blue-900 dark:text-blue-400 font-medium mb-1">
               📋 Instruções:
@@ -98,7 +91,6 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
             </ol>
           </div>
 
-          {/* Aviso Importante */}
           <div className="bg-amber-50 dark:bg-zinc-800 border-2 border-amber-300 dark:border-zinc-700 rounded-lg p-3">
             <p className="text-amber-900 dark:text-amber-400 font-bold text-center text-sm mb-1">
               ⚠️ IMPORTANTE
@@ -108,7 +100,6 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
             </p>
           </div>
 
-          {/* Botão Enviar Comprovante */}
           <button
             onClick={handleSendReceipt}
             className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold text-base transition-colors shadow-lg flex items-center justify-center gap-2"
@@ -117,7 +108,6 @@ export function PixPayment({ amount, onClose, onSendMessage }: PixPaymentProps) 
             Enviar Comprovante via WhatsApp
           </button>
 
-          {/* Botão Fechar */}
           <button
             onClick={onClose}
             className="w-full bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 py-2 rounded-lg font-medium text-sm transition-colors"

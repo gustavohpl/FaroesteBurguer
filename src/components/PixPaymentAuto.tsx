@@ -27,17 +27,15 @@ export function PixPaymentAuto({
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
-  // Gerar QR Code ao montar
   useEffect(() => {
     generatePayment();
   }, []);
 
-  // Polling para verificar status do pagamento
   useEffect(() => {
     if (paymentStatus === 'pending' && qrCode) {
       const interval = setInterval(async () => {
         await checkPaymentStatus();
-      }, 3000); // Verificar a cada 3 segundos
+      }, 3000);
 
       return () => clearInterval(interval);
     }
@@ -75,7 +73,6 @@ export function PixPaymentAuto({
       
       if (response.success && response.paymentStatus === 'approved') {
         setPaymentStatus('approved');
-        // Aguardar 1 segundo para mostrar mensagem de sucesso
         setTimeout(() => {
           onPaymentConfirmed();
         }, 1500);
@@ -107,7 +104,6 @@ export function PixPaymentAuto({
     return `Expira em ${minutes} min`;
   };
 
-  // Estado de carregamento
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -122,7 +118,6 @@ export function PixPaymentAuto({
     );
   }
 
-  // Estado de erro
   if (error) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -145,7 +140,6 @@ export function PixPaymentAuto({
     );
   }
 
-  // Pagamento aprovado
   if (paymentStatus === 'approved') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -169,7 +163,6 @@ export function PixPaymentAuto({
     );
   }
 
-  // Pagamento rejeitado
   if (paymentStatus === 'rejected') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -194,11 +187,9 @@ export function PixPaymentAuto({
     );
   }
 
-  // Aguardando pagamento
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="bg-green-600 text-white p-4 rounded-t-lg">
           <h2 className="text-xl font-bold text-center">Pagamento via PIX</h2>
           <p className="text-center text-green-100 text-sm mt-1">
@@ -206,9 +197,7 @@ export function PixPaymentAuto({
           </p>
         </div>
 
-        {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Valor */}
           <div className="text-center bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-2 border-green-200 dark:border-green-800">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Valor a pagar:</p>
             <p className="text-3xl font-bold text-green-600 dark:text-green-500">
@@ -216,7 +205,6 @@ export function PixPaymentAuto({
             </p>
           </div>
 
-          {/* QR Code */}
           {qrCodeImage && (
             <div className="text-center">
               <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 font-medium">
@@ -232,7 +220,6 @@ export function PixPaymentAuto({
             </div>
           )}
 
-          {/* Código PIX Copia e Cola */}
           <div>
             <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 font-medium text-center">
               💳 Ou copie o código PIX:
@@ -266,7 +253,6 @@ export function PixPaymentAuto({
             )}
           </div>
 
-          {/* Tempo de Expiração */}
           {expiresAt && (
             <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-300 dark:border-amber-800 rounded-lg p-3 flex items-center gap-2 justify-center">
               <Clock className="w-4 h-4 text-amber-700 dark:text-amber-500" />
@@ -276,7 +262,6 @@ export function PixPaymentAuto({
             </div>
           )}
 
-          {/* Status de Aguardando */}
           <div className="bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-300 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-center gap-3 justify-center mb-2">
               <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
@@ -287,7 +272,6 @@ export function PixPaymentAuto({
             </p>
           </div>
 
-          {/* Instruções */}
           <div className="bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-4">
             <p className="text-sm text-gray-900 dark:text-gray-100 font-medium mb-2">
               📋 Como pagar:
@@ -300,7 +284,6 @@ export function PixPaymentAuto({
             </ol>
           </div>
 
-          {/* Botão Fechar */}
           <button
             onClick={onClose}
             className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 py-3 rounded-lg font-medium transition-colors"

@@ -16,7 +16,6 @@ interface GeoInfo {
   isVpn?: boolean;
   isProxy?: boolean;
   isHosting?: boolean;
-  // Multi-source
   geoSources?: number;
   geoSourcesAgree?: number;
   geoSourceList?: string;
@@ -30,13 +29,11 @@ interface GeoInfo {
   geoOutlierSources?: string | null;
   geoVpnSources?: string | null;
   geoSourceDetails?: Array<{ source: string; city: string; lat: number; lon: number; distToAvg: number; inCluster: boolean; weight: number; effectiveWeight?: number; refined?: boolean; vpn: boolean; zip?: string; countryFiltered?: boolean }>;
-  // v3
   geoZipConfirmed?: boolean;
   geoConfirmedZip?: string | null;
   geoIspType?: string;
   geoRansacRefined?: number;
   geoCountryFiltered?: number;
-  // v4.1 — precisao em metros
   geoEstimatedAccuracyM?: number;
   geoP68RadiusM?: number;
   geoP95RadiusM?: number;
@@ -56,7 +53,6 @@ interface AuditLog {
   status: 'success' | 'failure';
   userAgent?: string;
   geo?: GeoInfo | null;
-  // WebRTC Leak
   realIp?: string | null;
   realGeo?: GeoInfo | null;
   webrtcLeak?: boolean;
@@ -66,7 +62,6 @@ interface AuditMapProps {
   logs: AuditLog[];
 }
 
-// Injetar CSS do Leaflet globalmente (uma vez)
 let leafletCssInjected = false;
 function injectLeafletCss() {
   if (leafletCssInjected) return;
@@ -77,7 +72,6 @@ function injectLeafletCss() {
   link.crossOrigin = '';
   document.head.appendChild(link);
   
-  // Fix icone padrao do Leaflet (URLs quebradas com bundlers)
   const style = document.createElement('style');
   style.textContent = `
     .leaflet-default-icon-path { background-image: none !important; }
@@ -118,13 +112,11 @@ function injectLeafletCss() {
   document.head.appendChild(style);
 }
 
-// Formatar precisao em metros/km
 function formatAccuracy(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)}m`;
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
-// Cores por nome de fonte
 const SOURCE_COLORS: Record<string, string> = {
   'ip-api.com':         '#3b82f6',
   'ipwho.is':           '#8b5cf6',
@@ -140,13 +132,11 @@ function getSourceColor(source: string): string {
   return SOURCE_COLORS[source] || '#6b7280';
 }
 
-// Criar SVG marker customizado
 function createMarkerSvg(color: string, pulse: boolean = false): string {
   const pulseCircle = pulse ? `<circle cx="12" cy="12" r="10" fill="${color}" opacity="0.3"><animate attributeName="r" from="10" to="20" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.3" to="0" dur="1.5s" repeatCount="indefinite"/></circle>` : '';
   return `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">${pulseCircle}<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="${color}" stroke="white" stroke-width="2"/><circle cx="14" cy="14" r="6" fill="white" opacity="0.9"/><circle cx="14" cy="14" r="3" fill="${color}"/></svg>`)}`;
 }
 
-// Criar SVG para mini-marker de fonte individual
 function createSourceDotSvg(color: string, inCluster: boolean, refined: boolean): string {
   const r = inCluster ? (refined ? 5 : 6) : 4;
   const stroke = inCluster ? 'white' : '#ef4444';
@@ -169,7 +159,6 @@ export function AuditMap({ logs }: AuditMapProps) {
   const [showSourceDots, setShowSourceDots] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
 
-  // Filtrar logs que tem coordenadas
   const geoLogs = logs.filter(l => l.geo?.lat != null && l.geo?.lon != null);
   
   const filteredLogs = selectedFilter === 'all' 
@@ -179,19 +168,16 @@ export function AuditMap({ logs }: AuditMapProps) {
         return l.status === 'success';
       });
 
-  // Agrupar por IP para mostrar contagem
   const ipCounts = geoLogs.reduce((acc, log) => {
     acc[log.ip] = (acc[log.ip] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Stats de precisao
   const avgAccuracy = (() => {
     const vals = geoLogs.map(l => l.geo?.geoEstimatedAccuracyM).filter((v): v is number => v != null && v > 0);
     return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
   })();
 
-  // Limpar mapa
   const clearMap = useCallback(() => {
     if (!leafletMapRef.current || !mapReady) return;
     const map = leafletMapRef.current;
@@ -203,12 +189,10 @@ export function AuditMap({ logs }: AuditMapProps) {
     setIsCleared(true);
   }, [mapReady]);
 
-  // Restaurar markers
   const restoreMarkers = useCallback(() => {
     setIsCleared(false);
   }, []);
 
-  // Toggle source dots
   const toggleSourceDots = useCallback(() => {
     const map = leafletMapRef.current;
     if (!map) return;
@@ -270,7 +254,6 @@ export function AuditMap({ logs }: AuditMapProps) {
     };
   }, [isExpanded]);
 
-  // Atualizar markers quando logs ou filtro mudar
   useEffect(() => {
     if (!leafletMapRef.current || !mapReady || isCleared) return;
 
@@ -279,7 +262,6 @@ export function AuditMap({ logs }: AuditMapProps) {
 
     const map = leafletMapRef.current;
 
-    // Limpar markers anteriores
     markersRef.current.forEach(m => map.removeLayer(m));
     markersRef.current = [];
     sourceLayersRef.current.forEach(m => map.removeLayer(m));
@@ -287,7 +269,6 @@ export function AuditMap({ logs }: AuditMapProps) {
 
     if (filteredLogs.length === 0) return;
 
-    // Agrupar por IP+coordenada
     const grouped: Record<string, { logs: AuditLog[]; lat: number; lon: number }> = {};
     
     filteredLogs.forEach(log => {
@@ -318,12 +299,10 @@ export function AuditMap({ logs }: AuditMapProps) {
         popupAnchor: [0, -42],
       });
 
-      // Montar popup HTML
       const firstLog = groupLogs[0];
       const geo = firstLog.geo!;
       const locationParts = [geo.district, geo.city, geo.region, geo.country].filter(Boolean);
       
-      // Badge de precisao em metros (v4.1)
       const accuracyM = geo.geoEstimatedAccuracyM;
       const p68M = geo.geoP68RadiusM;
       const p95M = geo.geoP95RadiusM;
@@ -372,7 +351,6 @@ export function AuditMap({ logs }: AuditMapProps) {
 
       const extraCount = groupLogs.length > 5 ? `<div class="audit-popup-row" style="color:#6b7280;margin-top:4px;">... +${groupLogs.length - 5} registros</div>` : '';
 
-      // Confidence display
       const confDisplay = (() => {
         const conf = geo.geoConfidence;
         const sources = `${geo.geoSourcesAgree || geo.geoSources || '?'}/${geo.geoSources || '?'}`;
@@ -393,7 +371,6 @@ export function AuditMap({ logs }: AuditMapProps) {
         }
       })();
 
-      // Source details table (v4.1 — scatter breakdown)
       const sourceDetailsHtml = (() => {
         const details = geo.geoSourceDetails;
         if (!details || details.length === 0) return '';
@@ -463,7 +440,6 @@ export function AuditMap({ logs }: AuditMapProps) {
 
       markersRef.current.push(marker);
 
-      // === Source scatter dots (mini markers para cada fonte individual) ===
       const sourceDetails = geo.geoSourceDetails;
       if (sourceDetails && sourceDetails.length > 0) {
         sourceDetails.forEach(s => {
@@ -487,7 +463,6 @@ export function AuditMap({ logs }: AuditMapProps) {
 
           sourceLayersRef.current.push(dotMarker);
           
-          // Linha do source dot ao centroide
           const lineOpacity = s.inCluster ? (s.refined ? 0.15 : 0.25) : 0.1;
           const lineDash = !s.inCluster ? '3 4' : s.refined ? '2 3' : undefined;
           const line = L.polyline(
@@ -497,13 +472,11 @@ export function AuditMap({ logs }: AuditMapProps) {
           sourceLayersRef.current.push(line);
         });
 
-        // Adicionar ao mapa se showSourceDots esta ativo
         if (showSourceDots) {
           sourceLayersRef.current.forEach(layer => map.addLayer(layer));
         }
       }
 
-      // Circulo de raio de precisao adaptativo
       const conf = geo?.geoConfidence;
       const serverAccuracyM = geo?.geoEstimatedAccuracyM;
       const serverP95M = geo?.geoP95RadiusM;
@@ -539,7 +512,6 @@ export function AuditMap({ logs }: AuditMapProps) {
       if (radiusM > 0 && !hasVpn) {
         const circleColor = conf === 'exata' ? '#3b82f6' : conf === 'muito-alta' ? '#059669' : conf === 'alta' ? '#16a34a' : '#ca8a04';
         
-        // Circulo principal (p95)
         const circle = L.circle([lat, lon], {
           radius: radiusM,
           color: circleColor,
@@ -549,13 +521,11 @@ export function AuditMap({ logs }: AuditMapProps) {
           dashArray: conf === 'media' ? '4 4' : undefined,
         }).addTo(map);
         
-        // Tooltip no circulo externo com label
         circle.bindTooltip(`<span style="font-size:9px;font-weight:600;color:${circleColor};">p95: &plusmn;${formatAccuracy(radiusM)}</span>`, {
           permanent: false, direction: 'right', offset: [10, 0], className: 'leaflet-tooltip-precision',
         });
         markersRef.current.push(circle as any);
 
-        // Circulo interno (p68)
         if (serverAccuracyM != null && serverAccuracyM > 0 && serverAccuracyM < radiusM * 0.8) {
           const innerRadius = Math.round(Math.max(serverAccuracyM, 50) * zipBoost * mobileBoost);
           const innerCircle = L.circle([lat, lon], {
@@ -574,7 +544,6 @@ export function AuditMap({ logs }: AuditMapProps) {
       }
     });
 
-    // Marcadores de IP Real (WebRTC Leak)
     const leakLogs = filteredLogs.filter(l => l.webrtcLeak && l.realIp && l.realGeo?.lat && l.realGeo?.lon);
     const leakGrouped: Record<string, { logs: AuditLog[]; lat: number; lon: number }> = {};
     leakLogs.forEach(log => {
@@ -635,7 +604,6 @@ export function AuditMap({ logs }: AuditMapProps) {
       }
     });
 
-    // Ajustar zoom
     if (bounds.length === 1) {
       map.setView(bounds[0], 13);
     } else if (bounds.length > 1) {
@@ -643,7 +611,6 @@ export function AuditMap({ logs }: AuditMapProps) {
     }
   }, [filteredLogs, mapReady, isCleared, showSourceDots]);
 
-  // Invalidar tamanho do mapa quando expandir
   useEffect(() => {
     if (leafletMapRef.current && mapReady) {
       setTimeout(() => {
@@ -674,7 +641,6 @@ export function AuditMap({ logs }: AuditMapProps) {
     <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 ${
       isExpanded ? 'fixed inset-4 z-50' : ''
     }`}>
-      {/* Overlay escuro quando expandido */}
       {isExpanded && (
         <div 
           className="fixed inset-0 bg-black/40 z-40" 
@@ -683,7 +649,6 @@ export function AuditMap({ logs }: AuditMapProps) {
       )}
       
       <div className={`relative ${isExpanded ? 'z-50 h-full flex flex-col' : ''}`}>
-        {/* Header do mapa */}
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -701,7 +666,6 @@ export function AuditMap({ logs }: AuditMapProps) {
           </div>
           
           <div className="flex items-center gap-1.5">
-            {/* Filtros rapidos */}
             <div className="flex items-center bg-gray-100 rounded-lg p-0.5 text-xs">
               <button
                 onClick={() => { setSelectedFilter('all'); setIsCleared(false); }}
@@ -729,7 +693,6 @@ export function AuditMap({ logs }: AuditMapProps) {
               </button>
             </div>
 
-            {/* Toggle source scatter dots */}
             {hasSourceDetails && (
               <button
                 onClick={toggleSourceDots}
@@ -745,7 +708,6 @@ export function AuditMap({ logs }: AuditMapProps) {
               </button>
             )}
 
-            {/* Botao Limpar Mapa */}
             {!isCleared ? (
               <button
                 onClick={clearMap}
@@ -766,7 +728,6 @@ export function AuditMap({ logs }: AuditMapProps) {
               </button>
             )}
             
-            {/* Toggle legenda */}
             <button
               onClick={() => setShowLegend(!showLegend)}
               className={`p-1.5 rounded-lg transition cursor-pointer ${showLegend ? 'bg-gray-100 text-gray-700' : 'hover:bg-gray-100 text-gray-400'}`}
@@ -775,7 +736,6 @@ export function AuditMap({ logs }: AuditMapProps) {
               <Layers className="w-4 h-4" />
             </button>
 
-            {/* Expandir/recolher */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="p-1.5 hover:bg-gray-100 rounded-lg transition cursor-pointer"
@@ -790,7 +750,6 @@ export function AuditMap({ logs }: AuditMapProps) {
           </div>
         </div>
 
-        {/* Legenda melhorada */}
         {showLegend && (
           <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-3 text-xs text-gray-600 flex-wrap">
             <span className="font-semibold text-gray-500 mr-1">Marcadores:</span>
@@ -840,7 +799,6 @@ export function AuditMap({ logs }: AuditMapProps) {
           </div>
         )}
 
-        {/* Container do mapa */}
         <div 
           ref={mapRef}
           className={`audit-map-container w-full ${isExpanded ? 'flex-1' : 'h-[420px]'}`}

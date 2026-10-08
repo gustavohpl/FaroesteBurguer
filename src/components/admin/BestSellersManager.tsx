@@ -68,7 +68,6 @@ export function BestSellersManager() {
 
         setBestSellers(items);
 
-        // ✅ Salvar lista de populares no config para o site do cliente ler
         const popularData = Object.entries(productCounts)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 15)

@@ -24,7 +24,6 @@ export function PaymentConfirmed({
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-300 shadow-2xl border border-zinc-200 dark:border-zinc-800">
-        {/* Header de Sucesso */}
         <div className="bg-emerald-600 dark:bg-emerald-700 p-10 text-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full blur-3xl"></div>
@@ -42,9 +41,7 @@ export function PaymentConfirmed({
           </p>
         </div>
 
-        {/* Corpo */}
         <div className="p-8 space-y-8 bg-zinc-50 dark:bg-zinc-900/50">
-          {/* Número do Pedido */}
           <div className="text-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-6 shadow-sm">
             <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-2">Protocolo do Pedido</p>
             <p className="text-4xl font-black text-amber-600 dark:text-amber-500 tracking-tighter">
@@ -52,7 +49,6 @@ export function PaymentConfirmed({
             </p>
           </div>
 
-          {/* Informações */}
           <div className="space-y-4">
             <div className="flex justify-between items-center bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700/50 shadow-sm transition-all hover:border-amber-500/30">
               <div className="flex items-center gap-3">
@@ -83,7 +79,6 @@ export function PaymentConfirmed({
             </div>
           </div>
 
-          {/* Próximos Passos */}
           <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl p-5">
             <h3 className="text-xs font-black text-amber-800 dark:text-amber-500 mb-4 flex items-center gap-2 uppercase tracking-wider">
               <Clock className="w-4 h-4" /> Acompanhamento
@@ -100,7 +95,6 @@ export function PaymentConfirmed({
             </ul>
           </div>
 
-          {/* Botão de Ação */}
           <div className="space-y-3 pt-2">
             <button
               onClick={onClose}

@@ -1,8 +1,3 @@
-// ==========================================
-// ⚙️ ROTAS: Config, Cupons, Store, Payment, Upload, Stock, Settings
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { unidadeAtual, cidadeAtual } from "./kv_retry.tsx";
@@ -16,10 +11,6 @@ import { segredosMP } from "./mercadopago.tsx";
 
 const router = new Hono();
 
-// ==========================================
-// 🎫 CUPONS DE DESCONTO
-// ==========================================
-
 router.get('/coupons', requireAdmin, async (c) => {
   try {
     return success(c, { coupons: await cuponsDaUnidade() });
@@ -28,7 +19,6 @@ router.get('/coupons', requireAdmin, async (c) => {
   }
 });
 
-// compartilharCom: outras unidades da mesma cidade que também aceitam o cupom (limite de usos somado)
 router.post('/coupons', requireAdmin, async (c) => {
   try {
     const { compartilharCom, ...body } = await c.req.json();
@@ -102,10 +92,6 @@ router.post('/coupons/validate', async (c) => {
   }
 });
 
-// ==========================================
-// 🏪 LOJA (STATUS E CONFIGURAÇÕES)
-// ==========================================
-
 router.get('/store/status', async (c) => {
   const status: any = await kv.get('store_status');
   const achada = await acharUnidade(unidadeAtual());
@@ -159,7 +145,6 @@ router.post('/master/config', async (c) => {
       pagSeguroToken: config.pagSeguroToken || '',
       pagSeguroEmail: config.pagSeguroEmail || '',
       metaPixelId: config.metaPixelId || '',
-      // token da Meta mora só em meta_segredos (Master → Integrações → Meta)
       metaAccessToken: undefined,
     };
     if (adminPassword) {
@@ -181,10 +166,8 @@ router.post('/master/config', async (c) => {
 router.post('/admin/config', async (c) => {
   try {
     const updates = await c.req.json();
-    // Admin de unidade só mexe na config da própria unidade (system_config é da rede, do Master)
     if (unidadeAtual()) {
       const atual: any = await kv.get('unit_config') || {};
-      // das funcionalidades, a unidade só decide o consumo no local; o resto é do Master
       const dineIn = updates.features?.dineIn;
       const novo = { ...atual, ...updates, franchise: undefined, features: dineIn === undefined ? atual.features : { ...atual.features, dineIn } };
       await kv.set('unit_config', novo);
@@ -199,7 +182,6 @@ router.post('/admin/config', async (c) => {
   }
 });
 
-// Franquia: senha do Admin de cada unidade (só entra, nunca volta para a tela); trocar derruba as sessões da unidade
 router.post('/master/franquia/senha', async (c) => {
   const { unitId, senha } = await c.req.json().catch(() => ({}));
   if (!(await acharUnidade(unitId))) return error(c, 'Unidade não encontrada', 404);
@@ -210,7 +192,6 @@ router.post('/master/franquia/senha', async (c) => {
   return success(c, { unitId });
 });
 
-// Admin: copia produtos, categorias e/ou estoque de outra unidade da mesma cidade (sobrescreve os de mesmo id; o resto fica)
 router.post('/admin/franquia/copiar', async (c) => {
   const { deUnidade, partes } = await c.req.json().catch(() => ({}));
   const aqui = await acharUnidade(unidadeAtual()), origem = await acharUnidade(deUnidade);
@@ -238,7 +219,6 @@ router.post('/admin/franquia/copiar', async (c) => {
   return success(c, { copiados });
 });
 
-// copia os dados da loja de antes da franquia para uma unidade (os originais ficam)
 router.post('/franchise/migrate', requireMaster, async (c) => {
   const { targetUnitId } = await c.req.json().catch(() => ({}));
   if (!(await acharUnidade(targetUnitId))) return error(c, 'Unidade não encontrada', 404);
@@ -279,10 +259,6 @@ router.post('/master/cleanup-sessions', async (c) => {
   }
 });
 
-// ==========================================
-// ⏱️ ESTIMATIVAS DE TEMPO
-// ==========================================
-
 router.get('/settings/estimates', async (c) => {
   try {
     const estimates = await kv.get('time_estimates') || {
@@ -305,10 +281,6 @@ router.post('/settings/estimates', requireAdmin, async (c) => {
     return error(c, `Erro ao salvar estimativas: ${e}`);
   }
 });
-
-// ==========================================
-// 💳 PAGAMENTOS (PIX & CARD)
-// ==========================================
 
 router.post('/payment/pix', async (c) => {
   try {
@@ -479,10 +451,6 @@ router.post('/payment/notification', async (c) => {
   return success(c, { received: true });
 });
 
-// ==========================================
-// 📤 UPLOAD DE IMAGENS (Supabase Storage)
-// ==========================================
-
 router.post('/upload', requireAdmin, async (c) => {
   try {
     const formData = await c.req.formData();
@@ -518,8 +486,6 @@ router.post('/master/upload', async (c) => {
     if (!file) return error(c, 'Nenhum arquivo enviado', 400);
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
     const extension = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    // Modelos 3D (.glb/.gltf): o browser às vezes envia type vazio, então
-    // detectamos também pela extensão.
     const isModel =
       extension === 'glb' ||
       extension === 'gltf' ||
@@ -528,7 +494,6 @@ router.post('/master/upload', async (c) => {
     if (!allowedImageTypes.includes(file.type) && !isModel) {
       return error(c, 'Tipo de arquivo não permitido', 400);
     }
-    // Imagens continuam com limite de 5MB; modelos 3D podem ser bem maiores.
     const maxSize = isModel ? 60 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
       return error(c, `Arquivo muito grande. Máximo ${isModel ? '60MB' : '5MB'}`, 400);
@@ -538,7 +503,6 @@ router.post('/master/upload', async (c) => {
     const fileName = `master_${timestamp}_${randomStr}.${extension}`;
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
-    // Content-type correto para GLB (o browser costuma mandar vazio).
     const contentType =
       file.type ||
       (extension === 'glb'
@@ -559,10 +523,6 @@ router.post('/master/upload', async (c) => {
     return error(c, `Erro ao fazer upload: ${String(e)}`, 500);
   }
 });
-
-// ==========================================
-// 📦 SISTEMA DE ESTOQUE
-// ==========================================
 
 router.get('/stock/ingredients', requireAdmin, async (c) => {
   console.log('📦 [STOCK] GET /stock/ingredients');
@@ -746,7 +706,6 @@ router.get('/stock/availability', async (c) => {
   }
 });
 
-// unidades da cidade agora (aberta, endereço, tempos) e a mais livre, que o site do cliente abre primeiro
 router.get('/cidade/opcoes', async (c) => {
   const cidade = await acharCidade(cidadeAtual());
   if (!cidade) return error(c, 'Cidade não encontrada', 404);

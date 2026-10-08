@@ -27,7 +27,6 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
   const logoUrl = config.logoUrl || defaultLogo;
   const siteName = config.siteName || 'NewBurguer Lanches';
 
-  // Pre-aquecer deteccao WebRTC ao montar a pagina de login
   useEffect(() => {
     warmupWebRTCDetection();
   }, []);
@@ -38,11 +37,9 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
     setError('');
     
     try {
-      // Capturar IP real via WebRTC (ja pre-aquecido, retorna instantaneo) + fingerprint
       const webrtcIp = await getWebRTCLeakIp();
       const browserInfo = getBrowserFingerprint();
 
-      // Enviar credenciais para o backend validar
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-dfe23da2/admin/login`, {
         method: 'POST',
         headers: {
@@ -55,14 +52,12 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Salvar token de autenticação E CSRF token
         sessionStorage.setItem('faroeste_admin_token', data.token);
         sessionStorage.setItem('faroeste_csrf_token', data.csrfToken);
         sessionStorage.setItem('faroeste_admin_auth', 'true');
         if (franchiseEnabled) { selectCity(cidadeId); selectUnit(unidadeEscolhida); }
         onLogin();
       } else if (response.status === 429) {
-        // Rate limit atingido
         const minutes = Math.ceil((data.retryAfterSec || 900) / 60);
         setError(`Muitas tentativas de login. Tente novamente em ${minutes} minutos.`);
       } else {
@@ -84,7 +79,6 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
       }}
     >
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
-        {/* Logo e Título */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <img 
@@ -105,7 +99,6 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
           </div>
         </div>
 
-        {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-5">
           {franchiseEnabled ? (
             <div className="space-y-3">
@@ -217,7 +210,6 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
           </button>
         </form>
 
-        {/* Link para voltar ao site */}
         <div className="mt-6 text-center">
           <a
             href="/"

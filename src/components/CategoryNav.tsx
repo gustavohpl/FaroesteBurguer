@@ -18,8 +18,6 @@ export function CategoryNav({ currentCategory, onCategoryChange }: CategoryNavPr
     try {
       const response = await api.getCategories();
       if (response.success) {
-        // Filter out 'promocoes' and 'mais-pedidos' as they are handled specially in Home
-        // Also filter by label to be sure
         const filteredCategories = response.categories.filter(
           (cat: any) => {
             const id = (cat.id || '').toLowerCase();
@@ -52,7 +50,6 @@ export function CategoryNav({ currentCategory, onCategoryChange }: CategoryNavPr
     }))
   ];
 
-  // Helper: verificar se cor é hex
   const isHexColor = (c: string) => c.startsWith('#');
 
   return (

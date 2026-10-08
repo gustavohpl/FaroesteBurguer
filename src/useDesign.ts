@@ -1,17 +1,5 @@
 import { useConfig } from './ConfigContext';
 
-// ============================================================
-// 🎨 SISTEMA DE DESIGN
-// ============================================================
-// Cada "design" define um conjunto de tokens visuais.
-// A LÓGICA do site é a mesma — só muda a aparência.
-//
-// Para adicionar um novo design no futuro:
-//   1. Adicione o id em SystemConfig.designStyle (ConfigContext)
-//   2. Crie um novo objeto de tokens aqui em DESIGNS
-//   3. Adicione a miniatura no seletor do Master
-// ============================================================
-
 export type DesignId = 'classic' | 'clean' | 'rustic' | 'prime';
 
 export interface DesignTokens {
@@ -19,37 +7,29 @@ export interface DesignTokens {
   name: string;
   description: string;
 
-  // Header
-  showHeaderBackground: boolean;   // usa imagem de fundo no header?
-  headerTextClass: string;         // cor do texto do header
+  showHeaderBackground: boolean;
+  headerTextClass: string;
   headerLayout: 'immersive' | 'minimal';
 
-  // Fundo geral da página
-  pageBackgroundClass: string;     // classe do fundo do site
+  pageBackgroundClass: string;
 
-  // Cards de produto
-  cardClass: string;               // container do card
+  cardClass: string;
   cardTitleClass: string;
   cardPriceClass: string;
-  cardRounded: string;             // arredondamento
+  cardRounded: string;
   cardShadow: string;
 
-  // Botões
   buttonRounded: string;
-  buttonStyle: 'solid' | 'soft';   // sólido (cor cheia) ou suave
+  buttonStyle: 'solid' | 'soft';
 
-  // Categorias
   categoryStyle: 'pill' | 'underline';
 
-  // Status aberto/fechado
   statusStyle: 'badge' | 'dot';
 
-  // Se usa a cor do tema como destaque forte ou suave
   accentIntensity: 'strong' | 'subtle';
 }
 
 const DESIGNS: Record<DesignId, DesignTokens> = {
-  // ========== DESIGN 1: CLÁSSICO (atual) ==========
   classic: {
     id: 'classic',
     name: 'Clássico',
@@ -57,7 +37,7 @@ const DESIGNS: Record<DesignId, DesignTokens> = {
     showHeaderBackground: true,
     headerTextClass: 'text-white',
     headerLayout: 'immersive',
-    pageBackgroundClass: '', // usa o fundo atual (imagem/escuro)
+    pageBackgroundClass: '',
     cardClass: 'bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800',
     cardTitleClass: 'text-zinc-900 dark:text-white font-bold',
     cardPriceClass: 'font-bold',
@@ -70,7 +50,6 @@ const DESIGNS: Record<DesignId, DesignTokens> = {
     accentIntensity: 'strong',
   },
 
-  // ========== DESIGN 2: CLEAN (novo, minimalista) ==========
   clean: {
     id: 'clean',
     name: 'Clean',
@@ -91,7 +70,6 @@ const DESIGNS: Record<DesignId, DesignTokens> = {
     accentIntensity: 'subtle',
   },
 
-  // ========== DESIGN 3: RÚSTICO (dark/dourado, layout próprio) ==========
   rustic: {
     id: 'rustic',
     name: 'Rústico',
@@ -112,7 +90,6 @@ const DESIGNS: Record<DesignId, DesignTokens> = {
     accentIntensity: 'strong',
   },
 
-  // ========== DESIGN 5: PRIME (editorial/cinematográfico, layout próprio) ==========
   prime: {
     id: 'prime',
     name: '3D Prime',
@@ -134,20 +111,14 @@ const DESIGNS: Record<DesignId, DesignTokens> = {
   },
 };
 
-/**
- * Hook que retorna os tokens do design atualmente selecionado.
- * Uso: const design = useDesign();  ->  design.cardRounded, design.showHeaderBackground, etc.
- */
 export function useDesign(): DesignTokens {
   const { config } = useConfig();
-  // ?design=prime no endereço: ver um design sem mudar o salvo no Master (que vale para produção)
   const forcado = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('design') : null;
-  const salvo = config.designStyle === ('threed' as string) ? 'prime' : config.designStyle; // o design 3D antigo virou o 3D Prime
+  const salvo = config.designStyle === ('threed' as string) ? 'prime' : config.designStyle;
   const style = ((forcado && forcado in DESIGNS ? forcado : salvo) as DesignId) || 'classic';
   return DESIGNS[style] || DESIGNS.classic;
 }
 
-/** Lista todos os designs disponíveis (para o seletor no Master). */
 export function getAllDesigns(): DesignTokens[] {
   return Object.values(DESIGNS);
 }

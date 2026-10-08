@@ -41,12 +41,9 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
   const [currentMenu, setCurrentMenu] = useState<MenuOption>('dashboard');
   
   const handleProductsChange = () => {
-    // Notificar o App.tsx que produtos mudaram (atualiza homepage)
     if (onProductsChange) {
       onProductsChange();
     }
-    // NÃO usar refreshKey/key para forçar remount — isso destruía o estado do 
-    // CategoryManager (color picker, emoji picker) e causava loop de re-fetch
   };
 
   const menuItems = [
@@ -69,12 +66,10 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
 
   return (
     <div className="min-h-screen flex bg-gray-100">
-      {/* Sidebar Desktop */}
       <aside 
         className="hidden md:flex md:flex-col w-64 text-white transition-colors duration-300"
         style={{ background: `linear-gradient(to bottom, ${themeColor}, #000)` }}
       >
-        {/* Logo */}
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
             <img 
@@ -93,9 +88,7 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
           </div>
         </div>
 
-        {/* Menu Items */}
         <nav className="flex-1 p-4 space-y-2">
-          {/* Franchise indicator */}
           {franchiseEnabled && selectedUnit && (
             <div className="mb-3 p-3 rounded-lg bg-white/10 border border-white/10">
               <div className="flex items-center gap-2 mb-1.5">
@@ -127,7 +120,6 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
           })}
         </nav>
 
-        {/* Logout Button */}
         <div className="p-4 border-t border-white/10">
           <button
             onClick={handleLogout}
@@ -139,7 +131,6 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
         </div>
       </aside>
 
-      {/* Mobile Header */}
       <div 
         className="md:hidden fixed top-0 left-0 right-0 text-white p-4 z-30 shadow-lg"
         style={{ background: `linear-gradient(to right, ${themeColor}, #000)` }}
@@ -165,7 +156,6 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="painel flex-1 overflow-y-auto md:pt-0 pt-20 pb-24 md:pb-0 min-w-0">
         <div className="p-4 md:p-6">
           {currentMenu === 'dashboard' && <DashboardHome />}

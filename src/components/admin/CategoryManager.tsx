@@ -15,7 +15,6 @@ interface CategoryManagerProps {
   onChange?: () => void;
 }
 
-// Emojis organizados por grupo alimentar
 const EMOJI_GROUPS = [
   {
     label: 'Lanches & Fast Food',
@@ -73,18 +72,14 @@ function EmojiPicker({
       let top = rect.bottom + 8;
       let left = rect.left;
 
-      // If picker would overflow right edge, align to right of trigger
       if (left + pickerWidth > window.innerWidth - 16) {
         left = rect.right - pickerWidth;
       }
-      // If still overflows left, clamp to 16px
       if (left < 16) left = 16;
 
-      // If picker would overflow bottom, open upward
       if (top + pickerHeight > window.innerHeight - 16) {
         top = rect.top - pickerHeight - 8;
       }
-      // If still overflows top, clamp
       if (top < 16) top = 16;
 
       setPosition({ top, left });
@@ -133,7 +128,6 @@ function EmojiPicker({
         </button>
       </div>
 
-      {/* Botao para remover emoji */}
       <div className="px-3 pt-2">
         <button
           onClick={() => { onSelect(''); onClose(); }}
@@ -169,7 +163,6 @@ function EmojiPicker({
   );
 }
 
-// Helper: mapear classes Tailwind para hex (para exibição no color picker nativo)
 const classToHex: Record<string, string> = {
   'bg-amber-600 hover:bg-amber-700': '#d97706',
   'bg-red-600 hover:bg-red-700': '#dc2626',
@@ -181,14 +174,12 @@ const classToHex: Record<string, string> = {
   'bg-black hover:bg-gray-900': '#000000',
 };
 
-// Obter hex de qualquer formato de cor (classe ou hex)
 function getHexFromColor(color?: string): string {
   if (!color) return '#d97706';
   if (color.startsWith('#')) return color;
   return classToHex[color] || '#d97706';
 }
 
-// Verificar se a cor é hex customizada
 function isHexColor(color?: string): boolean {
   return !!color && color.startsWith('#');
 }
@@ -208,13 +199,10 @@ function ColorPickerPopup({
 }) {
   const pickerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  // Estado local para preview da cor enquanto o usuário arrasta (sem salvar a cada pixel)
   const [localHex, setLocalHex] = useState(getHexFromColor(currentColor));
-  // Track se o usuário alterou a cor customizada (precisa salvar ao fechar)
   const [customColorChanged, setCustomColorChanged] = useState(false);
   const initialHexRef = useRef(getHexFromColor(currentColor));
 
-  // Função que fecha o popup e salva cor customizada pendente (se houver)
   const handleClose = useCallback(() => {
     if (customColorChanged && localHex !== initialHexRef.current) {
       onSelect(localHex);
@@ -286,7 +274,6 @@ function ColorPickerPopup({
         </button>
       </div>
 
-      {/* Cores predefinidas */}
       <div className="px-3 pt-3 pb-2">
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Cores Rápidas</p>
         <div className="grid grid-cols-4 gap-2">
@@ -308,7 +295,6 @@ function ColorPickerPopup({
         </div>
       </div>
 
-      {/* Seletor nativo de cor */}
       <div className="px-3 pb-3 pt-1">
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Cor Personalizada</p>
         <div className="flex items-center gap-3">
@@ -316,7 +302,6 @@ function ColorPickerPopup({
             type="color"
             value={localHex}
             onChange={(e) => {
-              // Apenas preview local — NÃO salva no servidor enquanto arrasta
               setLocalHex(e.target.value);
               setCustomColorChanged(true);
             }}
@@ -352,7 +337,6 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
   const [newCatEmoji, setNewCatEmoji] = useState('');
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
-  // Refs for emoji picker positioning
   const newCatBtnRef = useRef<HTMLButtonElement>(null);
   const catBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const colorBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -382,7 +366,6 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
       setIsLoading(true);
       const response = await api.getCategories();
       if (response.success) {
-        // Filter out system categories 'promocoes' and 'mais-pedidos' from the editable list
         const filtered = response.categories.filter((cat: any) => {
            const id = (cat.id || '').toLowerCase();
            const label = (cat.label || '').toLowerCase();
@@ -407,8 +390,8 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
     if (!newCategory.trim()) return;
 
     const id = newCategory.toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
-      .replace(/[^a-z0-9]/g, "-"); // replace non-alphanum with hyphen
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "-");
 
     if (categories.some(c => c.id === id)) {
       toast.error('Categoria ja existe');
@@ -418,7 +401,7 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
     const newCat: Category = {
       id,
       label: newCategory.trim(),
-      color: 'bg-amber-600 hover:bg-amber-700', // Default color
+      color: 'bg-amber-600 hover:bg-amber-700',
       emoji: newCatEmoji || '',
     };
 
@@ -485,9 +468,7 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
         </p>
       </div>
 
-      {/* Adicionar nova categoria */}
       <div className="flex gap-2">
-        {/* Emoji selector for new category */}
         <div className="relative">
           <button
             ref={newCatBtnRef}
@@ -528,7 +509,6 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
       <div className="grid gap-3">
         {categories.map((cat) => (
           <div key={cat.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border group hover:border-amber-300 transition-colors">
-            {/* Emoji da categoria */}
             <div className="relative">
               <button
                 ref={(el) => setCatBtnRef(cat.id, el)}
@@ -553,7 +533,6 @@ export function CategoryManager({ onChange }: CategoryManagerProps) {
               )}
             </div>
 
-            {/* Cor + info */}
             <div className="relative">
               <button
                 ref={(el) => setColorBtnRef(cat.id, el)}

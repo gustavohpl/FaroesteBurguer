@@ -6,12 +6,10 @@ import type { OrderPrintData } from '../../utils/thermalPrinter';
 import { useConfig } from '../../ConfigContext';
 import { useOrdersRealtime } from '../../hooks/useRealtime';
 
-// 🔔 Som de notificação gerado via Web Audio API (sem arquivo externo)
 function playNotificationSound() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Tocar 3 beeps curtos
     const playBeep = (startTime: number, freq: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -26,26 +24,24 @@ function playNotificationSound() {
     };
 
     const now = ctx.currentTime;
-    playBeep(now, 880);        // A5
-    playBeep(now + 0.35, 1100); // ~C#6
-    playBeep(now + 0.7, 1320);  // E6
+    playBeep(now, 880);
+    playBeep(now + 0.35, 1100);
+    playBeep(now + 0.7, 1320);
     
-    // Fechar contexto depois
     setTimeout(() => ctx.close().catch(() => {}), 2000);
   } catch (e) {
     console.warn('🔔 [NOTIFY] Erro ao tocar som:', e);
   }
 }
 
-// 🔔 Mostrar notificação do browser
 function showBrowserNotification(title: string, body: string) {
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       const n = new Notification(title, { 
         body, 
         icon: '/favicon.ico',
-        tag: 'new-order', // Substitui notificação anterior
-        requireInteraction: true, // Não desaparece sozinha
+        tag: 'new-order',
+        requireInteraction: true,
       });
       n.onclick = () => { window.focus(); n.close(); };
     } catch (e) {
@@ -65,35 +61,33 @@ interface Order {
   total: number;
   deliveryType: 'delivery' | 'pickup' | 'dine-in';
   address?: string;
-  deliverySector?: string; // ID do setor de entrega
-  cardType?: 'credit' | 'debit'; // Adicionado tipo de cartão
-  changeFor?: number; // Adicionado troco
+  deliverySector?: string;
+  cardType?: 'credit' | 'debit';
+  changeFor?: number;
   status: OrderStatus;
   paymentMethod: string;
   createdAt: string;
-  reviews?: Array<{ productName: string, rating: number, comment: string }>; // Adicionado
-  selectedAcompanhamentos?: Array<{ id: string; name: string } | string>; // Acompanhamentos selecionados
+  reviews?: Array<{ productName: string, rating: number, comment: string }>;
+  selectedAcompanhamentos?: Array<{ id: string; name: string } | string>;
 }
 
 export function OrderManager() {
   const { config } = useConfig();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [historyOrders, setHistoryOrders] = useState<Order[]>([]); // Novo estado para histórico
+  const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all' | 'history'>('all'); // Adicionado 'history'
+  const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all' | 'history'>('all');
   const [sectors, setSectors] = useState<Array<{id: string, name: string, color: string}>>([]);
-  const [updatingOrderIds, setUpdatingOrderIds] = useState<Set<string>>(new Set()); // Rastrear pedidos sendo atualizados
+  const [updatingOrderIds, setUpdatingOrderIds] = useState<Set<string>>(new Set());
 
-  // 🔔 Sistema de notificação de novos pedidos
   const [notifyEnabled, setNotifyEnabled] = useState(() => {
-    return localStorage.getItem('admin_notify_orders') !== 'false'; // Ativado por padrão
+    return localStorage.getItem('admin_notify_orders') !== 'false';
   });
   const [notifyPermission, setNotifyPermission] = useState<string>('default');
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
   const notifyEnabledRef = useRef(notifyEnabled);
 
-  // 🖨️ Auto-impressão de novos pedidos
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(() => {
     return localStorage.getItem('admin_autoprint_orders') === 'true';
   });
@@ -105,12 +99,10 @@ export function OrderManager() {
     autoPrintEnabledRef.current = autoPrintEnabled;
   }, [autoPrintEnabled]);
 
-  // Manter ref sincronizado
   useEffect(() => {
     notifyEnabledRef.current = notifyEnabled;
   }, [notifyEnabled]);
 
-  // Pedir permissão de notificação na montagem
   useEffect(() => {
     if ('Notification' in window) {
       setNotifyPermission(Notification.permission);
@@ -120,7 +112,6 @@ export function OrderManager() {
     }
   }, []);
 
-  // Salvar preferência
   useEffect(() => {
     localStorage.setItem('admin_notify_orders', String(notifyEnabled));
   }, [notifyEnabled]);
@@ -133,25 +124,21 @@ export function OrderManager() {
     }
   };
 
-  // Printer integration
   const { isConnected, printOrder: printOrderReceipt } = usePrinter();
 
-  // Manter ref da função de impressão atualizada (evita stale closure no loadOrders)
   useEffect(() => {
     printOrderRef.current = printOrderReceipt;
   }, [printOrderReceipt]);
 
-  // Helper para buscar nome do setor pelo ID
   const getSectorName = (sectorId?: string) => {
     if (!sectorId) return null;
     const sector = sectors.find(s => s.id === sectorId);
     return sector ? sector.name : null;
   };
 
-  // Helper para enviar mensagem no WhatsApp
   const sendWhatsAppUpdate = (order: Order, type: 'confirm' | 'delivery' | 'ready' | 'custom') => {
     const phone = order.customerPhone.replace(/\D/g, '');
-    const name = order.customerName.split(' ')[0]; // Primeiro nome
+    const name = order.customerName.split(' ')[0];
     const sectorName = getSectorName(order.deliverySector);
     let message = '';
 
@@ -176,22 +163,18 @@ export function OrderManager() {
 
   useEffect(() => {
     loadOrders();
-    loadHistory(); // Carregar histórico
-    loadSectors(); // Carregar setores
-    // Polling agora é gerenciado pelo useOrdersRealtime hook
+    loadHistory();
+    loadSectors();
     
-    // 🔔🖨️ Polling de segurança para alarme E auto-impressão
-    // (funciona com aba minimizada; realtime pode falhar em background)
     const bgPoll = setInterval(() => {
       if (notifyEnabledRef.current || autoPrintEnabledRef.current) {
         loadOrders();
       }
-    }, 8000); // A cada 8 segundos
+    }, 8000);
     
     return () => clearInterval(bgPoll);
   }, []);
 
-  // Realtime: substitui o polling de 3s
   const { isRealtimeConnected } = useOrdersRealtime(useCallback(() => {
     loadOrders();
   }, []), true);
@@ -231,20 +214,16 @@ export function OrderManager() {
       console.log('📦 [ORDER MANAGER] Pedidos recebidos:', response);
       
       if (response.success) {
-        // Deduplicar pedidos por ID para evitar exibição duplicada
         const uniqueOrders = response.orders ? Array.from(new Map(response.orders.map((o: any) => [o.orderId, o])).values()) : [];
         
-        // 🔔🖨️ Detectar novos pedidos (para alarme e/ou auto-impressão)
         if (!isFirstLoadRef.current && (notifyEnabledRef.current || autoPrintEnabledRef.current)) {
           const newOrders = (uniqueOrders as Order[]).filter(o => !knownOrderIdsRef.current.has(o.orderId));
           
-          // Marcar como conhecidos IMEDIATAMENTE (evita impressão dupla por chamadas simultâneas)
           newOrders.forEach(o => knownOrderIdsRef.current.add(o.orderId));
           
           if (newOrders.length > 0) {
             console.log(`🔔 [NOVO] ${newOrders.length} novo(s) pedido(s)!`);
 
-            // Alarme sonoro + notificação (só se ativado)
             if (notifyEnabledRef.current) {
               playNotificationSound();
               const firstNew = newOrders[0] as Order;
@@ -254,7 +233,6 @@ export function OrderManager() {
               showBrowserNotification('🔔 Novo Pedido!', body);
             }
 
-            // 🖨️ Imprimir automaticamente (só se ativado)
             if (autoPrintEnabledRef.current && printOrderRef.current) {
               for (const novoPedido of newOrders) {
                 console.log(`🖨️ [AUTO-PRINT] Imprimindo pedido #${(novoPedido as Order).orderId}...`);
@@ -268,7 +246,6 @@ export function OrderManager() {
           }
         }
         
-        // Atualizar IDs conhecidos
         knownOrderIdsRef.current = new Set((uniqueOrders as Order[]).map(o => o.orderId));
         isFirstLoadRef.current = false;
         
@@ -283,54 +260,35 @@ export function OrderManager() {
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
-    // Proteção contra duplo clique - previne pedidos duplicados
     if (updatingOrderIds.has(orderId)) {
       console.log('⚠️ [ORDER MANAGER] Atualização já em andamento para:', orderId);
-      return; // Ignora clique se já está processando
+      return;
     }
     
     try {
-      // Marcar como "processando"
       setUpdatingOrderIds(prev => new Set(prev).add(orderId));
       
       console.log('🔄 [ORDER MANAGER] Atualizando status:', { orderId, newStatus });
       
-      // Lógica de confirmação para notificações WhatsApp
       const order = orders.find(o => o.orderId === orderId);
       let shouldNotify = false;
       let notificationType: 'confirm' | 'delivery' | 'ready' | null = null;
 
-      // Só pergunta se deve notificar se o acompanhamento de pedido estiver ATIVADO
-      // OU se for status "Pronto" (mesmo desativado, pode querer avisar que está pronto)
-      // Regra: "só sugerir envio de WhatsApp no status 'Pronto'"
       
       const isTrackingEnabled = config.features?.orderTracking !== false;
 
       if (order) {
-        // Notificações de Status Intermediários (Desativadas por padrão conforme solicitação)
-        /* 
-        if (newStatus === 'preparing' && order.status === 'pending' && isTrackingEnabled) {
-           shouldNotify = confirm('Pedido aceito! Deseja avisar o cliente no WhatsApp?');
-           notificationType = 'confirm';
-        } else if (newStatus === 'out_for_delivery' && isTrackingEnabled) {
-           shouldNotify = confirm('Saiu para entrega! Deseja avisar o cliente?');
-           notificationType = 'delivery';
-        }
-        */
 
-        // Notificação de Pedido Pronto (Sempre sugere, pois é crítico para retirada)
         if (newStatus === 'ready_for_pickup') {
           shouldNotify = confirm('Pedido PRONTO! Deseja avisar o cliente no WhatsApp agora?');
           notificationType = 'ready';
         }
       }
 
-      // Atualizar localmente primeiro (optimistic update)
       setOrders(orders.map(order =>
         order.orderId === orderId ? { ...order, status: newStatus } : order
       ));
 
-      // Atualizar no servidor
       const response = await api.updateOrderStatus(orderId, newStatus);
       
       if (!response.success) {
@@ -340,16 +298,13 @@ export function OrderManager() {
       } else {
         console.log('✅ [ORDER MANAGER] Status atualizado com sucesso');
         
-        // Forçar atualização dos dados reais após breve delay para garantir persistência
         setTimeout(() => {
             loadOrders();
-            // Se o pedido foi concluído, recarregar o histórico também
             if (newStatus === 'completed') {
               loadHistory();
             }
         }, 1000);
 
-        // Enviar notificação se confirmado
         if (shouldNotify && notificationType && order) {
            sendWhatsAppUpdate(order, notificationType);
         }
@@ -359,7 +314,6 @@ export function OrderManager() {
       alert('Erro ao atualizar status do pedido');
       await loadOrders();
     } finally {
-      // Remover da lista de "processando" após 2 segundos (tempo seguro)
       setTimeout(() => {
         setUpdatingOrderIds(prev => {
           const newSet = new Set(prev);
@@ -375,7 +329,6 @@ export function OrderManager() {
       try {
         console.log('🚫 [ORDER MANAGER] Cancelando pedido:', orderId);
         
-        // Atualizar status localmente primeiro (optimistic update)
         setOrders(orders.map(order =>
           order.orderId === orderId ? { ...order, status: 'cancelled' as OrderStatus } : order
         ));
@@ -383,12 +336,10 @@ export function OrderManager() {
           order.orderId === orderId ? { ...order, status: 'cancelled' as OrderStatus } : order
         ));
         
-        // Chamar API do backend
         const result = await api.cancelOrder(orderId);
         
         if (result.success) {
           console.log('✅ [ORDER MANAGER] Pedido cancelado com sucesso:', result.order);
-          // Recarregar pedidos para obter estado atualizado
           await loadOrders();
           await loadHistory();
         } else {
@@ -433,8 +384,6 @@ export function OrderManager() {
     const deliverySystemEnabled = config.features?.deliverySystem !== false;
     
     if (deliveryType === 'delivery') {
-      // SEMPRE mostrar fluxo completo de status (admin pode atualizar manualmente)
-      // Sistema de entregas desativado = sem controle automático de entregadores, mas status manual OK
       switch (currentStatus) {
         case 'pending':
           return [{ value: 'preparing' as const, label: 'Preparando' }];
@@ -485,28 +434,23 @@ export function OrderManager() {
     ? orders.filter(o => {
         const isActiveStatus = o.status !== 'completed' && o.status !== 'cancelled';
         
-        // Filtrar pedidos antigos "esquecidos" (mais de 24h) da visualização principal
         const orderDate = new Date(o.createdAt);
         const now = new Date();
         const diffHours = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
         
-        // Apenas oculta se tiver sido concluído/cancelado OU se for muito antigo (> 24h)
         return isActiveStatus && diffHours < 24;
     })
     : orders.filter(o => o.status === filterStatus))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Ordenar mais recentes primeiro
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  // CORREÇÃO: Buscar pedidos concluídos do HISTÓRICO (não dos ativos)
   const completedOrders = historyOrders
     .filter(o => o.status === 'completed')
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Ordenar mais recentes primeiro
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   
   console.log('📊 [ORDER MANAGER DEBUG] Pedidos concluídos:', completedOrders.length, 'de', historyOrders.length, 'no histórico');
   
-  // Cancelados ou Expirados (de ativos + histórico)
   const cancelledFromActive = orders.filter(o => {
     if (o.status === 'cancelled') return true;
-    // Antigos não finalizados (> 24h)
     const isActiveStatus = o.status !== 'completed' && o.status !== 'cancelled';
     const orderDate = new Date(o.createdAt);
     const now = new Date();
@@ -514,13 +458,11 @@ export function OrderManager() {
     return isActiveStatus && diffHours >= 24;
   });
   const cancelledFromHistory = historyOrders.filter(o => o.status === 'cancelled');
-  // Mesclar sem duplicatas
   const cancelledMap = new Map<string, Order>();
   [...cancelledFromActive, ...cancelledFromHistory].forEach(o => cancelledMap.set(o.orderId, o));
   const cancelledOrders = Array.from(cancelledMap.values())
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  // o total de ativos não depende do filtro escolhido
   const ativos24h = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled'
     && Date.now() - new Date(o.createdAt).getTime() < 24 * 60 * 60 * 1000).length;
   const statusFilters = [
@@ -533,7 +475,6 @@ export function OrderManager() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
@@ -541,9 +482,7 @@ export function OrderManager() {
             <p className="text-gray-600">Acompanhe e atualize o status dos pedidos em tempo real</p>
           </div>
           
-          {/* Store Address Badge */}
           <div className="flex items-center gap-3">
-            {/* 🔔 Botão de notificação */}
             <button
               onClick={toggleNotify}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
@@ -560,7 +499,6 @@ export function OrderManager() {
               )}
             </button>
 
-            {/* 🖨️ Botão de auto-impressão */}
             <button
               onClick={() => setAutoPrintEnabled(v => !v)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
@@ -588,7 +526,6 @@ export function OrderManager() {
         </div>
       </div>
 
-      {/* Status Filters */}
       <div className="mb-6 flex gap-2 flex-wrap items-center">
         <Filter className="w-5 h-5 text-gray-500 dark:text-gray-400" />
         {statusFilters.map(filter => (
@@ -613,7 +550,6 @@ export function OrderManager() {
         ))}
       </div>
 
-      {/* Active Orders */}
       {filterStatus !== 'history' && (
         <div className="mb-8">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
@@ -642,7 +578,6 @@ export function OrderManager() {
                     key={order.id}
                     className="bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-gray-200 dark:border-gray-700 hover:border-green-400 dark:hover:border-green-600 transition-all"
                   >
-                    {/* Header */}
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-4 border-b border-gray-200 dark:border-gray-700">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-bold text-lg text-gray-800 dark:text-white">#{order.orderId}</h3>
@@ -654,7 +589,6 @@ export function OrderManager() {
                       <p className="text-sm text-gray-500 dark:text-gray-400">{getTimeAgo(new Date(order.createdAt))}</p>
                     </div>
 
-                    {/* Customer Info */}
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -677,9 +611,6 @@ export function OrderManager() {
                           </button>
                         </div>
                         
-                        {/* Endereço - Lógica dinâmica: 
-                            Se for Entrega -> Mostra endereço do cliente (salvo no pedido)
-                            Se for Retirada/Local -> Mostra endereço da loja (config atual) */}
                         {(order.deliveryType === 'delivery' ? order.address : (config.address || order.address)) && (
                           <div className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                             <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
@@ -689,7 +620,6 @@ export function OrderManager() {
                                   ? order.address 
                                   : (config.address || order.address)}
                               </span>
-                              {/* Badge do Setor de Entrega */}
                               {order.deliveryType === 'delivery' && getSectorName(order.deliverySector) && (
                                 <span className="inline-block mt-1 px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
                                   📍 Setor: {getSectorName(order.deliverySector)}
@@ -723,7 +653,6 @@ export function OrderManager() {
                               ⚠️ {(order as any).paymentStatus === 'recusado' ? 'Pagamento recusado' : (order as any).paymentStatus === 'estornado' ? 'Pagamento estornado' : 'Valor pago diferente — conferir'}
                             </span>
                           )}
-                          {/* Badge do Setor (também na linha de badges) */}
                           {order.deliveryType === 'delivery' && getSectorName(order.deliverySector) && (
                             <span className="px-2 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800">
                               📍 {getSectorName(order.deliverySector)}
@@ -733,7 +662,6 @@ export function OrderManager() {
                       </div>
                     </div>
 
-                    {/* Items */}
                     <div className="p-4 bg-gray-50">
                       <h4 className="font-semibold text-gray-800 mb-2 text-sm">Itens do Pedido:</h4>
                       <div className="space-y-1 mb-3">
@@ -763,7 +691,6 @@ export function OrderManager() {
                         })}
                       </div>
 
-                      {/* Acompanhamentos selecionados pelo cliente */}
                       {order.selectedAcompanhamentos && order.selectedAcompanhamentos.length > 0 && order.deliveryType !== 'dine-in' && (
                         <div className="mb-3 p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
                           <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1">🍟 Molhos / Acompanhamentos</p>
@@ -782,7 +709,6 @@ export function OrderManager() {
                         <span className="text-green-600 text-lg">R$ {order.total.toFixed(2).replace('.', ',')}</span>
                       </div>
 
-                      {/* Informação de Cartão */}
                       {order.paymentMethod?.toLowerCase().includes('card') && order.cardType && (
                         <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                           <div className="flex items-center gap-2">
@@ -800,7 +726,6 @@ export function OrderManager() {
                         </div>
                       )}
                       
-                      {/* Informação de Troco */}
                       {order.paymentMethod?.toLowerCase().includes('cash') && (order as any).changeFor && (
                         <div className="mt-3 p-3 bg-green-100 border-2 border-green-400 rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
@@ -825,9 +750,7 @@ export function OrderManager() {
                       )}
                     </div>
 
-                    {/* Actions */}
                     <div className="p-4 flex gap-2 flex-wrap">
-                      {/* Botão Confirmar Pagamento (Apenas para PIX - outros métodos são automáticos) */}
                       {order.status === 'pending' && order.paymentMethod.toLowerCase().includes('pix') && (
                         <button
                           onClick={() => {
@@ -852,7 +775,6 @@ export function OrderManager() {
                         </button>
                       )}
 
-                      {/* Se Order Tracking estiver ATIVADO, mostra fluxo normal */}
                       {(config.features?.orderTracking !== false) && getNextStatusOptions(order.status, order.deliveryType).map(option => (
                         <button
                           key={option.value}
@@ -864,7 +786,6 @@ export function OrderManager() {
                         </button>
                       ))}
 
-                      {/* Botão Concluir (Sempre aparece se não estiver concluído) */}
                       {order.status !== 'completed' && (
                         <button
                           onClick={() => updateOrderStatus(order.orderId, 'completed')}
@@ -901,7 +822,6 @@ export function OrderManager() {
         </div>
       )}
 
-      {/* Completed Orders - SEMPRE APARECE, mesmo se vazio */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
           <CheckCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
@@ -916,7 +836,6 @@ export function OrderManager() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {completedOrders.map(order => {
-              // Calcular média de avaliação do pedido (se houver)
               const averageRating = order.reviews && order.reviews.length > 0
                 ? order.reviews.reduce((acc, r) => acc + r.rating, 0) / order.reviews.length
                 : 0;
@@ -938,7 +857,6 @@ export function OrderManager() {
                   <p className="text-sm text-gray-600 mb-1">{order.customerName}</p>
                   <p className="text-sm text-gray-500 mb-2">{getTimeAgo(new Date(order.createdAt))}</p>
                   
-                  {/* LISTA DE PRODUTOS */}
                   {order.items && order.items.length > 0 && (
                     <div className="mb-3 bg-green-50 p-2 rounded border border-green-200">
                       <p className="text-xs font-bold text-green-800 mb-1 flex items-center gap-1">
@@ -975,7 +893,6 @@ export function OrderManager() {
                     </div>
                   )}
                   
-                  {/* Endereço Completo */}
                   {order.address && (
                     <div className="mb-3 bg-gray-50 p-2 rounded border border-gray-200">
                       <div className="flex items-start gap-2">
@@ -993,7 +910,6 @@ export function OrderManager() {
                     </div>
                   )}
                   
-                  {/* Mostrar feedback do cliente se houver (e se Reviews estiver ativo) */}
                   {(config.features?.reviews !== false) && order.reviews && order.reviews.length > 0 && (
                     <div className="mb-2 bg-yellow-50 p-2 rounded text-xs border border-yellow-100">
                       <p className="font-bold text-yellow-800 mb-2 flex items-center gap-1 border-b border-yellow-200 pb-1">
@@ -1022,7 +938,6 @@ export function OrderManager() {
 
                   <p className="font-bold text-green-600">R$ {order.total.toFixed(2).replace('.', ',')}</p>
                   
-                  {/* Cancelar pedido concluído */}
                   <button
                     onClick={() => handleCancelOrder(order.orderId)}
                     className="mt-2 w-full bg-red-50 hover:bg-red-100 text-red-600 py-1.5 rounded-lg font-medium transition-colors text-xs flex items-center justify-center gap-1 border border-red-200"
@@ -1037,7 +952,6 @@ export function OrderManager() {
         )}
       </div>
 
-      {/* Cancelled Orders - SEMPRE APARECE */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
           <XCircle className="w-6 h-6 text-red-600" />
@@ -1063,7 +977,6 @@ export function OrderManager() {
                 <p className="text-sm text-gray-600 mb-1">{order.customerName}</p>
                 <p className="text-sm text-gray-500 mb-2">{getTimeAgo(new Date(order.createdAt))}</p>
 
-                {/* Itens do pedido */}
                 {order.items && order.items.length > 0 && (
                   <div className="mb-2 bg-red-50 p-2 rounded border border-red-100">
                     <p className="text-xs font-bold text-red-800 mb-1 flex items-center gap-1">
@@ -1081,7 +994,6 @@ export function OrderManager() {
                   </div>
                 )}
 
-                {/* Endereço */}
                 {order.address && (
                   <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                     <MapPin className="w-3 h-3 flex-shrink-0" />

@@ -22,7 +22,6 @@ export async function acharCidade(id: string | null | undefined) {
 }
 export const unidadeExiste = async (id: string) => !!(await acharUnidade(id));
 
-// muda o escopo do banco para a unidade (e a cidade dela); false se a unidade não existe
 export async function entrarNaUnidade(id: string | null | undefined): Promise<boolean> {
   const achada = await acharUnidade(id);
   if (!achada) return false;
@@ -30,7 +29,6 @@ export async function entrarNaUnidade(id: string | null | undefined): Promise<bo
   return true;
 }
 
-// setores são da cidade (as unidades entregam nos mesmos); cidade antiga sem setores usa os das unidades
 export function setoresDaCidade(cidade: any) {
   if (Array.isArray(cidade?.sectors) && cidade.sectors.length) return cidade.sectors;
   const vistos = new Map<string, any>();
@@ -38,7 +36,6 @@ export function setoresDaCidade(cidade: any) {
   return [...vistos.values()];
 }
 
-// situação de cada unidade da cidade agora: aberta, o que aceita, tempos, taxa, pedidos em andamento e se tem os itens
 export async function situacaoDaCidade(cidade: any, itens: string[] = []) {
   const cfg: any = await kv.get('system_config') || {};
   return Promise.all((cidade.units || []).map((u: any) => comEscopo(u.id, cidade.id, async () => {
@@ -60,13 +57,11 @@ export async function situacaoDaCidade(cidade: any, itens: string[] = []) {
   })));
 }
 
-// delivery: a unidade aberta com menos pedidos em andamento que tenha todos os itens
 export async function unidadeParaEntrega(cidade: any, itens: string[] = []) {
   const opcoes = (await situacaoDaCidade(cidade, itens)).filter((o) => o.aberta && o.temItens);
   return opcoes.sort((a, b) => a.ativos - b.ativos)[0] || null;
 }
 
-// pedido de uma cidade: o escopo vira a unidade que recebeu o pedido (só dentro da cidade/unidade de quem pede)
 export async function escopoDoPedido(orderId: string) {
   if (!(await franquia())) return;
   const achada = await acharUnidade(await kv.get(`order_unit:${orderId}`));
@@ -76,12 +71,10 @@ export async function escopoDoPedido(orderId: string) {
   definirEscopo(achada.unidade.id, achada.cidade.id);
 }
 
-// roda a consulta em cada unidade da cidade do escopo
 export async function emCadaUnidade<T>(fn: (unidade: any) => Promise<T>): Promise<T[]> {
   const cidade = await acharCidade(cidadeAtual());
   return Promise.all((cidade?.units || []).map((u: any) => comEscopo(u.id, cidade.id, () => fn(u))));
 }
-// produtos sem estoque na unidade do escopo (ingrediente da ficha técnica zerado)
 export async function disponibilidade() {
   const ingredientes = await kv.getByPrefix('stock_ingredient:');
   const produtos = await kv.getByPrefix('product:');
@@ -93,7 +86,6 @@ export async function disponibilidade() {
   return { unavailableProducts, emptyIngredients: vazios, lowStockIngredients, totalIngredients: ingredientes.length };
 }
 
-// config que vale para a unidade do escopo (a da rede com o que o Admin da unidade mudou por cima)
 export async function configDaUnidade() {
   const sistema: any = await kv.get('system_config') || {};
   if (!unidadeAtual()) return sistema;

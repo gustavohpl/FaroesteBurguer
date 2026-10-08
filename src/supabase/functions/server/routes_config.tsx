@@ -1,8 +1,3 @@
-// ==========================================
-// ⚙️ ROTAS: Config, Cupons, Store, Payment, Upload, Stock, Settings
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import { scopedKv } from "./kv_scoped.tsx";
 import * as kvRaw from "./kv_retry.tsx";
@@ -12,10 +7,6 @@ import { supabase } from "./supabase_client.tsx";
 import type { Coupon, StockIngredient, SystemConfig } from "./types.tsx";
 
 const router = new Hono();
-
-// ==========================================
-// 🎫 CUPONS DE DESCONTO
-// ==========================================
 
 router.get('/coupons', requireAdmin, async (c) => {
   try {
@@ -115,10 +106,6 @@ router.post('/coupons/increment-usage', async (c) => {
   }
 });
 
-// ==========================================
-// 🏪 LOJA (STATUS E CONFIGURAÇÕES)
-// ==========================================
-
 router.get('/store/status', async (c) => {
   const skv = scopedKv(c);
   const status: any = await skv.get('store_status');
@@ -210,10 +197,6 @@ router.post('/master/cleanup-sessions', async (c) => {
   }
 });
 
-// ==========================================
-// ⏱️ ESTIMATIVAS DE TEMPO
-// ==========================================
-
 router.get('/settings/estimates', async (c) => {
   try {
     const skv = scopedKv(c);
@@ -238,10 +221,6 @@ router.post('/settings/estimates', requireAdmin, async (c) => {
     return error(c, `Erro ao salvar estimativas: ${e}`);
   }
 });
-
-// ==========================================
-// 💳 PAGAMENTOS (PIX & CARD)
-// ==========================================
 
 router.post('/payment/pix', async (c) => {
   try {
@@ -415,10 +394,6 @@ router.post('/payment/notification', async (c) => {
   return success(c, { received: true });
 });
 
-// ==========================================
-// 📤 UPLOAD DE IMAGENS (Supabase Storage)
-// ==========================================
-
 router.post('/upload', requireAdmin, async (c) => {
   try {
     const skv = scopedKv(c);
@@ -476,10 +451,6 @@ router.post('/master/upload', async (c) => {
     return error(c, `Erro ao fazer upload: ${String(e)}`, 500);
   }
 });
-
-// ==========================================
-// 📦 SISTEMA DE ESTOQUE
-// ==========================================
 
 router.get('/stock/ingredients', requireAdmin, async (c) => {
   const skv = scopedKv(c);
@@ -686,10 +657,6 @@ router.get('/stock/availability', async (c) => {
   }
 });
 
-// ==========================================
-// 🏙️ FRANCHISE: Migração de dados para unidade
-// Copia dados globais (sem prefixo) para unit:{id}:
-// ==========================================
 router.post('/franchise/migrate', requireMaster, async (c) => {
   try {
     const body = await c.req.json();
@@ -699,7 +666,6 @@ router.post('/franchise/migrate', requireMaster, async (c) => {
       return error(c, 'targetUnitId inválido', 400);
     }
 
-    // Prefixos de dados que serão migrados
     const MIGRATE_PREFIXES = [
       'product:',
       'order:',
@@ -710,7 +676,6 @@ router.post('/franchise/migrate', requireMaster, async (c) => {
       'driver:',
     ];
     
-    // Chaves individuais (sem prefixo de busca)
     const MIGRATE_SINGLE_KEYS = [
       'delivery_config',
     ];
@@ -718,10 +683,8 @@ router.post('/franchise/migrate', requireMaster, async (c) => {
     let totalMigrated = 0;
     const details: Record<string, number> = {};
 
-    // Migrar dados por prefixo
     for (const prefix of MIGRATE_PREFIXES) {
       const items = await kvRaw.getByPrefixWithKeys(prefix);
-      // Filtrar apenas chaves sem prefixo unit: (dados globais)
       const globalItems = items.filter(item => !item.key.startsWith('unit:'));
       
       if (globalItems.length > 0) {
@@ -734,7 +697,6 @@ router.post('/franchise/migrate', requireMaster, async (c) => {
       }
     }
 
-    // Migrar chaves individuais
     for (const key of MIGRATE_SINGLE_KEYS) {
       try {
         const value = await kvRaw.get(key);
@@ -745,7 +707,6 @@ router.post('/franchise/migrate', requireMaster, async (c) => {
           console.log(`🏙️ [MIGRATE] ${key} → copiado para unit:${targetUnitId}`);
         }
       } catch (e) {
-        // Chave não existe, ignorar
       }
     }
 

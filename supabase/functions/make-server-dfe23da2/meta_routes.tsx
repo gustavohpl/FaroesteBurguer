@@ -1,13 +1,9 @@
-// Anúncios na Meta (Facebook/Instagram) pela API de Marketing — mesmo desenho do Engaja Aí.
-// Só o Admin usa; toda campanha nasce PAUSADA e ativar é sempre uma ação explícita.
-// Credenciais (token do usuário do sistema, conta, página, Instagram) ficam só no servidor (KV meta_segredos).
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { configDaUnidade } from "./franquia.tsx";
 import { success, error } from "./server_utils.tsx";
 import { requireAdmin, requireAdminLeitura, requireMaster } from "./middleware.tsx";
 
-// META_API_URL só existe no ambiente de teste (simulador local da Graph API)
 const BASE = Deno.env.get("META_API_URL") || "https://graph.facebook.com/v23.0";
 const SEGREDOS = "meta_segredos";
 
@@ -41,13 +37,11 @@ async function chamar<T>(cfg: Pick<Cfg, "token">, metodo: "GET" | "POST" | "DELE
   const dados = await resp.json().catch(() => null);
   if (!resp.ok || dados?.error) {
     const e = dados?.error ?? {};
-    // error_user_msg vem em português e explica o que fazer
     throw new MetaError(`Meta: ${e.error_user_msg || e.error_user_title || e.message || `HTTP ${resp.status}`}`);
   }
   return dados as T;
 }
 
-// o CDN do Instagram/Facebook bloqueia exibir a imagem em outro site: o Admin recebe a miniatura embutida
 async function imagemComoDataUrl(url?: string | null, maxBytes = 700_000): Promise<string | null> {
   if (!url) return null;
   try {
@@ -97,7 +91,6 @@ function montarPublico(b: Record<string, unknown>, soInstagram = false) {
   const posFb = soInstagram ? [] : escolhidas.filter((p) => p in POSICOES_FB).map((p) => POSICOES_FB[p]);
   const nenhuma = !posIg.length && !posFb.length;
   const geo: Record<string, unknown> = {};
-  // cidade com raio (delivery): a Meta aceita 17–80 km em volta da cidade
   const cidades = locais.filter((l) => l.tipo === "city").map((l) => ({ key: String(l.key), ...(l.raio ? { radius: Math.min(80, Math.max(17, Math.round(l.raio))), distance_unit: "kilometer" } : {}) }));
   const regioes = locais.filter((l) => l.tipo === "region").map((l) => ({ key: String(l.key) }));
   if (cidades.length) geo.cities = cidades;
@@ -112,14 +105,12 @@ function montarPublico(b: Record<string, unknown>, soInstagram = false) {
     publisher_platforms: [...(posIg.length || nenhuma ? ["instagram"] : []), ...(posFb.length ? ["facebook"] : [])],
     ...(posIg.length || nenhuma ? { instagram_positions: posIg.length ? posIg : ["reels", "story", "stream"] } : {}),
     ...(posFb.length ? { facebook_positions: posFb } : {}),
-    // a Meta exige dizer se o "público Advantage" está ligado; ligado ela ignora o público escolhido
     targeting_automation: { advantage_audience: 0 },
   };
 }
 
 const router = new Hono();
 
-// consultas só pedem a sessão; o que altera a conta (criar, ativar, orçamento) passa também pelo CSRF
 const LEITURA = new Set(["resumo", "campanhas", "detalhes", "posts_instagram", "buscar_interesses", "buscar_locais", "estimar_publico"]);
 router.post("/meta/acao", async (c, next) => {
   const b = await c.req.json().catch(() => ({} as Record<string, unknown>));
@@ -180,7 +171,6 @@ router.post("/meta/acao", async (c, next) => {
         get<{ data: Linha[] }>(`${id}/insights`, { fields: "spend,reach,impressions,clicks,actions", date_preset: periodo("maximum"), limit: 500, ...extra }).then((r) => r.data ?? []);
       const [idadeGenero, regioes, porDia] = await Promise.all([ins({ breakdowns: "age,gender" }), ins({ breakdowns: "region" }), ins({ time_increment: "1" })]);
       const linha = (x: Linha) => { const m = resumir(x); return { alcance: m.alcance, cliques: m.cliques_link, gasto: m.gasto }; };
-      // lado do site: pedidos que vieram por este anúncio (utm_campaign = id da campanha)
       const pedidos = [...await kv.getByPrefix("order:"), ...await kv.getByPrefix("archive:")]
         .filter((o: any) => o?.utm?.utm_campaign === id && o.status !== "cancelled");
       const faturamento = pedidos.reduce((s: number, o: any) => s + (Number(o.total) || 0), 0);
@@ -209,7 +199,6 @@ router.post("/meta/acao", async (c, next) => {
       const status = b.status === "ACTIVE" ? "ACTIVE" : "PAUSED";
       const id = String(b.campanha ?? "");
       if (!/^\d+$/.test(id)) return error(c, "campanha inválida", 400);
-      // ativar a campanha ativa também o conjunto e o anúncio criados aqui (nascem pausados)
       if (status === "ACTIVE") {
         const filhos = await get<{ data: { id: string }[] }>(`${id}/adsets`, { fields: "id" });
         const anuncios = await get<{ data: { id: string }[] }>(`${id}/ads`, { fields: "id" });
@@ -278,7 +267,6 @@ router.post("/meta/acao", async (c, next) => {
           optimization_goal: "LINK_CLICKS", billing_event: "IMPRESSIONS", destination_type: "WEBSITE",
           targeting: montarPublico(b, !!postIg),
         });
-        // link com UTM: o pedido guarda a origem e o painel soma os pedidos de cada campanha
         const linkUtm = `${link}${link.includes("?") ? "&" : "?"}utm_source=meta&utm_medium=anuncio&utm_campaign=${camp.id}`;
         const criativo = await post<{ id: string }>(`${cfg.conta}/adcreatives`, postIg
           ? { name: `${nome} · post do perfil`, object_id: cfg.pagina, instagram_user_id: cfg.instagram,
@@ -291,7 +279,6 @@ router.post("/meta/acao", async (c, next) => {
         const anuncio = await post<{ id: string }>(`${cfg.conta}/ads`, { name: nome, adset_id: conj.id, creative: { creative_id: criativo.id }, status: "PAUSED" });
         return c.json({ ok: true, campanha: camp.id, conjunto: conj.id, anuncio: anuncio.id });
       } catch (e) {
-        // não deixa campanha pela metade na conta: apagar a campanha apaga conjunto e anúncio junto
         for (const id of criados) await chamar(cfg, "DELETE", id).catch(() => {});
         throw e;
       }
@@ -304,7 +291,6 @@ router.post("/meta/acao", async (c, next) => {
   }
 });
 
-// Master: credenciais só entram (nunca voltam para a tela)
 router.get("/master/meta", requireMaster, async (c) => {
   const s = await segredosMeta();
   let conta: Record<string, unknown> | null = null, erroConta = "";

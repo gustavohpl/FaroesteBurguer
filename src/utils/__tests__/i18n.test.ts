@@ -1,11 +1,4 @@
-// ==========================================
-// 🧪 TESTES UNITÁRIOS — i18n engine
-// t(), setLocale(), getLocale(), interpolação, fallback
-// ==========================================
-
 import { t, setLocale, getLocale, getAvailableLocales, subscribe } from '../i18n';
-
-// ---- Test Runner Simples ----
 
 interface TestResult {
   name: string;
@@ -46,11 +39,6 @@ function expect<T>(actual: T) {
   };
 }
 
-// ==========================================
-// Locale padrão
-// ==========================================
-
-// Reset para pt-BR antes de cada bloco
 setLocale('pt-BR');
 
 test('locale padrão é pt-BR', () => {
@@ -62,10 +50,6 @@ test('availableLocales contém pt-BR e en-US', () => {
   expect(locales).toContain('pt-BR');
   expect(locales).toContain('en-US');
 });
-
-// ==========================================
-// t() — pt-BR
-// ==========================================
 
 test('t(): retorna string pt-BR para chave válida', () => {
   setLocale('pt-BR');
@@ -92,10 +76,6 @@ test('t(): retorna string pt-BR para orders.pending', () => {
   expect(t('orders.pending')).toBe('Pendente');
 });
 
-// ==========================================
-// t() — en-US
-// ==========================================
-
 test('t(): retorna string en-US após setLocale', () => {
   setLocale('en-US');
   expect(t('common.loading')).toBe('Loading...');
@@ -121,10 +101,6 @@ test('t(): retorna string en-US para orders.pending', () => {
   expect(t('orders.pending')).toBe('Pending');
 });
 
-// ==========================================
-// t() — Interpolação
-// ==========================================
-
 test('t(): interpolação com {minutes} em pt-BR', () => {
   setLocale('pt-BR');
   const result = t('auth.tooManyAttempts', { minutes: 5 });
@@ -149,10 +125,6 @@ test('t(): interpolação com {qty} em en-US', () => {
   expect(result).toBe('Add (7)');
 });
 
-// ==========================================
-// t() — Fallback para key
-// ==========================================
-
 test('t(): retorna a própria key se não encontrada', () => {
   setLocale('pt-BR');
   expect(t('nonexistent.key')).toBe('nonexistent.key');
@@ -165,13 +137,8 @@ test('t(): retorna a key se categoria não existe', () => {
 
 test('t(): retorna a key para chave parcialmente válida (nó não-terminal)', () => {
   setLocale('pt-BR');
-  // 'common' é um objeto, não uma string
   expect(t('common')).toBe('common');
 });
-
-// ==========================================
-// setLocale() — troca de idioma
-// ==========================================
 
 test('setLocale() muda o locale efetivamente', () => {
   setLocale('en-US');
@@ -189,10 +156,6 @@ test('setLocale() com locale inválido não muda nada', () => {
   expect(getLocale()).toBe('pt-BR');
 });
 
-// ==========================================
-// subscribe() — reatividade
-// ==========================================
-
 test('subscribe() é chamado quando locale muda', () => {
   setLocale('pt-BR');
   let callCount = 0;
@@ -206,13 +169,8 @@ test('subscribe() é chamado quando locale muda', () => {
 
   unsub();
   setLocale('en-US');
-  // Após unsub, não deve ter incrementado
   expect(callCount).toBe(2);
 });
-
-// ==========================================
-// Cobertura de seções
-// ==========================================
 
 test('seção security existe em pt-BR', () => {
   setLocale('pt-BR');
@@ -244,12 +202,7 @@ test('seção checkout existe em en-US', () => {
   expect(t('checkout.placeOrder')).toBe('Place Order');
 });
 
-// Reset
 setLocale('pt-BR');
-
-// ==========================================
-// Exportar resultados
-// ==========================================
 
 export function runI18nTests(): { results: TestResult[]; passed: number; failed: number; total: number } {
   const passed = results.filter(r => r.passed).length;

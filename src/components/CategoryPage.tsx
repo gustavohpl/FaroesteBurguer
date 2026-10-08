@@ -20,7 +20,6 @@ export function CategoryPage({ category, products, onAddToCart }: CategoryPagePr
   }, [category]);
 
   const loadCategoryInfo = async () => {
-    // Check for system categories first
     if (category === 'promocoes') {
       setCategoryInfo({ 
         label: 'Promoções', 
@@ -36,7 +35,6 @@ export function CategoryPage({ category, products, onAddToCart }: CategoryPagePr
       return;
     }
 
-    // Check DB categories
     try {
       const response = await api.getCategories();
       if (response.success && response.categories) {
@@ -47,7 +45,6 @@ export function CategoryPage({ category, products, onAddToCart }: CategoryPagePr
             description: `Deliciosas opções de ${found.label.toLowerCase()}` 
           });
         } else {
-          // Fallback formatting
           setCategoryInfo({ 
             label: category.charAt(0).toUpperCase() + category.slice(1), 
             description: 'Confira nossas opções' 
@@ -55,7 +52,6 @@ export function CategoryPage({ category, products, onAddToCart }: CategoryPagePr
         }
       }
     } catch (e) {
-      // Fallback
        setCategoryInfo({ 
             label: category.charAt(0).toUpperCase() + category.slice(1), 
             description: 'Confira nossas opções' 

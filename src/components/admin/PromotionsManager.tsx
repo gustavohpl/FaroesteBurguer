@@ -14,12 +14,12 @@ export interface Promotion {
   id: string;
   name: string;
   description: string;
-  price: number; // Preco promocional
+  price: number;
   category: 'promocoes';
   available: boolean;
   imageUrl?: string | null;
-  promoItems: PromoItem[]; // Produtos inclusos na promocao
-  originalTotal: number; // Soma dos precos originais
+  promoItems: PromoItem[];
+  originalTotal: number;
   createdAt?: string;
 }
 
@@ -34,7 +34,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
 
-  // Form state
   const [promoName, setPromoName] = useState('');
   const [promoPrice, setPromoPrice] = useState('');
   const [promoImageUrl, setPromoImageUrl] = useState('');
@@ -53,7 +52,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
       const res = await api.getAllProducts();
       if (res.success) {
         const all = res.products || [];
-        // Separar promocoes e produtos normais
         setPromotions(all.filter((p: any) => p.category === 'promocoes' && p.promoItems));
         setAllProducts(all.filter((p: any) => p.category !== 'promocoes'));
       }
@@ -156,7 +154,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
       return;
     }
 
-    // Gerar descricao automatica
     const itemsDesc = selectedItems.map(i => i.productName).join(' + ');
     const description = `${itemsDesc} — De R$ ${originalTotal.toFixed(2).replace('.', ',')} por R$ ${promoPriceNum.toFixed(2).replace('.', ',')}`;
 
@@ -188,7 +185,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
     }
   };
 
-  // Filtrar produtos para busca (excluir os ja selecionados se quiser, ou marcar como selecionados)
   const filteredProducts = productSearch.trim()
     ? allProducts.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
     : allProducts;
@@ -203,7 +199,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -221,7 +216,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
         </button>
       </div>
 
-      {/* Lista de Promoções */}
       {promotions.length === 0 ? (
         <div className="text-center py-12 bg-red-50 rounded-lg border-2 border-dashed border-red-200">
           <Percent className="w-12 h-12 text-red-300 mx-auto mb-3" />
@@ -242,7 +236,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
               : 0;
             return (
               <div key={promo.id} className="bg-white border border-red-200 rounded-lg p-4 flex gap-4 shadow-sm hover:shadow-md transition-shadow">
-                {/* Imagem */}
                 <div className="w-24 h-24 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-red-100">
                   {promo.imageUrl ? (
                     <img src={promo.imageUrl} alt={promo.name} className="w-full h-full object-cover" />
@@ -251,7 +244,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
@@ -309,7 +301,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
         </div>
       )}
 
-      {/* Modal Criar/Editar Promoção */}
       {isModalOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
@@ -326,7 +317,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                {/* Nome da Promoção */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nome da Promoção *
@@ -341,13 +331,11 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                   />
                 </div>
 
-                {/* Selecionar Produtos */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Produtos da Promoção *
                   </label>
 
-                  {/* Produtos selecionados */}
                   {selectedItems.length > 0 && (
                     <div className="mb-3 space-y-2">
                       {selectedItems.map((item, idx) => (
@@ -381,7 +369,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                     </div>
                   )}
 
-                  {/* Buscar e adicionar produtos */}
                   <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
                     <div className="p-2 bg-gray-50 border-b">
                       <div className="relative">
@@ -443,7 +430,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                   </div>
                 </div>
 
-                {/* Preço Promocional */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Preço Promocional (R$) *
@@ -459,7 +445,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                     required
                   />
 
-                  {/* Preview do desconto */}
                   {selectedItems.length > 0 && promoPriceNum > 0 && (
                     <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
                       <div className="space-y-1">
@@ -486,7 +471,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                   )}
                 </div>
 
-                {/* Imagem */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Imagem da Promoção (opcional)
@@ -514,7 +498,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                   <p className="text-xs text-gray-500 mt-1">Se não enviar, usará a imagem do primeiro produto</p>
                 </div>
 
-                {/* Disponibilidade */}
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -527,7 +510,6 @@ export function PromotionsManager({ onProductsChange }: PromotionsManagerProps) 
                   </label>
                 </div>
 
-                {/* Botões */}
                 <div className="flex gap-2 pt-4 border-t">
                   <button
                     type="button"

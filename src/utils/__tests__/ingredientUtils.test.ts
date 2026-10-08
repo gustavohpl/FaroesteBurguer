@@ -1,11 +1,4 @@
-// ==========================================
-// 🧪 TESTES UNITÁRIOS — ingredientUtils
-// getVisibleIngredients: ficha técnica, extras, hideFromClient, selectedPortionLabel, ingredientsText
-// ==========================================
-
 import { getVisibleIngredients } from '../ingredientUtils';
-
-// ---- Test Runner Simples ----
 
 interface TestResult {
   name: string;
@@ -58,8 +51,6 @@ function expect<T>(actual: T) {
   };
 }
 
-// ---- Helpers para criar produtos mock ----
-
 function makeProduct(overrides: Record<string, unknown> = {}): any {
   return {
     id: 'prod_1',
@@ -70,18 +61,10 @@ function makeProduct(overrides: Record<string, unknown> = {}): any {
   };
 }
 
-// ==========================================
-// Cenário: Sem ingredientes
-// ==========================================
-
 test('retorna array vazio se produto não tem recipe nem ingredientsText', () => {
   const result = getVisibleIngredients(makeProduct());
   expect(result).toHaveLength(0);
 });
-
-// ==========================================
-// Cenário: ingredientsText (stockControl OFF)
-// ==========================================
 
 test('retorna ingredientes de ingredientsText quando não há recipe', () => {
   const result = getVisibleIngredients(makeProduct({
@@ -113,10 +96,6 @@ test('ingredientsText: filtra entradas vazias', () => {
   }));
   expect(result).toHaveLength(2);
 });
-
-// ==========================================
-// Cenário: Recipe com ingredientes
-// ==========================================
 
 test('retorna ingredientes visíveis da recipe', () => {
   const result = getVisibleIngredients(makeProduct({
@@ -158,10 +137,6 @@ test('usa ingredientId como fallback quando ingredientName está ausente', () =>
   expect(result).toContain('queijo_mussarela');
 });
 
-// ==========================================
-// Cenário: selectedPortionLabel — lógica bidirecional .includes()
-// ==========================================
-
 test('selectedPortionLabel: mostra porção quando nome e label são diferentes', () => {
   const result = getVisibleIngredients(makeProduct({
     recipe: {
@@ -175,7 +150,6 @@ test('selectedPortionLabel: mostra porção quando nome e label são diferentes'
 });
 
 test('selectedPortionLabel: NÃO mostra porção quando label contém nome (bidirecional)', () => {
-  // "Queijo Mussarela 200g" contém "Queijo Mussarela" → não exibir
   const result = getVisibleIngredients(makeProduct({
     recipe: {
       ingredients: [
@@ -185,12 +159,10 @@ test('selectedPortionLabel: NÃO mostra porção quando label contém nome (bidi
   }));
   expect(result).toHaveLength(1);
   expect(result).toContain('Queijo Mussarela');
-  // Não deve ter " (Queijo Mussarela 200g)"
   expect(result).not.toContain('Queijo Mussarela (Queijo Mussarela 200g)');
 });
 
 test('selectedPortionLabel: NÃO mostra porção quando nome contém label (bidirecional inverso)', () => {
-  // "Peito de Frango" contém "Frango" → não exibir
   const result = getVisibleIngredients(makeProduct({
     recipe: {
       ingredients: [
@@ -212,7 +184,6 @@ test('selectedPortionLabel: case-insensitive na comparação', () => {
     },
   }));
   expect(result).toHaveLength(1);
-  // "queijo" is in "QUEIJO 200g" (case-insensitive) → não deve exibir label
   expect(result).toContain('queijo');
   expect(result).not.toContain('queijo (QUEIJO 200g)');
 });
@@ -228,10 +199,6 @@ test('selectedPortionLabel: exibe se nomes são completamente distintos', () => 
   expect(result).toHaveLength(1);
   expect(result).toContain('Bacon (Pacote 500g)');
 });
-
-// ==========================================
-// Cenário: Extras
-// ==========================================
 
 test('extras visíveis são incluídos', () => {
   const result = getVisibleIngredients(makeProduct({
@@ -277,10 +244,6 @@ test('extras sem name são ignorados', () => {
   expect(result).toHaveLength(1);
 });
 
-// ==========================================
-// Cenário: Combinação ingredients + extras
-// ==========================================
-
 test('combina ingredientes e extras visíveis', () => {
   const result = getVisibleIngredients(makeProduct({
     recipe: {
@@ -298,10 +261,6 @@ test('combina ingredientes e extras visíveis', () => {
   expect(result).toContain('Presunto');
   expect(result).toContain('Catupiry');
 });
-
-// ==========================================
-// Cenário: quantityUsed
-// ==========================================
 
 test('quantityUsed=1 não adiciona prefixo', () => {
   const result = getVisibleIngredients(makeProduct({
@@ -336,10 +295,6 @@ test('quantityUsed ausente (undefined) não adiciona prefixo', () => {
   }));
   expect(result).toContain('Alface');
 });
-
-// ==========================================
-// Exportar resultados
-// ==========================================
 
 export function runIngredientUtilsTests(): { results: TestResult[]; passed: number; failed: number; total: number } {
   const passed = results.filter(r => r.passed).length;

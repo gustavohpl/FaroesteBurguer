@@ -39,10 +39,8 @@ export function PixPaymentPagSeguro({
   const [error, setError] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'expired'>('pending');
 
-  // Tempo restante
-  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutos em segundos
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
 
-  // StrictMode/reabertura rodam o efeito 2×: um pedido gera um Pix só
   const criado = useRef(false);
   useEffect(() => {
     if (criado.current) return;
@@ -50,7 +48,6 @@ export function PixPaymentPagSeguro({
     createPayment();
   }, []);
 
-  // Verificar status do pagamento a cada 5 segundos
   useEffect(() => {
     if (!referenceId || paymentStatus !== 'pending') return;
 
@@ -64,18 +61,16 @@ export function PixPaymentPagSeguro({
           setPaymentStatus('paid');
           clearInterval(interval);
           
-          // Chamar callback de confirmação
           setTimeout(() => {
             onPaymentConfirmed(response.orderId || referenceId);
           }, 1500);
         }
       }
-    }, 5000); // Verificar a cada 5 segundos
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [referenceId, paymentStatus, onPaymentConfirmed, mp]);
 
-  // Contador de tempo
   useEffect(() => {
     if (paymentStatus !== 'pending') return;
 
@@ -107,7 +102,7 @@ export function PixPaymentPagSeguro({
         items,
         deliveryType,
         address,
-        orderId // Passando ID do pedido existente
+        orderId
       });
 
       if (!response.success) {
@@ -116,9 +111,7 @@ export function PixPaymentPagSeguro({
 
       console.log('✅ Pagamento PIX criado:', response);
 
-      // Verificar se está em modo manual
       if (response.mode === 'manual') {
-        // Modo PIX Manual - Apenas mostrar a chave
         setCopyPaste(response.pixKey);
         setIsLoading(false);
         return;
@@ -131,7 +124,6 @@ export function PixPaymentPagSeguro({
         return;
       }
 
-      // Modo Automático (Mercado Pago: referência = número do pedido)
       setQrCode(response.qrCode);
       setCopyPaste(response.copyPaste);
       setReferenceId(mp ? orderId! : response.referenceId);
@@ -158,7 +150,6 @@ export function PixPaymentPagSeguro({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Tela de Carregamento
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -175,7 +166,6 @@ export function PixPaymentPagSeguro({
     );
   }
 
-  // Tela de Erro
   if (error) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -202,7 +192,6 @@ export function PixPaymentPagSeguro({
     );
   }
 
-  // Tela de Pagamento Confirmado
   if (paymentStatus === 'paid') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -228,7 +217,6 @@ export function PixPaymentPagSeguro({
     );
   }
 
-  // Tela de PIX Expirado
   if (paymentStatus === 'expired') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -265,12 +253,10 @@ export function PixPaymentPagSeguro({
     );
   }
 
-  // ✅ MODO MANUAL - Sem QR Code, apenas chave PIX
   if (!qrCode && copyPaste) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
         <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl w-full max-w-md">
-          {/* Header */}
           <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold">Pagamento PIX Manual</h2>
@@ -283,9 +269,7 @@ export function PixPaymentPagSeguro({
             </div>
           </div>
 
-          {/* Content */}
           <div className="p-6 space-y-4">
-            {/* Valor */}
             <div className="text-center bg-green-50 dark:bg-zinc-800 p-4 rounded-lg border-2 border-green-200 dark:border-zinc-700">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Valor a pagar:</p>
               <p className="text-3xl font-bold text-green-600 dark:text-green-500">
@@ -293,7 +277,6 @@ export function PixPaymentPagSeguro({
               </p>
             </div>
 
-            {/* Instruções */}
             <div className="bg-blue-50 dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-lg p-4">
               <p className="text-sm text-blue-900 dark:text-blue-400 font-medium mb-2">
                 📋 Instruções:
@@ -306,7 +289,6 @@ export function PixPaymentPagSeguro({
               </ol>
             </div>
 
-            {/* Chave PIX */}
             <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4">
               <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 font-medium text-center">
                 🔑 Chave PIX:
@@ -334,7 +316,6 @@ export function PixPaymentPagSeguro({
               </button>
             </div>
 
-            {/* Aviso */}
             <div className="bg-amber-50 dark:bg-zinc-800 border border-amber-200 dark:border-zinc-700 rounded-lg p-3">
               <p className="text-xs text-amber-900 dark:text-amber-400 text-center">
                 ⚠️ Após realizar o pagamento, envie o comprovante via WhatsApp para confirmarmos seu pedido.
@@ -346,11 +327,9 @@ export function PixPaymentPagSeguro({
     );
   }
 
-  // Tela Principal - QR Code PIX (Modo Automático)
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Pagamento PIX</h2>
@@ -363,9 +342,7 @@ export function PixPaymentPagSeguro({
           </div>
         </div>
 
-        {/* Content */}
         <div className="p-6 space-y-4">
-          {/* Valor */}
           <div className="text-center bg-green-50 dark:bg-zinc-800 p-4 rounded-lg border-2 border-green-200 dark:border-zinc-700">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Valor a pagar:</p>
             <p className="text-3xl font-bold text-green-600 dark:text-green-500">
@@ -373,7 +350,6 @@ export function PixPaymentPagSeguro({
             </p>
           </div>
 
-          {/* Tempo Restante */}
           <div className="bg-amber-50 dark:bg-zinc-800 border border-amber-200 dark:border-zinc-700 rounded-lg p-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-amber-900 dark:text-amber-400 font-medium flex items-center gap-2">
@@ -386,7 +362,6 @@ export function PixPaymentPagSeguro({
             </div>
           </div>
 
-          {/* QR Code */}
           <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-4 text-center">
             <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 font-medium">
               📱 Escaneie o QR Code
@@ -402,7 +377,6 @@ export function PixPaymentPagSeguro({
             )}
           </div>
 
-          {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300 dark:border-zinc-700"></div>
@@ -412,7 +386,6 @@ export function PixPaymentPagSeguro({
             </div>
           </div>
 
-          {/* Copia e Cola */}
           <div>
             <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 font-medium text-center">
               💳 Copie o código PIX:
@@ -447,7 +420,6 @@ export function PixPaymentPagSeguro({
             </div>
           </div>
 
-          {/* Instruções */}
           <div className="bg-blue-50 dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 rounded-lg p-4">
             <p className="text-sm text-blue-900 dark:text-blue-400 font-semibold mb-2">
               📋 Como pagar:
@@ -460,7 +432,6 @@ export function PixPaymentPagSeguro({
             </ol>
           </div>
 
-          {/* Status */}
           <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-zinc-800 dark:to-zinc-900 border-2 border-green-300 dark:border-zinc-700 rounded-lg p-4">
             <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-500">
               <Loader className="w-5 h-5 animate-spin" />
@@ -473,7 +444,6 @@ export function PixPaymentPagSeguro({
             </p>
           </div>
 
-          {/* Nota */}
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
             Referência: {referenceId}
           </p>

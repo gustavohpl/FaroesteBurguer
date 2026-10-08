@@ -1,18 +1,8 @@
-// ==========================================
-// 🛡️ SECURITY HELPERS
-// writeAuditLogWithGeo, emitSecurityAlert, IP blacklist/whitelist,
-// timezone/language mismatch, browser fingerprint tracking
-// ==========================================
-
 import * as kv from "./kv_retry.tsx";
 import type { AuditLog, BrowserInfo, GeoResult } from "./types.tsx";
 import { enrichIpGeo } from "./geo.tsx";
 import { writeAuditLog } from "./server_utils.tsx";
 import { updateIpReputation } from "./reputation.tsx";
-
-// ==========================================
-// 🚨 SECURITY ALERT (Emissão em tempo real via KV)
-// ==========================================
 
 export async function emitSecurityAlert(log: Record<string, unknown>): Promise<void> {
   try {
@@ -63,10 +53,6 @@ export async function emitSecurityAlert(log: Record<string, unknown>): Promise<v
     console.error('❌ [ALERT] Erro ao emitir alerta:', e);
   }
 }
-
-// ==========================================
-// 🛑 IP BLACKLIST / WHITELIST
-// ==========================================
 
 export async function checkIpBlacklist(ip: string): Promise<Record<string, unknown> | null> {
   if (!ip || ip === 'unknown') return null;
@@ -128,10 +114,6 @@ export async function autoBlacklistIp(ip: string, reason: string, extra?: { geo?
   }
 }
 
-// ==========================================
-// 🌐 TIMEZONE / LANGUAGE MISMATCH DETECTION
-// ==========================================
-
 export function detectTimezoneMismatch(browserInfo: BrowserInfo | null, ipGeo: GeoResult | null): { mismatch: boolean; details: string } {
   if (!browserInfo?.timezone || browserInfo.timezone === 'unknown' || !ipGeo?.timezone) {
     return { mismatch: false, details: '' };
@@ -178,10 +160,6 @@ export function detectLanguageMismatch(browserInfo: BrowserInfo | null, ipGeo: G
   }
   return { mismatch: false, details: '' };
 }
-
-// ==========================================
-// 🧬 BROWSER FINGERPRINT TRACKING
-// ==========================================
 
 export function generateBrowserFingerprint(browserInfo: BrowserInfo | null): string | null {
   if (!browserInfo) return null;
@@ -250,10 +228,6 @@ export async function trackBrowserFingerprint(
     return { suspicious: false, ipCount: 0, ips: [], details: '' };
   }
 }
-
-// ==========================================
-// 📋 writeAuditLogWithGeo (completo com geo + alertas + fingerprint)
-// ==========================================
 
 export function writeAuditLogWithGeo(params: {
   action: string;

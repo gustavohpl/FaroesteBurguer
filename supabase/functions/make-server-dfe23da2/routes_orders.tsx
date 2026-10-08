@@ -1,8 +1,3 @@
-// ==========================================
-// 🛒 ROTAS: Pedidos, Clientes, Reviews, Migração
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { unidadeAtual, cidadeAtual } from "./kv_retry.tsx";
@@ -18,10 +13,6 @@ import { validateAndPriceOrder } from "./order_validation.tsx";
 import type { OrderStatus, OrderReview } from "./types.tsx";
 
 const router = new Hono();
-
-// ==========================================
-// Migração (organizar banco order: → archive:)
-// ==========================================
 
 router.post('/admin/migrate-scale', requireAdmin, async (c) => {
   try {
@@ -40,14 +31,9 @@ router.post('/admin/migrate-scale', requireAdmin, async (c) => {
   }
 });
 
-// ==========================================
-// Listar pedidos ativos
-// ==========================================
-
 router.get('/orders', requireAdminOrDriver, async (c) => {
   try {
     let orders = await kv.getByPrefix('order:');
-    // entregador só recebe as entregas prontas ou em rota, nunca a base de clientes
     if (c.get('authType' as never) === 'driver') {
       orders = orders.filter((o: any) => o.deliveryType === 'delivery' && ['ready_for_delivery', 'out_for_delivery'].includes(o.status));
     }
@@ -58,7 +44,6 @@ router.get('/orders', requireAdminOrDriver, async (c) => {
   }
 });
 
-// Histórico (arquivo morto)
 router.get('/orders/history', requireAdmin, async (c) => {
   try {
     const limitParam = c.req.query('limit');
@@ -72,8 +57,6 @@ router.get('/orders/history', requireAdmin, async (c) => {
   }
 });
 
-// Buscar pedidos por telefone
-// pedidos que o cliente enxerga pelo telefone: os de todas as unidades da cidade (ele pode ter trocado de unidade)
 const pedidosDoSite = async () => {
   const daUnidade = async () => [...await kv.getByPrefix('order:'), ...await kv.getByPrefix('archive:')];
   return cidadeAtual() ? (await emCadaUnidade(daUnidade)).flat() : daUnidade();
@@ -96,7 +79,6 @@ router.get('/orders/search/:phone', async (c) => {
   }
 });
 
-// Buscar dados do cliente por telefone
 router.get('/customers/:phone', async (c) => {
   const phone = c.req.param('phone');
   console.log('👤 [BACKEND] Buscando dados do cliente por telefone:', phone);
@@ -142,7 +124,6 @@ router.get('/customers/:phone', async (c) => {
   }
 });
 
-// Buscar pedido por ID
 router.get('/orders/:id', async (c) => {
   const id = c.req.param('id');
   console.log('🔍 [BACKEND GET ORDER v2.1] Buscando pedido:', id);
@@ -163,7 +144,6 @@ router.get('/orders/:id', async (c) => {
   return success(c, { order });
 });
 
-// Criar pedido
 router.post('/orders', async (c) => {
   try {
     const rawBody = await c.req.json();
@@ -180,7 +160,6 @@ router.post('/orders', async (c) => {
         name: item.name ? sanitizeText(item.name, 200) : item.name,
       })) : rawBody.items,
       couponCode: rawBody.couponCode ? sanitizeText(rawBody.couponCode, 50) : rawBody.couponCode,
-      // origem do anúncio (utm_campaign = id da campanha na Meta): o painel de anúncios soma os pedidos
       utm: rawBody.utm && typeof rawBody.utm === 'object'
         ? Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign'].filter((k) => typeof rawBody.utm[k] === 'string').map((k) => [k, sanitizeText(rawBody.utm[k], 100)]))
         : undefined,
@@ -188,13 +167,11 @@ router.post('/orders', async (c) => {
 
     delete body.unitId;
     if ((await franquia()) && !unidadeAtual()) return error(c, 'Escolha a unidade antes de fazer o pedido.', 400);
-    // a tela já barra, mas o servidor confere: loja (unidade) fechada e consumo no local desligado
     const achada = await acharUnidade(unidadeAtual());
     if (achada?.unidade.isOpen === false || (await kv.get('store_status') as any)?.isOpen === false) return error(c, 'A loja está fechada agora.', 409);
     if (body.deliveryType === 'dine-in' && (await configDaUnidade()).features?.dineIn === false) return error(c, 'Esta loja não tem consumo no local.', 409);
     if (achada) { body.unitId = achada.unidade.id; body.unitName = achada.unidade.name; }
 
-    // 🔒 Validação e recomputação de preços no servidor (anti-adulteração de total/preço)
     const pricing = await validateAndPriceOrder(body);
     if (!pricing.ok) {
       console.warn('🚫 [ORDER] Pedido rejeitado por validação de preço:', pricing.message);
@@ -203,7 +180,6 @@ router.post('/orders', async (c) => {
     if (pricing.tampered) {
       console.warn('⚠️ [SECURITY] Total do cliente diverge do recomputado — usando o do servidor. Cliente:', body.total, 'Servidor:', pricing.total);
     }
-    // Servidor é a fonte da verdade dos valores monetários
     body.subtotal = pricing.subtotal;
     body.discount = pricing.discount;
     body.couponDiscount = pricing.discount;
@@ -211,12 +187,10 @@ router.post('/orders', async (c) => {
     body.total = pricing.total;
     body.totalBeforeDiscount = Number((pricing.subtotal + pricing.deliveryFee).toFixed(2));
 
-    // número, status e pagamento são do servidor: o navegador não cria pedido "pago" nem reusa número de outro
     for (const campo of ['paymentStatus', 'paymentConfirmed', 'paymentConfirmedAt', 'paidAt', 'paidAmount', 'paymentId', 'paymentGateway', 'stockDeducted', 'reviews', 'reviewedAt', 'driver']) delete body[campo];
     const timestamp = Date.now();
     const id = `order_${timestamp}`;
     let orderId = `FH-${timestamp.toString().slice(-6)}`;
-    // número reservado de forma atômica e global: dois pedidos no mesmo instante (mesma cidade ou não) nunca repetem
     while (await kv.get(`order:${orderId}`) || await kv.get(`archive:${orderId}`) || !(await kv.inserir(`order_unit:${orderId}`, unidadeAtual() || ''))) orderId = `FH-${Math.floor(100000 + Math.random() * 900000)}`;
 
     if (body.couponCode && (await configDaUnidade()).features?.coupons !== false) {
@@ -238,7 +212,6 @@ router.post('/orders', async (c) => {
   }
 });
 
-// Atualizar status do pedido (com desconto de estoque e estatísticas de entregador)
 router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
   const id = c.req.param('id');
   console.log('📥 [BACKEND] PUT /orders/:id/status:', id, '— auth:', c.get('authType'));
@@ -264,7 +237,6 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
       ...(status === 'completed' && { completedAt: new Date().toISOString() })
     };
 
-    // Descontar estoque quando preparing (só com o controle de estoque ligado no Master)
     if (status === 'preparing' && !order.stockDeducted && (await configDaUnidade()).features?.stockControl) {
       try {
         const orderItems = order.items || [];
@@ -277,19 +249,15 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
           const product: any = await kv.get(`product:${item.productId || item.id}`);
           if (!product) continue;
 
-          // Coletar todos os produtos cujo estoque deve ser descontado
-          // Se for promoção, desconta dos sub-produtos; senão, do próprio produto
           const productsToDeduct: any[] = [];
           
           if (product.promoItems && product.promoItems.length > 0) {
-            // Promoção: descontar estoque de cada sub-produto
             for (const promoItem of product.promoItems) {
               const subProduct: any = await kv.get(`product:${promoItem.productId}`);
               if (subProduct?.recipe?.ingredients) {
                 productsToDeduct.push(subProduct);
               }
             }
-            // Também descontar a receita da promoção em si (se tiver, ex: embalagem)
             if (product.recipe?.ingredients) {
               productsToDeduct.push(product);
             }
@@ -328,19 +296,16 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
               }
             }
 
-            // Desconto ATÔMICO — sem race condition
             try {
               await kv.atomicStockDecrement(ingredientKey, totalDeduct, now);
               console.log(`📦 [STOCK] ⚛️ Atômico: "${ingredient.name}" -${totalDeduct.toFixed(4)} (${ingCategory})`);
             } catch (atomicErr) {
-              // Fallback: se a função SQL não existir ainda, usa método antigo
               console.warn(`⚠️ [STOCK] Fallback não-atômico para "${ingredient.name}":`, String(atomicErr).slice(0, 80));
               ingredient.currentStock = Math.max(0, (ingredient.currentStock || 0) - totalDeduct);
               ingredient.updatedAt = now;
               await kv.set(ingredientKey, ingredient);
             }
 
-            // Registrar log de dedução
             const deductionId = `deduct_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
             await kv.set(`stock_deduction:${deductionId}`, {
               id: deductionId, ingredientId: ingredient.id, ingredientName: ingredient.name,
@@ -349,7 +314,7 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
               productId: item.productId || item.id, quantity: totalDeduct, orderId: id, date: now,
             });
           }
-          } // end for prodToDeduct
+          }
         }
         updated.stockDeducted = true;
         console.log('📦 [STOCK] Estoque descontado para pedido:', id, isDineIn ? '(no local)' : '(entrega/retirada)');
@@ -358,7 +323,6 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
       }
     }
 
-    // Estatísticas do entregador quando concluído
     if (status === 'completed' && updated.driver?.phone) {
       const normalizedPhone = String(updated.driver.phone).replace(/\D/g, '');
       const driver: any = await kv.get(`driver:${normalizedPhone}`);
@@ -386,7 +350,6 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
       }
     }
 
-    // Arquivamento automático
     if (status === 'completed' || status === 'cancelled') {
       await kv.set(`archive:${id}`, updated);
       if (!isArchived) await kv.del(`order:${id}`);
@@ -405,7 +368,6 @@ router.put('/orders/:id/status', requireAdminOrDriver, async (c) => {
   }
 });
 
-// Atribuir entregador
 router.put('/orders/:id/assign', requireAdminOrDriver, async (c) => {
   const id = c.req.param('id');
   try {
@@ -425,8 +387,6 @@ router.put('/orders/:id/assign', requireAdminOrDriver, async (c) => {
   }
 });
 
-// Confirmar pagamento (cliente)
-// confirmação MANUAL (Admin conferiu o pagamento): marca pago e o pedido segue na cozinha
 router.post('/orders/:id/confirm-payment', requireAdmin, async (c) => {
   const id = c.req.param('id');
   console.log('💳 [PAYMENT] Confirmação de pagamento para pedido:', id);
@@ -444,7 +404,6 @@ router.post('/orders/:id/confirm-payment', requireAdmin, async (c) => {
   }
 });
 
-// Limpar todos os pedidos
 router.delete('/admin/orders/clear-all', requireAdmin, async (c) => {
   const orders = await kv.getByPrefix('order:');
   for (const o of orders) await kv.del(`order:${(o as any).orderId}`);
@@ -453,7 +412,6 @@ router.delete('/admin/orders/clear-all', requireAdmin, async (c) => {
   return success(c, { message: 'Todos os pedidos (ativos e arquivados) foram limpos' });
 });
 
-// Cancelar pedido (admin)
 router.put('/admin/orders/:id/cancel', requireAdmin, async (c) => {
   const id = c.req.param('id');
   const { reason } = await c.req.json();
@@ -468,8 +426,6 @@ router.put('/admin/orders/:id/cancel', requireAdmin, async (c) => {
   return success(c, { order: updated });
 });
 
-// Adicionar avaliação
-// público: só a média por produto (sem dados de cliente)
 router.get('/reviews/top', async (c) => {
   try {
     const pedidos = await pedidosDoSite();

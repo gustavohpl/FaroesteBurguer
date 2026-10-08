@@ -22,7 +22,6 @@ export function useCustomer() {
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Tentar carregar do localStorage ao iniciar
   useEffect(() => {
     const savedPhone = localStorage.getItem('faroeste_customer_phone');
     if (savedPhone) {
@@ -46,7 +45,6 @@ export function useCustomer() {
       
       if (data.success && data.customer) {
         setCustomer(data.customer);
-        // Atualizar localStorage para manter sessão
         localStorage.setItem('faroeste_customer_phone', cleanPhone);
       }
     } catch (error) {

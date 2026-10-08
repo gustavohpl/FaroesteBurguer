@@ -1,6 +1,3 @@
-// Utilitários para manipulação de cores e temas
-
-// Converte Hex para RGB
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? {
@@ -10,7 +7,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   } : null;
 }
 
-// Converte RGB para HSL
 function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
   r /= 255;
   g /= 255;
@@ -19,7 +15,7 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
   let h = 0, s, l = (max + min) / 2;
 
   if (max === min) {
-    h = s = 0; // achromatic
+    h = s = 0;
   } else {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -34,7 +30,6 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
   return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
-// Converte HSL para Hex
 function hslToHex(h: number, s: number, l: number): string {
   l /= 100;
   const a = s * Math.min(l, 1 - l) / 100;
@@ -46,18 +41,15 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-// Gera a paleta completa baseada em uma cor base
 export function generatePalette(baseColorHex: string) {
   const rgb = hexToRgb(baseColorHex);
   if (!rgb) return null;
   
   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
   
-  // Ajustes finos para garantir que a cor base seja próxima do tom 600
   const baseHue = hsl.h;
-  const baseSat = Math.max(hsl.s, 20); // Garantir saturação mínima
+  const baseSat = Math.max(hsl.s, 20);
   
-  // Regra monocromática: Mantém Hue, varia Lightness
   const palette = {
     50: hslToHex(baseHue, baseSat, 97),
     100: hslToHex(baseHue, baseSat, 94),
@@ -65,7 +57,7 @@ export function generatePalette(baseColorHex: string) {
     300: hslToHex(baseHue, baseSat, 77),
     400: hslToHex(baseHue, baseSat, 66),
     500: hslToHex(baseHue, baseSat, 55),
-    600: baseColorHex, // A cor escolhida é a principal (600)
+    600: baseColorHex,
     700: hslToHex(baseHue, baseSat, 39),
     800: hslToHex(baseHue, baseSat, 32),
     900: hslToHex(baseHue, baseSat, 24),
@@ -75,7 +67,6 @@ export function generatePalette(baseColorHex: string) {
   return palette;
 }
 
-// Injeta as variáveis CSS no documento
 export function applyTheme(
   baseColorHex: string, 
   modeConfig?: { 
@@ -89,17 +80,14 @@ export function applyTheme(
 
   const root = document.documentElement;
   
-  // Definir variáveis CSS
   Object.entries(palette).forEach(([shade, hex]) => {
     root.style.setProperty(`--color-primary-${shade}`, hex);
   });
   
-  // Variáveis funcionais (atalhos)
   root.style.setProperty('--color-primary-main', palette[600]);
   root.style.setProperty('--color-primary-light', palette[100]);
   root.style.setProperty('--color-primary-dark', palette[800]);
 
-  // Injetar overrides de classes do Tailwind IMEDIATAMENTE para evitar FOUC
   const styleId = 'theme-overrides';
   let styleEl = document.getElementById(styleId) as HTMLStyleElement;
   
@@ -109,7 +97,6 @@ export function applyTheme(
     document.head.appendChild(styleEl);
   }
 
-  // Base CSS (Cores do Tema Principal)
   let css = `
     .bg-amber-50 { background-color: ${palette[50]}; }
     .bg-amber-100 { background-color: ${palette[100]}; }
@@ -154,11 +141,9 @@ export function applyTheme(
     .hover\\:bg-amber-700:hover { background-color: ${palette[700]}; }
   `;
 
-  // Se houver configuração de Modo Escuro / Cores Customizadas
   if (modeConfig) {
     const scope = '#client-app';
     
-    // 1. Fundo da Página (Page Background)
     if (modeConfig.backgroundColor && modeConfig.backgroundColor !== '#f9fafb') {
       css += `
         ${scope} { background-color: ${modeConfig.backgroundColor} !important; }
@@ -167,7 +152,6 @@ export function applyTheme(
       `;
     }
 
-    // 2. Fundo dos Cartões (Card Background)
     if (modeConfig.cardColor && modeConfig.cardColor !== '#ffffff') {
       css += `
         :not(.dark) ${scope} .bg-white { background-color: ${modeConfig.cardColor} !important; }
@@ -178,16 +162,13 @@ export function applyTheme(
       `;
     }
 
-    // 3. Cor do Texto (Text Color)
     if (modeConfig.textColor && modeConfig.textColor !== '#111827') {
       css += `
         :not(.dark) ${scope} .text-gray-900, :not(.dark) ${scope} .text-gray-800, :not(.dark) ${scope} .text-gray-700 { color: ${modeConfig.textColor} !important; }
       `;
       
-      // Ajuste para textos secundários se estivermos em modo escuro manual (texto claro)
       const rgb = hexToRgb(modeConfig.textColor);
       if (rgb && (rgb.r*0.299 + rgb.g*0.587 + rgb.b*0.114) > 186) {
-         // É modo escuro manual (texto claro)
          css += `
            ${scope} .text-gray-600, ${scope} .text-gray-500, ${scope} .text-gray-400 { color: #9AA0A6 !important; }
            ${scope} .border-gray-200, ${scope} .border-gray-300, ${scope} .border-gray-100 { border-color: #3C4043 !important; }

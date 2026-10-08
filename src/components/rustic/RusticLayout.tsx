@@ -20,7 +20,6 @@ interface RusticLayoutProps {
   isStoreOpen: boolean;
 }
 
-// Ícones de fallback para categorias (usados quando a categoria não tem emoji)
 const CATEGORY_FALLBACK_EMOJI = ['🍔', '🥤', '🍟', '🥗', '🍽️', '🍰', '🌭', '🍗'];
 
 export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isStoreOpen }: RusticLayoutProps) {
@@ -40,7 +39,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
   const effectiveMapsUrl = unitOverrides.googleMapsUrl || (config as any).googleMapsUrl;
   const whatsappNumber = (config.whatsappNumber || '5564993392970').replace(/\D/g, '');
 
-  // Imagem de fundo escura (textura madeira) e imagem do hero (produto)
   const cfg = config as any;
   const bgImage = cfg.rusticFundoUrl || cfg.headerBackgroundUrl || cfg.contentBackgroundUrl;
   const heroImage = cfg.rusticHeroUrl || cfg.rusticHeroMobileUrl
@@ -101,13 +99,11 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
 
   const money = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
-  // Estilos reutilizados
   const cardBg = 'rgba(28, 22, 18, 0.85)';
   const goldBorder = { borderColor: `${gold}55` };
 
   return (
     <div className="min-h-screen text-amber-50 flex flex-col relative" style={{ backgroundColor: '#140f0c' }}>
-      {/* Textura de fundo (madeira escura) */}
       {bgImage && (
         <div className="fixed inset-0 z-0 pointer-events-none">
           <img src={bgImage} alt="" className="w-full h-full object-cover opacity-30" />
@@ -116,14 +112,12 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
       )}
 
       <div className="relative z-10 flex flex-col flex-1">
-        {/* ============ BARRA DE TOPO ============ */}
         <header className="sticky top-0 z-30 backdrop-blur-md border-b" style={{ backgroundColor: 'rgba(20,15,12,0.9)', ...goldBorder }}>
           <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
             <button onClick={scrollToMenu} className="p-2 -ml-2 rounded-lg transition-colors hover:bg-white/5" aria-label="Menu">
               <Menu className="w-6 h-6" style={{ color: gold }} />
             </button>
 
-            {/* Logo centralizada */}
             <div className="absolute left-1/2 -translate-x-1/2">
               {logo ? (
                 <img src={logo} alt={siteName} className="h-11 w-auto object-contain drop-shadow-lg" />
@@ -160,7 +154,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           </div>
         </header>
 
-        {/* ============ HERO ============ */}
         <section className="container mx-auto max-w-6xl px-4 pt-8 pb-6">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
@@ -198,7 +191,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           </div>
         </section>
 
-        {/* ============ FAIXA DE BENEFÍCIOS ============ */}
         <section className="container mx-auto max-w-6xl px-4 py-4">
           <div className="rounded-2xl border p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:divide-x" style={{ backgroundColor: cardBg, ...goldBorder, borderColor: `${gold}44` }}>
             {[
@@ -217,7 +209,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           </div>
         </section>
 
-        {/* ============ NOSSAS CATEGORIAS ============ */}
         <section id="rustic-menu" className="container mx-auto max-w-6xl px-4 py-6">
           <div className="rounded-2xl border p-6" style={{ backgroundColor: cardBg, borderColor: `${gold}44` }}>
             <div className="flex items-center justify-center gap-3 mb-6">
@@ -227,7 +218,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
             </div>
 
             <div className="flex flex-wrap justify-center gap-5">
-              {/* Mais Pedidos (início) */}
               <CategoryCircle
                 emoji="⭐"
                 label="Mais Pedidos"
@@ -249,7 +239,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           </div>
         </section>
 
-        {/* ============ MAIS PEDIDOS / PRODUTOS ============ */}
         <section className="container mx-auto max-w-6xl px-4 pb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-black uppercase tracking-wide text-2xl" style={{ color: gold }}>
@@ -300,7 +289,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           )}
         </section>
 
-        {/* ============ FAIXA DE INFORMAÇÕES ============ */}
         <section className="container mx-auto max-w-6xl px-4 py-4">
           <div className="rounded-2xl border p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:divide-x" style={{ backgroundColor: cardBg, borderColor: `${gold}44` }}>
             {[
@@ -319,7 +307,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           </div>
         </section>
 
-        {/* ============ BANNER MONTE SEU COMBO ============ */}
         {(() => {
           const combo = categories.find((c) => {
             const l = (c.label || '').toLowerCase();
@@ -346,7 +333,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
           );
         })()}
 
-        {/* ============ RODAPÉ ============ */}
         <footer className="mt-6 py-8 border-t text-center" style={{ borderColor: `${gold}33` }}>
           {logo && <img src={logo} alt={siteName} className="h-12 w-auto object-contain mx-auto mb-3 opacity-90" />}
           <p className="text-amber-100/40 text-sm">{siteName} — Todos os direitos reservados</p>
@@ -356,7 +342,6 @@ export function RusticLayout({ products, onAddToCart, cartCount, onOpenCart, isS
   );
 }
 
-// Botão de categoria circular estilo "barril"
 function CategoryCircle({ emoji, label, active, gold, onClick }: { emoji: string; label: string; active: boolean; gold: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-2 w-20 group">

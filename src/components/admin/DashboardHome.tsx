@@ -54,19 +54,16 @@ export function DashboardHome() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isClearing, setIsClearing] = useState(false);
 
-  // Função para buscar estatísticas
   const fetchStats = async () => {
     try {
       console.log('🔄 [DASHBOARD] Carregando dados...');
       setIsLoading(true);
 
-      // 🆕 Usar getFullOrderHistory para incluir pedidos arquivados nas estatísticas
       const response = await api.getFullOrderHistory();
       
       if (response.success && response.orders) {
         console.log('✅ [DASHBOARD] Pedidos carregados (Total):', response.orders.length);
         
-        // Calcular estatísticas
         const newStats = calculateStats(response.orders);
         setStats(newStats);
         setLastUpdate(new Date());
@@ -78,52 +75,41 @@ export function DashboardHome() {
     }
   };
 
-  // Calcular estatísticas dos pedidos
   const calculateStats = (orders: Order[]): Stats => {
     const now = new Date();
     
-    // Função auxiliar para obter o "Dia de Negócio" (reseta às 4h da manhã)
     const getBusinessDate = (date: Date | string) => {
       const d = new Date(date);
-      // Subtrair 4 horas para que pedidos entre 00:00 e 03:59 pertençam ao dia anterior
       const businessTime = new Date(d.getTime() - (4 * 60 * 60 * 1000));
       return businessTime.toISOString().split('T')[0];
     };
 
     const currentBusinessDay = getBusinessDate(now);
-    const currentMonth = currentBusinessDay.substring(0, 7); // YYYY-MM
+    const currentMonth = currentBusinessDay.substring(0, 7);
 
-    // Pedidos de hoje (baseado no Dia de Negócio)
     const todayOrders = orders.filter(o => 
       getBusinessDate(o.createdAt) === currentBusinessDay
     );
 
-    // Pedidos do mês (baseado no Dia de Negócio)
     const monthOrders = orders.filter(o => 
       getBusinessDate(o.createdAt).startsWith(currentMonth)
     );
 
-    // Vendas de hoje (Apenas pedidos válidos - não cancelados)
     const todaySales = todayOrders
       .filter(o => o.status !== 'cancelled' && o.status !== 'rejected')
       .reduce((sum, o) => sum + o.total, 0);
 
-    // Vendas do mês (Apenas pedidos válidos)
     const monthSales = monthOrders
       .filter(o => o.status !== 'cancelled' && o.status !== 'rejected')
       .reduce((sum, o) => sum + o.total, 0);
 
-    // Pedidos ativos (não completados e não cancelados)
     const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
 
-    // Pedidos completados hoje
     const completedOrders = todayOrders.filter(o => o.status === 'completed').length;
 
-    // Total de clientes únicos (por telefone)
     const uniquePhones = new Set(orders.map(o => o.customerPhone));
     const totalCustomers = uniquePhones.size;
 
-    // Calcular Top 3 Avaliados
     const productRatings: { [key: string]: { total: number, count: number } } = {};
     
     orders.forEach((order: any) => {
@@ -167,19 +153,14 @@ export function DashboardHome() {
     };
   };
 
-  // Carregar dados inicialmente
   useEffect(() => {
     fetchStats();
   }, []);
 
-  // Realtime: substitui o polling fixo de 10s
-  // Se Realtime conectar → safety net a cada 15s
-  // Se Realtime falhar → fallback a cada 10s
   const { isRealtimeConnected } = useOrdersRealtime(useCallback(() => {
     fetchStats();
   }, []), true);
 
-  // Formatador de tempo relativo
   const getTimeAgo = (date: string): string => {
     const now = new Date();
     const orderDate = new Date(date);
@@ -240,14 +221,11 @@ export function DashboardHome() {
       const response = await api.clearAllOrders();
       
       if (response.success) {
-        // Limpar localStorage também
         localStorage.removeItem('faroeste_orders');
         
         alert(`✅ ${response.deletedCount || 'Todos os'} pedidos foram deletados com sucesso!`);
-        // Recarregar dados imediatamente
         await fetchStats();
       } else {
-        // Se falhar no servidor, tentar limpar apenas localStorage
         console.log('⚠️ [DASHBOARD] Servidor offline - limpando apenas localStorage');
         localStorage.removeItem('faroeste_orders');
         alert('✅ Pedidos locais foram deletados com sucesso! (Modo offline)');
@@ -256,7 +234,6 @@ export function DashboardHome() {
     } catch (error) {
       console.error('❌ [DASHBOARD] Erro ao limpar pedidos:', error);
       
-      // Fallback: limpar localStorage mesmo com erro no servidor
       try {
         localStorage.removeItem('faroeste_orders');
         alert('✅ Pedidos locais foram deletados! (Modo offline - servidor indisponível)');
@@ -271,7 +248,6 @@ export function DashboardHome() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Dashboard</h1>
@@ -293,7 +269,6 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* Loading Indicator */}
       {isLoading && (
         <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3">
           <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" />
@@ -301,16 +276,13 @@ export function DashboardHome() {
         </div>
       )}
 
-      {/* Store Status Control */}
       <div className="mb-8">
         <StoreStatusControl />
       </div>
 
       <ProductPerformance />
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Vendas Hoje */}
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -328,7 +300,6 @@ export function DashboardHome() {
           </div>
         </div>
 
-        {/* Vendas do Mês */}
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -346,7 +317,6 @@ export function DashboardHome() {
           </div>
         </div>
 
-        {/* Pedidos Ativos */}
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -359,7 +329,6 @@ export function DashboardHome() {
           </div>
         </div>
 
-        {/* Total de Clientes */}
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -376,7 +345,6 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
           <Package className="w-8 h-8 mb-3" />
@@ -385,7 +353,6 @@ export function DashboardHome() {
             Gerencie seu cardápio completo
           </p>
           <div className="text-2xl font-bold">
-            {/* Pode adicionar contagem de produtos aqui */}
             Ativo
           </div>
         </div>
@@ -413,7 +380,6 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* Top 3 Melhores Avaliados */}
       {(config.features?.reviews !== false) && stats.topRatedProducts && stats.topRatedProducts.length > 0 && (
         <div className="mb-8">
           <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -447,7 +413,6 @@ export function DashboardHome() {
         </div>
       )}
 
-      {/* Clear All Orders Button */}
       <div className="mt-8">
         <button
           onClick={handleClearAllOrders}

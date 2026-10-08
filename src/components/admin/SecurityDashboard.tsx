@@ -88,7 +88,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<'overview' | 'webhooks' | 'threats'>('overview');
   
-  // Webhook state
   const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
   const [availableEvents, setAvailableEvents] = useState<string[]>([]);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
@@ -248,7 +247,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Section Tabs */}
       <div className="flex gap-2 bg-white rounded-xl p-2 shadow-sm border border-gray-200">
         {[
           { id: 'overview' as const, label: 'Visao Geral', icon: BarChart3 },
@@ -270,10 +268,8 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
         ))}
       </div>
 
-      {/* ===== OVERVIEW SECTION ===== */}
       {activeSection === 'overview' && (
         <>
-          {/* Health Score Hero */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -309,7 +305,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
             </div>
           </div>
 
-          {/* KPI Cards Row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <KpiCard icon={Eye} label="WebRTC Leaks" value={metrics.webrtcLeaks} color="purple" />
             <KpiCard icon={ShieldAlert} label="IPs Bloqueados" value={metrics.blacklistedIps} color="red" />
@@ -317,7 +312,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
             <KpiCard icon={Activity} label="Score Medio" value={metrics.avgReputationScore} color="blue" suffix="/100" />
           </div>
 
-          {/* Timeline Chart */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-blue-600" />
@@ -337,9 +331,7 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
             </ResponsiveContainer>
           </div>
 
-          {/* Geo + Threat Distribution */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Geo Distribution */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Globe className="w-4 h-4 text-emerald-600" />
@@ -373,7 +365,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
               )}
             </div>
 
-            {/* Threat Distribution Pie */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-red-600" />
@@ -415,7 +406,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
         </>
       )}
 
-      {/* ===== THREATS SECTION ===== */}
       {activeSection === 'threats' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -477,10 +467,8 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
         </div>
       )}
 
-      {/* ===== WEBHOOKS SECTION ===== */}
       {activeSection === 'webhooks' && (
         <div className="space-y-6">
-          {/* Configured Webhooks */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -496,7 +484,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
               </button>
             </div>
 
-            {/* Add Webhook Form */}
             {showAddWebhook && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -560,7 +547,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
               </div>
             )}
 
-            {/* Webhook List */}
             {webhookLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
@@ -635,7 +621,6 @@ export function SecurityDashboard({ fetchFn }: SecurityDashboardProps) {
             )}
           </div>
 
-          {/* Webhook Logs */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4 text-gray-600" />

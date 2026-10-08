@@ -15,20 +15,17 @@ export function Settings() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   
-  // Estados para Informações da Loja
   const [basicSettings, setBasicSettings] = useState({
     openingHours: ''
   });
   const [isSavingBasic, setIsSavingBasic] = useState(false);
 
-  // Estados para estimativas de tempo
   const [estimates, setEstimates] = useState<api.TimeEstimates>({
     delivery: { min: 30, max: 50 },
     pickup: { min: 15, max: 25 },
     dineIn: { min: 20, max: 30 }
   });
   
-  // Estados para taxa de entrega
   const [deliveryFee, setDeliveryFee] = useState<number>(5.00);
   const [isLoadingFee, setIsLoadingFee] = useState(true);
   const [isSavingFee, setIsSavingFee] = useState(false);
@@ -36,20 +33,16 @@ export function Settings() {
   const [isLoadingEstimates, setIsLoadingEstimates] = useState(true);
   const [isSavingEstimates, setIsSavingEstimates] = useState(false);
   
-  // Estado para descobrir IP do servidor
   const [isDiscoveringIP, setIsDiscoveringIP] = useState(false);
   
   const { isConnected, connectPrinter, disconnectPrinter, testPrint } = usePrinter();
 
-  // 🔄 Atualização: Janeiro 2026 - Adicionado toggle "Consumir no Local"
   
-  // Atualizar form quando config mudar
   useEffect(() => {
     setBasicSettings({
       openingHours: config.openingHours || ''
     });
     
-    // 🔍 DEBUG: Verificar se o toggle aparece
     console.log('🍽️ [SETTINGS] Config dineIn:', config.features?.dineIn);
   }, [config]);
 
@@ -72,7 +65,6 @@ export function Settings() {
     }
   };
 
-  // Carregar estimativas ao iniciar
   useEffect(() => {
     loadEstimates();
     loadDeliveryFee();
@@ -140,15 +132,12 @@ export function Settings() {
       const response = await api.clearAllOrders();
       
       if (response.success) {
-        // Limpar localStorage também
         localStorage.removeItem('faroeste_orders');
         
         alert(`✅ ${response.deletedCount || 'Todos os'} pedidos foram deletados com sucesso!`);
         setShowConfirm(false);
-        // Recarregar a página para atualizar o dashboard
         window.location.reload();
       } else {
-        // Se falhar no servidor, tentar limpar apenas localStorage
         console.log('⚠️ [SETTINGS] Servidor offline - limpando apenas localStorage');
         localStorage.removeItem('faroeste_orders');
         alert('✅ Pedidos locais foram deletados com sucesso! (Modo offline)');
@@ -158,7 +147,6 @@ export function Settings() {
     } catch (error) {
       console.error('❌ [SETTINGS] Erro ao limpar pedidos:', error);
       
-      // Fallback: limpar localStorage mesmo com erro no servidor
       try {
         localStorage.removeItem('faroeste_orders');
         alert('✅ Pedidos locais foram deletados! (Modo offline - servidor indisponível)');
@@ -181,7 +169,6 @@ export function Settings() {
       const success = await connectPrinter();
       
       if (!success) {
-        // O alert já foi mostrado pelo PrinterManager
         console.log('⚠️ [SETTINGS] Falha ao conectar');
       }
     } catch (error) {
@@ -222,17 +209,14 @@ export function Settings() {
     }
   };
 
-  // Funções de Setores removidas (movidas para Master)
   
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Configurações</h1>
         <p className="text-gray-600">Gerencie configurações do sistema</p>
       </div>
 
-      {/* Basic Info Settings */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Store className="w-6 h-6 text-purple-600" />
@@ -283,7 +267,6 @@ export function Settings() {
         </div>
       </div>
 
-      {/* Payment Settings */}
       {(config.features?.automaticPaymentAllowed !== false) ? (
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex items-center gap-3 mb-4">
@@ -320,16 +303,12 @@ export function Settings() {
                   try {
                     const newValue = e.target.checked;
                     
-                    // Validação de Token PagSeguro antes de ativar
                     if (newValue) {
-                        // Verifica se o token existe no backend (flag segura enviada pela rota /config/public)
-                        // Se estiver no Master Dashboard, pode ter o pagSeguroToken direto.
-                        // Se estiver no Admin Dashboard (público), usa hasPagSeguroToken.
                         const hasToken = config.pagSeguroToken || config.hasPagSeguroToken;
                         
                         if (!hasToken) {
                             alert('🚫 Ação Bloqueada!\n\nPara ativar o Pagamento Automático, você deve primeiro configurar o Token do PagSeguro no Painel Master.\n\nSem o token, não é possível processar pagamentos.');
-                            e.target.checked = false; // Reverter visualmente
+                            e.target.checked = false;
                             return;
                         }
                     }
@@ -362,7 +341,6 @@ export function Settings() {
             </div>
           )}
           
-          {/* 🌐 Botão para descobrir IP do servidor */}
           {config.automaticPayment && (
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -385,10 +363,8 @@ export function Settings() {
                           { duration: 10000, icon: '📋' }
                         );
                         
-                        // Copiar para clipboard
                         navigator.clipboard.writeText(response.ip);
                         
-                        // Mostrar instruções detalhadas
                         alert(
                           `✅ IP DO SERVIDOR SUPABASE:\n\n` +
                           `${response.ip}\n\n` +
@@ -458,7 +434,6 @@ export function Settings() {
         </div>
       )}
 
-      {/* Delivery Fee Settings */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-green-100 p-2 rounded-lg">
@@ -515,7 +490,6 @@ export function Settings() {
         )}
       </div>
 
-      {/* Time Estimates Settings */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Clock className="w-6 h-6 text-blue-600" />
@@ -532,7 +506,6 @@ export function Settings() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Delivery */}
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
               <label className="block text-sm font-bold text-blue-800 mb-2">
                 🛵 Entrega (Delivery)
@@ -559,7 +532,6 @@ export function Settings() {
               </div>
             </div>
 
-            {/* Pickup */}
             <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
               <label className="block text-sm font-bold text-orange-800 mb-2">
                 🥡 Retirada no Balcão
@@ -586,7 +558,6 @@ export function Settings() {
               </div>
             </div>
 
-            {/* Dine In */}
             <div className="bg-green-50 p-4 rounded-lg border border-green-100">
               <label className="block text-sm font-bold text-green-800 mb-2">
                 🍽️ Consumo no Local
@@ -636,7 +607,6 @@ export function Settings() {
         )}
       </div>
 
-      {/* 🆕 TOGGLE CONSUMIR NO LOCAL */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-orange-100 p-2 rounded-lg">
@@ -706,7 +676,6 @@ export function Settings() {
         </div>
       </div>
 
-      {/* Cupons Settings - Integrado */}
       {(config.features?.coupons !== false) && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -724,7 +693,6 @@ export function Settings() {
         </div>
       )}
 
-      {/* Printer Settings */}
       {(config.features?.thermalPrinter !== false) && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -812,7 +780,6 @@ export function Settings() {
         </div>
       )}
 
-      {/* Danger Zone */}
       <div className="bg-white rounded-lg shadow-md p-6 border-2 border-red-200">
         <div className="flex items-center gap-3 mb-4">
           <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -903,7 +870,6 @@ export function Settings() {
         </div>
       </div>
 
-      {/* 🆕 Setores de Entrega - REMOVIDO E MOVIDO PARA MASTER */}
       
     </div>
   );

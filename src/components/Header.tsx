@@ -41,17 +41,14 @@ export function Header() {
   const isClean = design.headerLayout === 'minimal';
   const [isMobile, setIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 768);
 
-  // Tokens visuais que mudam entre Clássico e Clean
   const headerTextColor = isClean ? 'text-zinc-900' : 'text-white';
   const headerTextShadow = isClean ? 'none' : '0 1px 4px rgba(0,0,0,0.7)';
 
-  // Valores efetivos: unidade override > config global
   const effectivePhone = unitOverrides.phone || config.phone || '(64) 99339-2970';
   const effectiveAddress = unitOverrides.address || config.address || 'Praça Lucio Prado - Goiatuba/GO';
   const effectiveGoogleMapsUrl = unitOverrides.googleMapsUrl || config.googleMapsUrl;
   const effectiveHours = unitOverrides.openingHours || config.openingHours || HORARIO_PADRAO;
 
-  // Cores das redes: config > fallback brand colors
   const socialColors = config.socialMediaColors || {};
   const getSocialColor = (network: string) => {
     return (socialColors as any)[network] || SocialBrandColors[network] || config.themeColor || '#d97706';
@@ -71,7 +68,6 @@ export function Header() {
   const randomSeed = config.headerEffectRandomSeed ?? 12345;
   const social = config.socialMedia || {};
 
-  // Escolher imagem do header por dispositivo
   const currentBg = (isMobile && config.headerBackgroundMobileUrl) 
     ? config.headerBackgroundMobileUrl 
     : (config.headerBackgroundUrl || headerBg);
@@ -121,10 +117,8 @@ export function Header() {
 
   return (
     <header className={`relative overflow-hidden ${isClean ? 'bg-zinc-50 border-b border-zinc-200' : ''}`}>
-      {/* Imagem de fundo + overlay — apenas no design Clássico */}
       {design.showHeaderBackground && (
         <>
-          {/* Imagem de fundo — <img> nativo performa melhor que background-image no scroll mobile */}
           <img 
             src={currentBg} 
             alt="" 
@@ -133,14 +127,12 @@ export function Header() {
             decoding="async"
           />
           
-          {/* Overlay */}
           <div className="absolute inset-0" style={{ 
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.45) 80%, rgba(0,0,0,0.2) 95%, transparent 100%)',
           }} />
         </>
       )}
 
-      {/* Efeitos animados — só no Clássico (Clean é minimalista) */}
       {!isClean && effects.map((effect, index) => (
         <div
           key={index}
@@ -156,10 +148,8 @@ export function Header() {
         </div>
       ))}
 
-      {/* Conteúdo principal */}
       <div className="container mx-auto px-4 pt-8 pb-14 relative z-10">
         
-        {/* Logo centralizado */}
         <div className="flex justify-center mb-5">
           <div className="relative">
             <div className="absolute inset-0 scale-125 rounded-full opacity-30 animate-pulse" style={{ backgroundColor: themeColor, filter: 'blur(40px)' }} />
@@ -171,16 +161,13 @@ export function Header() {
           </div>
         </div>
 
-        {/* Linha decorativa */}
         <div className="flex items-center justify-center gap-3 mb-5">
           <div className="h-px w-16" style={{ background: `linear-gradient(to right, transparent, ${themeColor})` }} />
           <Star className="w-4 h-4" style={{ fill: themeColor, color: themeColor }} />
           <div className="h-px w-16" style={{ background: `linear-gradient(to left, transparent, ${themeColor})` }} />
         </div>
 
-        {/* Endereço + Telefone + Horário — abaixo da logo */}
         <div className="flex flex-col items-center gap-2.5 mb-5">
-          {/* Endereço e Telefone na mesma linha (quebra no mobile se faltar espaço) */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
             <div className="inline-flex items-center gap-2">
               <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 shadow-md" style={{ backgroundColor: themeColor }}>
@@ -203,7 +190,6 @@ export function Header() {
             </div>
           </div>
 
-          {/* Horário de funcionamento */}
           <div className="inline-flex items-center gap-2">
             <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 shadow-md" style={{ backgroundColor: themeColor }}>
               <Clock className="w-3 h-3 text-white" />
@@ -214,7 +200,6 @@ export function Header() {
           </div>
         </div>
 
-        {/* Redes Sociais centralizadas */}
         {activeSocials.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-2">
             {activeSocials.map(([network, url]) => {

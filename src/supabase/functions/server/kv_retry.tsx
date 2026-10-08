@@ -1,15 +1,8 @@
-// ==========================================
-// KV Store Retry Wrapper
-// Wraps all kv_store functions with automatic retry on transient errors
-// (TLS handshake EOF, connection reset, etc.)
-// ==========================================
-
 import * as kvOriginal from "./kv_store.tsx";
 
 const MAX_RETRIES = 4;
-const BASE_DELAY_MS = 500; // 500ms base with jitter — 502/503 need longer delays
+const BASE_DELAY_MS = 500;
 
-// Check if an error is transient and worth retrying
 function isTransientError(err: unknown): boolean {
   if (!err) return false;
   const msg = String(err).toLowerCase();
@@ -45,7 +38,7 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
     } catch (err) {
       lastError = err;
       if (attempt < MAX_RETRIES && isTransientError(err)) {
-        const jitter = Math.random() * 200; // Random jitter 0-200ms to prevent thundering herd
+        const jitter = Math.random() * 200;
         const delay = BASE_DELAY_MS * Math.pow(2, attempt) + jitter;
         console.warn(
           `⚠️ [KV_RETRY] ${label} falhou (tentativa ${attempt + 1}/${MAX_RETRIES + 1}), ` +
@@ -53,15 +46,12 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
         );
         await new Promise((r) => setTimeout(r, delay));
       } else {
-        // Non-transient error or max retries reached — rethrow
         throw err;
       }
     }
   }
   throw lastError;
 }
-
-// Re-export all kv functions with retry logic
 
 export async function get(key: string): Promise<any> {
   return withRetry(() => kvOriginal.get(key), `get(${key})`);

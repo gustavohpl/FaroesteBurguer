@@ -4,7 +4,6 @@ import { useConfig } from '../ConfigContext';
 export function ThemeInjector() {
   const { config } = useConfig();
 
-  // Se não tiver config ainda, não renderiza nada (ou usa default)
   if (!config.themeColor) return null;
 
   return (

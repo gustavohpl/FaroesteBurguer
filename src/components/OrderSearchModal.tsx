@@ -13,8 +13,8 @@ interface LocalOrder {
   status: string;
   createdAt: string;
   itemCount: number;
-  reviews?: Array<{ productName: string; rating: number; comment: string }>; // Adicionar campo reviews
-  reviewedAt?: string; // Adicionar campo reviewedAt
+  reviews?: Array<{ productName: string; rating: number; comment: string }>;
+  reviewedAt?: string;
 }
 
 interface OrderSearchModalProps {
@@ -31,12 +31,10 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
   const [localOrders, setLocalOrders] = useState<LocalOrder[]>([]);
   const [searchMode, setSearchMode] = useState(false);
   
-  // Estado para avaliação
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [orderToReview, setOrderToReview] = useState<any>(null);
   const [isLoadingReview, setIsLoadingReview] = useState(false);
 
-  // Carregar pedidos do localStorage quando abrir o modal e sincronizar status
   useEffect(() => {
     if (isOpen) {
       loadLocalOrders();
@@ -44,7 +42,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
     }
   }, [isOpen]);
 
-  // Polling: re-sincronizar a cada 10s enquanto o modal estiver aberto
   useEffect(() => {
     if (!isOpen) return;
     const interval = setInterval(() => {
@@ -54,7 +51,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
           const orders = JSON.parse(stored).sort((a: LocalOrder, b: LocalOrder) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
-          // Sincronizar apenas pedidos não-finais
           const activeOrders = orders.filter((o: LocalOrder) => 
             o.status !== 'completed' && o.status !== 'cancelled'
           ).slice(0, 10);
@@ -73,7 +69,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
       if (stored) {
         let orders = JSON.parse(stored);
         
-        // Ordenar: mais recentes primeiro
         orders = orders.sort((a: LocalOrder, b: LocalOrder) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
@@ -95,8 +90,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
     }
   };
 
-  // Função para sincronizar status com o servidor
-  // Recebe a lista completa (allOrders) e os pedidos a verificar (ordersToCheck)
   const syncOrdersStatus = async (allOrders: LocalOrder[], ordersToCheck: LocalOrder[]) => {
     console.log('🔄 [SYNC] Sincronizando status dos pedidos...', ordersToCheck.length);
     let hasUpdates = false;
@@ -150,7 +143,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
       setError('');
       
       if (orderId.trim()) {
-        // Buscar por ID do pedido
         const response = await api.getOrder(orderId.trim());
         
         if (response.success && response.order) {
@@ -160,12 +152,10 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
           setError('Pedido não encontrado. Verifique o número e tente novamente.');
         }
       } else if (phone.trim()) {
-        // Buscar por telefone
         const cleanPhone = phone.replace(/\D/g, '');
         const response = await api.searchOrdersByPhone(cleanPhone);
         
         if (response.success && response.orders && response.orders.length > 0) {
-          // Pegar o pedido mais recente
           const latestOrder = response.orders[0];
           onOrderFound(latestOrder.orderId);
           handleClose();
@@ -206,12 +196,11 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
   };
 
   const handleReviewClick = async (e: React.MouseEvent, orderId: string) => {
-    e.stopPropagation(); // Evitar abrir o tracking ao clicar em avaliar
+    e.stopPropagation();
     setIsLoadingReview(true);
     try {
       const response = await api.getOrder(orderId);
       if (response.success && response.order) {
-        // Verificar se já foi avaliado
         if (response.order.reviews && response.order.reviews.length > 0) {
           alert('Este pedido já foi avaliado. Obrigado!');
         } else {
@@ -265,7 +254,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
     const date = new Date(dateString);
     const today = new Date();
     
-    // Ajuste de "Dia de Negócio" (4h da manhã)
     const getBusinessDate = (d: Date) => new Date(d.getTime() - (4 * 60 * 60 * 1000));
     
     const businessDate = getBusinessDate(date);
@@ -278,12 +266,10 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
     const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-    // Verificar se é o mesmo dia de negócio que hoje
     if (businessDate.toDateString() === businessToday.toDateString()) {
       return `Hoje às ${timeStr}`;
     }
     
-    // Verificar se foi o dia de negócio de ontem
     if (businessDate.toDateString() === businessYesterday.toDateString()) {
       return `Ontem às ${timeStr}`;
     }
@@ -294,7 +280,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
         <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4 rounded-t-lg flex-shrink-0">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Acompanhar Pedido</h2>
@@ -308,7 +293,6 @@ export function OrderSearchModal({ isOpen, onClose, onOrderFound }: OrderSearchM
         </div>
 
         <div className="p-6 overflow-y-auto flex-1">
-          {/* Lista de Pedidos (Padrão se tiver histórico) */}
           {!searchMode && localOrders.length > 0 ? (
             <div className="flex flex-col h-full">
                <div className="mb-4 pb-4 border-b border-gray-200 dark:border-zinc-800">

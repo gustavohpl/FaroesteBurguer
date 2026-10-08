@@ -16,19 +16,15 @@ interface SecurityAlert {
   isVpn?: boolean;
   timestamp: string;
   emittedAt: string;
-  // WebRTC Leak
   realIp?: string | null;
   realGeo?: any;
   webrtcLeak?: boolean;
-  // Browser Fingerprint (segunda camada)
   browserInfo?: any;
   timezoneMismatch?: boolean;
   languageMismatch?: boolean;
   mismatchDetails?: string;
-  // Auto-blacklist
   autoBlacklist?: boolean;
   relatedVpnIp?: string | null;
-  // Fingerprint multi-IP (VPN hopping)
   fingerprintId?: string;
   fingerprintIps?: string[];
   fingerprintIpCount?: number;
@@ -38,11 +34,9 @@ interface SecurityAlert {
 interface SecurityAlertsProps {
   onBlockIp?: (ip: string, reason: string) => void;
   onAllowIp?: (ip: string, reason: string) => void;
-  /** Quando true, renderiza inline (dentro de uma pagina) em vez de flutuante */
   embedded?: boolean;
 }
 
-// Gerar som de alerta usando Web Audio API (sem arquivo externo)
 function playAlertSound(type: 'warning' | 'critical' = 'warning') {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -53,7 +47,6 @@ function playAlertSound(type: 'warning' | 'critical' = 'warning') {
     gain.connect(ctx.destination);
     
     if (type === 'critical') {
-      // Som urgente: sirene rápida
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(800, ctx.currentTime);
       osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.15);
@@ -65,7 +58,6 @@ function playAlertSound(type: 'warning' | 'critical' = 'warning') {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.7);
     } else {
-      // Som de aviso: beep duplo
       osc.type = 'sine';
       osc.frequency.setValueAtTime(660, ctx.currentTime);
       gain.gain.setValueAtTime(0.12, ctx.currentTime);
@@ -80,7 +72,6 @@ function playAlertSound(type: 'warning' | 'critical' = 'warning') {
   }
 }
 
-// Enviar notificacao push do navegador
 function sendBrowserNotification(title: string, body: string) {
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, {
@@ -102,13 +93,11 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
   const channelRef = useRef<any>(null);
   const mountedRef = useRef(true);
   
-  // 🔊 Refs para evitar re-criação do callback e re-subscribe do Realtime
   const soundEnabledRef = useRef(soundEnabled);
   soundEnabledRef.current = soundEnabled;
   const notifEnabledRef = useRef(notifEnabled);
   notifEnabledRef.current = notifEnabled;
 
-  // Pedir permissao de notificacao
   const requestNotifPermission = useCallback(async () => {
     if ('Notification' in window) {
       const perm = await Notification.requestPermission();
@@ -116,19 +105,17 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
     }
   }, []);
 
-  // Processar novo alerta — usa refs para som/notif para manter callback estavel
   const handleNewAlert = useCallback((alert: SecurityAlert) => {
     if (!mountedRef.current) return;
-    if (alert.id === lastAlertRef.current) return; // Evitar duplicata
+    if (alert.id === lastAlertRef.current) return;
     
     lastAlertRef.current = alert.id;
     
-    setAlerts(prev => [alert, ...prev].slice(0, 50)); // Manter ultimos 50
-    setShowPanel(true); // Abrir painel automaticamente
+    setAlerts(prev => [alert, ...prev].slice(0, 50));
+    setShowPanel(true);
 
     const isCritical = alert.isVpn || alert.action === 'LOGIN_RATE_LIMITED' || alert.action === 'LOGIN_BLACKLISTED' || alert.webrtcLeak || alert.autoBlacklist || alert.action === 'IP_AUTO_BLACKLISTED' || alert.action === 'FINGERPRINT_MULTI_IP';
     
-    // ✅ Usar refs para ler estado atual sem precisar de deps
     if (soundEnabledRef.current) {
       playAlertSound(isCritical ? 'critical' : 'warning');
     }
@@ -145,9 +132,8 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
         `${getActionLabel(alert.action)} | IP: ${alert.ip} | ${location}`
       );
     }
-  }, []); // ← sem dependencias, callback estavel
+  }, []);
 
-  // Conectar ao Supabase Realtime para monitorar security_alert:latest
   useEffect(() => {
     mountedRef.current = true;
 
@@ -196,11 +182,9 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
     };
   }, [handleNewAlert]);
 
-  // Polling de seguranca a cada 10s como safety net
   useEffect(() => {
     if (!mountedRef.current) return;
     
-    // Nao importar dynamicamente - usar fetch direto com masterFetch padrao
     const checkAlert = async () => {
       try {
         const token = sessionStorage.getItem('faroeste_master_token');
@@ -220,12 +204,11 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
           handleNewAlert(data.alert);
         }
       } catch (e) {
-        // Silencioso
       }
     };
 
     const interval = setInterval(checkAlert, 10000);
-    checkAlert(); // Primeira verificacao imediata
+    checkAlert();
 
     return () => clearInterval(interval);
   }, [handleNewAlert]);
@@ -234,14 +217,11 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
     setAlerts(prev => prev.filter(a => a.id !== id));
   };
 
-  // Badge com contagem no canto
   const unreadCount = alerts.length;
 
-  // ===== MODO EMBEDDED: renderiza inline dentro da pagina =====
   if (embedded) {
     return (
       <div className="space-y-4">
-        {/* Header inline */}
         <div className="bg-gray-900 rounded-xl text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="w-5 h-5 text-red-400" />
@@ -281,7 +261,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
           </div>
         </div>
 
-        {/* Lista de alertas inline */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {alerts.length === 0 ? (
             <div className="p-10 text-center text-gray-400">
@@ -318,13 +297,10 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
     );
   }
 
-  // ===== MODO FLUTUANTE (original) =====
   return (
     <>
-      {/* Botao flutuante */}
       {!embedded && (
         <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
-          {/* Alerta mais recente (toast) */}
           {alerts.length > 0 && !showPanel && (
             <div 
               className="bg-red-600 text-white rounded-xl shadow-2xl px-4 py-3 max-w-sm cursor-pointer animate-bounce"
@@ -345,7 +321,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
             </div>
           )}
 
-          {/* Botao do sino */}
           <button
             onClick={() => setShowPanel(!showPanel)}
             className={`relative p-3.5 rounded-full shadow-lg transition-all ${
@@ -360,7 +335,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
-            {/* Indicator de conexao */}
             <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
               isConnected ? 'bg-green-400' : 'bg-red-400'
             }`} />
@@ -368,10 +342,8 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
         </div>
       )}
 
-      {/* Painel lateral */}
       {showPanel && (
         <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
-          {/* Header */}
           <div className="bg-gray-900 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-red-400" />
@@ -392,7 +364,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
             </div>
             
             <div className="flex items-center gap-1">
-              {/* Som */}
               <button
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 className={`p-2 rounded-lg transition ${soundEnabled ? 'bg-green-600/20 text-green-400' : 'bg-gray-800 text-gray-500'}`}
@@ -401,7 +372,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
               
-              {/* Notificacoes */}
               <button
                 onClick={() => notifEnabled ? setNotifEnabled(false) : requestNotifPermission()}
                 className={`p-2 rounded-lg transition ${notifEnabled ? 'bg-blue-600/20 text-blue-400' : 'bg-gray-800 text-gray-500'}`}
@@ -410,7 +380,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
                 {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
               </button>
               
-              {/* Fechar */}
               <button
                 onClick={() => setShowPanel(false)}
                 className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white transition"
@@ -420,7 +389,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
             </div>
           </div>
 
-          {/* Lista de alertas */}
           <div className="flex-1 overflow-y-auto">
             {alerts.length === 0 ? (
               <div className="p-8 text-center text-gray-400">
@@ -443,7 +411,6 @@ export function SecurityAlerts({ onBlockIp, onAllowIp, embedded = false }: Secur
             )}
           </div>
 
-          {/* Footer */}
           {alerts.length > 0 && (
             <div className="p-3 border-t border-gray-200 bg-gray-50">
               <button
@@ -502,7 +469,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                   IP REAL: {alert.realIp}
                 </span>
               )}
-              {/* 🌐 Timezone / Language mismatch badges */}
               {alert.timezoneMismatch && (
                 <span className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-0.5">
                   <Clock className="w-2.5 h-2.5" />
@@ -521,7 +487,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                   AUTO-BLOCK
                 </span>
               )}
-              {/* 🧬 Fingerprint multi-IP (VPN hopping) badge */}
               {alert.action === 'FINGERPRINT_MULTI_IP' && (
                 <span className="bg-indigo-600 text-white px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-0.5 animate-pulse">
                   <Fingerprint className="w-2.5 h-2.5" />
@@ -547,7 +512,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                   {!alert.isVpn && !['exata','muito-alta','alta'].includes(geo?.geoConfidence || '') && <span className="text-[9px] text-amber-600 italic">(aprox. ISP)</span>}
                 </p>
               )}
-              {/* IP Real detectado via WebRTC */}
               {alert.webrtcLeak && alert.realIp && (
                 <>
                   <p className="text-xs text-red-700 flex items-center gap-1 font-semibold">
@@ -569,7 +533,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
               </p>
             </div>
 
-            {/* Acoes */}
             <div className="flex items-center gap-2 mt-2">
               <button
                 onClick={() => setShowDetails(!showDetails)}
@@ -587,7 +550,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                   Bloquear IP
                 </button>
               )}
-              {/* Permitir IP (whitelist) */}
               {onAllow && (
                 <button
                   onClick={() => onAllow(alert.ip, `Permitido via alerta de seguranca: ${alert.action} em ${alert.timestamp}`)}
@@ -597,7 +559,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                   Permitir IP
                 </button>
               )}
-              {/* Se tem IP real, oferecer bloquear tambem o IP real */}
               {onBlock && alert.webrtcLeak && alert.realIp && alert.realIp !== alert.ip && (
                 <button
                   onClick={() => onBlock(alert.realIp!, `IP real detectado via WebRTC leak: ${alert.action} em ${alert.timestamp}`)}
@@ -607,7 +568,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                   Bloquear IP Real
                 </button>
               )}
-              {/* Se tem IP real, oferecer liberar tambem o IP real */}
               {onAllow && alert.webrtcLeak && alert.realIp && alert.realIp !== alert.ip && (
                 <button
                   onClick={() => onAllow(alert.realIp!, `IP real detectado via WebRTC leak: ${alert.action} em ${alert.timestamp}`)}
@@ -619,7 +579,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
               )}
             </div>
 
-            {/* Detalhes expandidos */}
             {showDetails && (
               <div className="mt-2 p-2 bg-white rounded-lg border border-gray-200 text-[10px] space-y-1">
                 <p><b>Usuario:</b> {alert.username}</p>
@@ -643,7 +602,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                     </a>
                   </p>
                 )}
-                {/* Detalhes do WebRTC Leak */}
                 {alert.webrtcLeak && alert.realIp && (
                   <div className="mt-1 pt-1 border-t border-red-200">
                     <p className="font-bold text-red-700">WebRTC Leak Detectado:</p>
@@ -667,7 +625,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                     )}
                   </div>
                 )}
-                {/* 🌐 Browser Fingerprint */}
                 {alert.browserInfo && (
                   <div className="mt-1 pt-1 border-t border-blue-200">
                     <p className="font-bold text-blue-700">Fingerprint do Navegador:</p>
@@ -679,7 +636,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                     {alert.browserInfo.localTime && <p><b>Hora Local:</b> {alert.browserInfo.localTime}</p>}
                   </div>
                 )}
-                {/* Mismatch Details */}
                 {(alert.timezoneMismatch || alert.languageMismatch) && (
                   <div className="mt-1 pt-1 border-t border-orange-300">
                     <p className="font-bold text-orange-700">Divergencia Detectada:</p>
@@ -687,7 +643,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                     <p className="text-[9px] text-orange-600 mt-0.5">A timezone/idioma do navegador nao corresponde ao IP — forte indicativo de VPN.</p>
                   </div>
                 )}
-                {/* Auto-Blacklist Info */}
                 {alert.autoBlacklist && (
                   <div className="mt-1 pt-1 border-t border-gray-900">
                     <p className="font-bold text-gray-900">Auto-Blacklist Aplicado:</p>
@@ -695,7 +650,6 @@ function AlertCard({ alert, onDismiss, onBlock, onAllow }: {
                     {alert.relatedVpnIp && <p><b>IP VPN relacionado:</b> <span className="font-mono">{alert.relatedVpnIp}</span></p>}
                   </div>
                 )}
-                {/* 🧬 Fingerprint Multi-IP (VPN Hopping) */}
                 {alert.action === 'FINGERPRINT_MULTI_IP' && alert.fingerprintIps && (
                   <div className="mt-1 pt-1 border-t border-indigo-300">
                     <p className="font-bold text-indigo-700 flex items-center gap-1">

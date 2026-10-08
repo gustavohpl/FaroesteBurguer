@@ -28,7 +28,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -36,11 +35,10 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
     category: '',
     available: true,
     imageUrl: '',
-    ingredientsText: '', // Usado quando stockControl está OFF
+    ingredientsText: '',
   });
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Stock control state
   const { config } = useConfig();
   const stockEnabled = config.features?.stockControl || false;
   const [stockIngredients, setStockIngredients] = useState<StockIngredient[]>([]);
@@ -51,13 +49,12 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
   const [ingredientSearch, setIngredientSearch] = useState('');
 
-  // AbortController ref para cancelar fetches em unmount
   const abortRef = React.useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     abortRef.current = controller;
-    loadData(controller.signal).catch(() => {}); // Ignorar erros de abort no unmount
+    loadData(controller.signal).catch(() => {});
     return () => { controller.abort(new DOMException('Component unmounted', 'AbortError')); };
   }, []);
 
@@ -73,7 +70,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
       }
       await Promise.all(promises);
       
-      // Verificar produtos locais (só se não abortou)
       if (signal?.aborted) return;
       const local = localStorage.getItem('faroeste_products');
       if (local) {
@@ -158,15 +154,12 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
       
       let successCount = 0;
       for (const product of local) {
-        // Remover ID para criar novo
         const { id, ...data } = product;
         const res = await api.createProduct(data);
         if (res.success) successCount++;
       }
 
       alert(`${successCount} produtos sincronizados com sucesso!`);
-      // Limpar local storage para evitar duplicatas futuras ou confusão? 
-      // Melhor não limpar, deixar o sistema se ajustar.
       
       await loadProducts();
       onProductsChange();
@@ -221,7 +214,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
       imageUrl: product.imageUrl || '',
       ingredientsText: product.ingredientsText || '',
     });
-    // Carregar ficha técnica se existir
     setRecipeIngredients(product.recipe?.ingredients || []);
     setExtraIngredients(product.recipe?.extras || []);
     setProductAddons(product.addons || []);
@@ -255,7 +247,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validar tamanho (máx 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Arquivo muito grande! Máximo 5MB');
       return;
@@ -297,7 +288,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
     };
 
     if (stockEnabled) {
-      // Incluir ficha técnica — garantir hideFromClient para embalagens e acompanhamentos
       const finalRecipeIngredients = recipeIngredients.map(ri => {
         const ing = stockIngredients.find(s => s.id === ri.ingredientId);
         const cat = ing?.category || 'ingredient';
@@ -317,7 +307,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         extras: extraIngredients,
       };
 
-      // Gerar descrição automaticamente a partir dos ingredientes visíveis
       const visibleRecipe = finalRecipeIngredients
         .filter(ri => !ri.hideFromClient)
         .map(ri => {
@@ -327,7 +316,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
           let label = '';
           if (qty > 1) label += `${qty}x `;
           label += name;
-          // Só mostra porção se o nome do ingrediente NÃO estiver contido no label da porção (e vice-versa)
           if (ri.selectedPortionLabel) {
             const nameNorm = name.trim().toLowerCase();
             const portionNorm = ri.selectedPortionLabel.trim().toLowerCase();
@@ -347,7 +335,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         : '';
     }
 
-    // 🛒 Adicionais para o cliente
     if (productAddons.length > 0) {
       productData.addons = productAddons.filter(a => a.name.trim());
     } else {
@@ -376,12 +363,11 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
     }
   };
 
-  // Combine system categories with managed categories for filtering
   const filterCategories = [
     { id: 'all', label: 'Todos' },
-    { id: 'novidades', label: 'Novidades' }, // System category
-    { id: 'mais-pedidos', label: 'Mais Pedidos' }, // System category
-    { id: 'promocoes', label: 'Promoções' }, // System category
+    { id: 'novidades', label: 'Novidades' },
+    { id: 'mais-pedidos', label: 'Mais Pedidos' },
+    { id: 'promocoes', label: 'Promoções' },
     ...categories.map(c => ({ id: c.id, label: c.label }))
   ];
 
@@ -399,7 +385,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Gerenciar Produtos</h2>
@@ -457,7 +442,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         </div>
       </div>
 
-      {/* Top Rated Manager */}
       {showTopRatedManager && (
         <TopRatedManager 
           products={products} 
@@ -468,17 +452,12 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         />
       )}
 
-      {/* Category Manager */}
       {showCategoryManager && (
         <CategoryManager onChange={() => {
             loadCategories();
-            // NÃO chamar onProductsChange() aqui — mudança de categorias não precisa 
-            // destruir/remontar o ProductsManagement inteiro (refreshKey). 
-            // O loadCategories() já atualiza a lista de categorias localmente.
         }} />
       )}
 
-      {/* Filtros */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {filterCategories.map(cat => (
           <button
@@ -509,7 +488,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         ))}
       </div>
 
-      {/* Promotions Manager — quando filtro Promoções está ativo */}
       {showPromotionsManager && selectedCategory === 'promocoes' && (
         <PromotionsManager onProductsChange={() => {
           loadProducts();
@@ -517,17 +495,14 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         }} />
       )}
 
-      {/* Best Sellers Manager — quando filtro Mais Pedidos está ativo */}
       {showBestSellersManager && selectedCategory === 'mais-pedidos' && (
         <BestSellersManager />
       )}
 
-      {/* Novities Manager — quando filtro Novidades está ativo */}
       {showNovitiesManager && selectedCategory === 'novidades' && (
         <NovitiesManager />
       )}
 
-      {/* Lista de Produtos — oculta quando um manager especial está ativo */}
       {!showPromotionsManager && !showBestSellersManager && !showNovitiesManager && (filteredProducts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-600 mb-4">Nenhum produto encontrado no servidor.</p>
@@ -561,7 +536,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         <div className="grid gap-4">
           {filteredProducts.map(product => (
             <div key={product.id} className="bg-white border rounded-lg p-4 flex gap-4">
-              {/* Imagem */}
               <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {product.imageUrl ? (
                   <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
@@ -570,7 +544,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                 )}
               </div>
 
-              {/* Info */}
               <div className="flex-1">
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -625,7 +598,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
         </div>
       ))}
 
-      {/* Modal */}
       {isModalOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
@@ -641,7 +613,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                {/* Nome */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nome do Produto *
@@ -655,7 +626,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   />
                 </div>
 
-                {/* Descrição - oculta quando estoque ativado (ingredientes substituem) */}
                 {!stockEnabled && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -670,7 +640,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                 </div>
                 )}
 
-                {/* Preço e Categoria */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -712,7 +681,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   </div>
                 </div>
 
-                {/* Upload de Imagem */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Imagem do Produto
@@ -748,7 +716,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   <p className="text-xs text-gray-500 mt-1">Recomendado: 400x400px (quadrada). Máximo 5MB. JPG ou PNG.</p>
                 </div>
 
-                {/* Disponibilidade */}
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -761,7 +728,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   </label>
                 </div>
 
-                {/* === INGREDIENTES / FICHA TÉCNICA === */}
                 {stockEnabled && (
                   <div className="border-t pt-4 space-y-4">
                     <h4 className="font-bold text-gray-800 flex items-center gap-2">
@@ -769,7 +735,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                       Ficha Técnica (Ingredientes do Estoque)
                     </h4>
 
-                    {/* Ingredientes do estoque selecionados */}
                     {recipeIngredients.length > 0 && (
                       <div className="space-y-2">
                         {recipeIngredients.map((ri, idx) => {
@@ -826,7 +791,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                                     {ing?.type === 'unit' ? 'un' : hasPortion ? 'porc.' : 'kg'}
                                   </span>
                                 </div>
-                                {/* Ocultar checkbox — só para ingredientes normais (embalagens/acomp. sempre ocultos) */}
                                 {cat === 'ingredient' && (
                                   <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
                                     <input
@@ -853,7 +817,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                                   <X className="w-4 h-4" />
                                 </button>
                               </div>
-                              {/* Seletor de porcao — so aparece se o ingrediente tem opcoes de porcao */}
                               {portions.length > 0 && (
                                 <div className="flex items-center gap-2 pl-1">
                                   <span className="text-[10px] text-gray-500 font-medium">Porcao:</span>
@@ -899,7 +862,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                       </div>
                     )}
 
-                    {/* Seletor multi-selecao para ingredientes */}
                     {(() => {
                       const availableIngredients = stockIngredients
                         .filter(s => (!s.category || s.category === 'ingredient') && !recipeIngredients.some(r => r.ingredientId === s.id));
@@ -958,7 +920,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
 
                           {ingredientPickerOpen && (
                             <div className="mt-2 border-2 border-teal-200 rounded-lg bg-white overflow-hidden">
-                              {/* Busca */}
                               <div className="p-2 border-b border-teal-100 bg-teal-50/30">
                                 <div className="relative">
                                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -973,13 +934,11 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                                 </div>
                               </div>
 
-                              {/* Lista de ingredientes */}
                               <div className="max-h-52 overflow-y-auto p-1.5">
                                 {filteredAvailable.length === 0 && addedCount === 0 && (
                                   <p className="text-xs text-gray-500 text-center py-4">Nenhum ingrediente disponivel</p>
                                 )}
 
-                                {/* Ingredientes ja adicionados (marcados) */}
                                 {stockIngredients
                                   .filter(s => (!s.category || s.category === 'ingredient') && recipeIngredients.some(r => r.ingredientId === s.id))
                                   .filter(s => !ingredientSearch.trim() || s.name.toLowerCase().includes(ingredientSearch.toLowerCase()))
@@ -1006,7 +965,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                                   })
                                 }
 
-                                {/* Ingredientes disponiveis (nao marcados) */}
                                 {filteredAvailable.map(s => {
                                   const stockDisplay = s.type === 'kg' ? `${s.currentStock.toFixed(2)}kg` : `${Math.floor(s.currentStock)}un`;
                                   const portionCount = (s.portionOptions || []).length;
@@ -1028,7 +986,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                                 })}
                               </div>
 
-                              {/* Rodape com contagem */}
                               <div className="px-3 py-2 border-t border-teal-100 bg-teal-50/30 flex items-center justify-between">
                                 <span className="text-[10px] text-teal-700 font-medium">
                                   {addedCount} selecionado{addedCount !== 1 ? 's' : ''}
@@ -1047,7 +1004,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                       );
                     })()}
 
-                    {/* Seletores de Embalagens e Acompanhamentos */}
                     {(() => {
                       const embalagens = stockIngredients.filter(s => s.category === 'embalagem');
                       const acompanhamentos = stockIngredients.filter(s => s.category === 'acompanhamento');
@@ -1071,7 +1027,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
 
                       return (
                         <div className="space-y-3">
-                          {/* Embalagens */}
                           {hasEmbalagens && (
                             <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-3">
                               <p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1.5">
@@ -1106,7 +1061,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                             </div>
                           )}
 
-                          {/* Acompanhamentos */}
                           {hasAcompanhamentos && (
                             <div className="bg-indigo-50/50 border border-indigo-200 rounded-lg p-3">
                               <p className="text-xs font-bold text-indigo-800 mb-2 flex items-center gap-1.5">
@@ -1147,7 +1101,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                       );
                     })()}
 
-                    {/* Ingredientes extras (sem controle de estoque) */}
                     <h4 className="font-bold text-gray-800 text-sm mt-4">
                       Ingredientes Extras (sem controle de estoque)
                     </h4>
@@ -1200,9 +1153,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   </div>
                 )}
 
-                {/* ============================== */}
-                {/* 🛒 ADICIONAIS PARA O CLIENTE */}
-                {/* ============================== */}
                 <div className="border border-purple-200 dark:border-purple-800 rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20">
                   <h4 className="text-sm font-bold text-purple-800 dark:text-purple-300 mb-3 flex items-center gap-2">
                     🛒 Adicionais (cliente pode adicionar ao pedido)
@@ -1267,7 +1217,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   )}
 
                   <div className="flex flex-wrap gap-2">
-                    {/* Adicionar manual */}
                     <button
                       type="button"
                       onClick={() => setProductAddons([...productAddons, { id: `addon_${Date.now()}`, name: '', price: 0 }])}
@@ -1276,7 +1225,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                       <Plus className="w-3 h-3" /> Adicionar manual
                     </button>
 
-                    {/* Adicionar do estoque (se habilitado) */}
                     {stockEnabled && (
                       <select
                         className="text-sm border border-purple-300 dark:border-purple-700 rounded px-2 py-1 bg-white dark:bg-zinc-800 dark:text-white"
@@ -1286,7 +1234,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                           if (!ingId) return;
                           const ing = stockIngredients.find(s => s.id === ingId);
                           if (!ing) return;
-                          // Evitar duplicata
                           if (productAddons.some(a => a.ingredientId === ingId)) return;
                           setProductAddons([...productAddons, {
                             id: `addon_${Date.now()}`,
@@ -1312,7 +1259,6 @@ export function ProductsManagement({ onProductsChange }: ProductsManagementProps
                   )}
                 </div>
 
-                {/* Botões */}
                 <div className="flex gap-2 pt-4">
                   <button
                     type="button"

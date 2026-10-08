@@ -4,14 +4,11 @@ import { Sparkles, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { useConfig } from '../../ConfigContext';
 
-/** Ids de efeito válidos (mesmos usados no Master → Aparência). */
 export const HERO_EFFECT_IDS = ['sparkles', 'ring', 'orbiters', 'stars'] as const;
 export type HeroEffectId = (typeof HERO_EFFECT_IDS)[number];
 
-/** Padrão quando o Master ainda não configurou nada. */
 const DEFAULT_EFFECTS: HeroEffectId[] = ['sparkles'];
 
-/** Anel de luz emissivo girando lentamente sob o modelo. */
 function LightRing({ color }: { color: string }) {
   const ref = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => {
@@ -32,7 +29,6 @@ function LightRing({ color }: { color: string }) {
   );
 }
 
-/** Pequenas esferas douradas orbitando o modelo em alturas diferentes. */
 function Orbiters({ color, count = 7 }: { color: string; count?: number }) {
   const group = useRef<THREE.Group>(null);
   const seeds = useMemo(
@@ -75,11 +71,6 @@ function Orbiters({ color, count = 7 }: { color: string; count?: number }) {
   );
 }
 
-/**
- * Efeitos extras da cena 3D do hero, ligáveis pelo Master
- * (Aparência & Cores → Efeitos 3D do Hero). Todos usam a cor do tema.
- * No mobile as contagens caem para manter fluidez.
- */
 export function HeroEffects({ isMobile }: { isMobile: boolean }) {
   const { config } = useConfig();
   const gold = config.themeColor || '#fbbf24';

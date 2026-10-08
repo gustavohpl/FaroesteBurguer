@@ -31,7 +31,6 @@ interface E2ERun {
   results: E2ETestResult[];
 }
 
-// Categorias visuais
 const CATEGORIES = [
   { id: 'Produto', icon: Package, color: 'blue', emoji: '📦' },
   { id: 'Estoque', icon: Warehouse, color: 'orange', emoji: '📦' },
@@ -64,7 +63,6 @@ function getCategoryMeta(catId: string) {
   return CATEGORIES.find(c => c.id === catId) || { id: catId, icon: Package, color: 'gray', emoji: '📋' };
 }
 
-// Payment + delivery icons
 function getPaymentIcon(label: string) {
   if (label.includes('PIX')) return QrCode;
   if (label.includes('Cartão')) return CreditCard;
@@ -155,11 +153,9 @@ export function E2ETestRunner() {
       catMap.get(r.category)!.push(r);
     }
     const groups: { catId: string; tests: E2ETestResult[] }[] = [];
-    // Ordem: Produto, Estoque, Cupom, Fluxo Pedido, Busca, Cancelamento, Avaliação, Entregador, Categorias, Config, Validação
     for (const cat of CATEGORIES) {
       if (catMap.has(cat.id)) groups.push({ catId: cat.id, tests: catMap.get(cat.id)! });
     }
-    // Qualquer categoria extra
     for (const [k, v] of catMap.entries()) {
       if (!CATEGORIES.find(c => c.id === k)) groups.push({ catId: k, tests: v });
     }
@@ -190,7 +186,6 @@ export function E2ETestRunner() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
-      {/* Celebration */}
       {showCelebration && (
         <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
           <div className="animate-bounce">
@@ -203,7 +198,6 @@ export function E2ETestRunner() {
         </div>
       )}
 
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
@@ -216,7 +210,6 @@ export function E2ETestRunner() {
         </p>
       </div>
 
-      {/* Actions */}
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <button
           onClick={runTests}
@@ -245,7 +238,6 @@ export function E2ETestRunner() {
         )}
       </div>
 
-      {/* Progress */}
       {running && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-1.5">
@@ -266,7 +258,6 @@ export function E2ETestRunner() {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-red-700 dark:text-red-300">
           <p className="font-semibold flex items-center gap-2"><XCircle className="w-4 h-4" />Erro ao executar E2E</p>
@@ -277,7 +268,6 @@ export function E2ETestRunner() {
         </div>
       )}
 
-      {/* History */}
       {showHistory && (
         <div className="mb-6 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
@@ -322,7 +312,6 @@ export function E2ETestRunner() {
         </div>
       )}
 
-      {/* Summary Cards */}
       {summary && (
         <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-3.5 text-center">
@@ -344,7 +333,6 @@ export function E2ETestRunner() {
         </div>
       )}
 
-      {/* Category badges */}
       {summary && grouped.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           {grouped.map(g => {
@@ -373,7 +361,6 @@ export function E2ETestRunner() {
         </div>
       )}
 
-      {/* Results */}
       {results && grouped.map(g => {
         const meta = getCategoryMeta(g.catId);
         const colors = COLOR_MAP[meta.color] || COLOR_MAP.gray;
@@ -382,7 +369,6 @@ export function E2ETestRunner() {
 
         return (
           <div key={g.catId} id={`e2e-cat-${g.catId}`} className={`mb-4 border rounded-xl overflow-hidden ${colors.border}`}>
-            {/* Category header */}
             <button
               onClick={() => toggleCategory(g.catId)}
               className={`w-full flex items-center justify-between px-4 py-3 ${colors.bg} cursor-pointer hover:opacity-90 transition-all`}
@@ -400,7 +386,6 @@ export function E2ETestRunner() {
               </span>
             </button>
 
-            {/* Tests */}
             {!isCatCollapsed && (
               <div className="divide-y divide-gray-100 dark:divide-zinc-700">
                 {g.tests.map((test, i) => {
@@ -419,7 +404,6 @@ export function E2ETestRunner() {
                           <XCircle className="w-4 h-4 text-red-500 shrink-0" />
                         )}
                         
-                        {/* Flow test icons */}
                         {isFlowTest && (
                           <div className="flex items-center gap-1 shrink-0">
                             {(() => {
@@ -447,14 +431,12 @@ export function E2ETestRunner() {
                         )}
                       </div>
                       
-                      {/* Error */}
                       {!test.passed && test.error && (
                         <div className="mt-1.5 ml-6 text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md px-2.5 py-1.5 font-mono">
                           {test.error}
                         </div>
                       )}
                       
-                      {/* Steps (expanded) */}
                       {isExpanded && test.steps && (
                         <div className="mt-2 ml-6 space-y-1">
                           {test.steps.map((step, si) => (
@@ -476,7 +458,6 @@ export function E2ETestRunner() {
         );
       })}
 
-      {/* Flow Matrix Visual (when results available) */}
       {results && (
         <div className="mt-6 p-4 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-xl">
           <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Matriz de Fluxos Testados</h3>

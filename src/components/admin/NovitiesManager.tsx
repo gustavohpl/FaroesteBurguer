@@ -71,12 +71,10 @@ export function NovitiesManager() {
     await saveIds(newIds);
   };
 
-  // Produtos selecionados como novidades
   const selectedProducts = noveltyIds
     .map(id => allProducts.find(p => p.id === id))
     .filter((p): p is Product => p !== undefined);
 
-  // Produtos disponíveis para adicionar (não estão em novidades)
   const availableProducts = allProducts
     .filter(p => !noveltyIds.includes(p.id) && p.available !== false)
     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
@@ -90,7 +88,6 @@ export function NovitiesManager() {
         </p>
       </div>
 
-      {/* Lista de produtos em Novidades */}
       {loading ? (
         <div className="text-center py-8">
           <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -141,7 +138,6 @@ export function NovitiesManager() {
         </div>
       )}
 
-      {/* Botão Adicionar */}
       {!showPicker ? (
         <button
           onClick={() => setShowPicker(true)}
@@ -152,7 +148,6 @@ export function NovitiesManager() {
         </button>
       ) : (
         <div className="border border-gray-200 rounded-xl overflow-hidden">
-          {/* Busca */}
           <div className="p-3 bg-gray-50 border-b border-gray-200 flex gap-2">
             <div className="flex-1 relative">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -173,7 +168,6 @@ export function NovitiesManager() {
             </button>
           </div>
 
-          {/* Lista de produtos disponíveis */}
           <div className="max-h-60 overflow-y-auto">
             {availableProducts.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-4">Nenhum produto encontrado</p>

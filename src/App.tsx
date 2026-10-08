@@ -25,7 +25,6 @@ import { useDesign } from './useDesign';
 import { PrimeLayout } from './components/prime/PrimeLayout';
 import { FranchiseProvider, useFranchise } from './FranchiseContext';
 import { FranchiseSelectionModal, UnidadeAtual } from './components/FranchiseSelectionModal';
-// áreas pesadas que o cliente do cardápio não usa: baixadas só quando abertas
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const MasterDashboard = lazy(() => import('./components/master/MasterDashboard').then((m) => ({ default: m.MasterDashboard })));
 const DeliverymanPage = lazy(() => import('./components/delivery/DeliverymanPage').then((m) => ({ default: m.DeliverymanPage })));
@@ -39,11 +38,10 @@ export interface Product {
   price: number;
   category: string;
   imageUrl?: string | null;
-  image?: string | null; // Alias legado para imageUrl
+  image?: string | null;
   available?: boolean;
-  featuredRating?: boolean; // Se true, aparece fixo no Top 3 Avaliados
-  ingredientsText?: string; // Ingredientes digitados manualmente (quando stockControl OFF)
-  // Promoções (combos)
+  featuredRating?: boolean;
+  ingredientsText?: string;
   promoItems?: Array<{ productId: string; productName: string; originalPrice: number }>;
   originalTotal?: number;
   recipe?: {
@@ -63,20 +61,18 @@ export interface Product {
       hideFromClient: boolean;
     }>;
   };
-  // 🛒 Adicionais que o cliente pode escolher ao comprar
   addons?: Array<{
     id: string;
     name: string;
-    price: number;         // 0 = grátis
-    ingredientId?: string; // Vínculo com ingrediente do estoque (opcional)
+    price: number;
+    ingredientId?: string;
   }>;
 }
 
 export interface CartItem extends Product {
   quantity: number;
-  notes?: string; // Campo de observações
-  selectedAcompanhamentos?: string[]; // IDs dos acompanhamentos selecionados pelo cliente
-  // 🛒 Adicionais selecionados pelo cliente
+  notes?: string;
+  selectedAcompanhamentos?: string[];
   selectedAddons?: Array<{
     id: string;
     name: string;
@@ -93,11 +89,9 @@ function AppContent() {
   const isRustic = design.id === 'rustic';
   const isPrime = design.id === 'prime';
   const { unitOverrides, franchiseEnabled, selectedUnit, needsSelection } = useFranchise();
-  // com franquia, tudo (cardápio, estoque, pedido) é da unidade escolhida
   const lojaEscolhida = selectedUnit?.id || null;
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   
-  // Hook de cliente
   const { customer, isAuthenticated } = useCustomer();
   
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -108,7 +102,7 @@ function AppContent() {
   const [isOrderTrackingOpen, setIsOrderTrackingOpen] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string>('');
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showMaster, setShowMaster] = useState(false); // Estado para painel master
+  const [showMaster, setShowMaster] = useState(false);
   const [showDelivery, setShowDelivery] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -119,14 +113,10 @@ function AppContent() {
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [deliveryFee, setDeliveryFee] = useState(5.00);
   
-  // 🏙️ Valores efetivos: quando franquia ativa, unidade override config global
-  // o servidor já devolve aberto/taxa da unidade (Master + Admin dela); o Master fechar a unidade vale na hora
   const effectiveIsOpen = unitOverrides.isOpen === false ? false : isStoreOpen;
   const effectiveDeliveryFee = deliveryFee;
-  // trocar de cidade troca de loja: o carrinho da outra não vale aqui
   useEffect(() => { setCartItems([]); }, [lojaEscolhida]);
   
-  // 🌓 DETECÇÃO DE MODO ESCURO PARA O CLIENTE
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
 
@@ -137,14 +127,12 @@ function AppContent() {
   }, []);
   
   useEffect(() => {
-    // 1. Se houver configuração explícita no banco, ela ganha de tudo
     if (config.forceDarkMode !== undefined) {
       console.log('🌓 [THEME] Forçando modo:', config.forceDarkMode ? 'DARK' : 'LIGHT');
       setIsDarkMode(config.forceDarkMode);
       return;
     }
 
-    // 2. Se não houver, verificar se a cor de fundo configurada é escura
     if (config.backgroundColor) {
       const hex = config.backgroundColor.replace('#', '');
       const r = parseInt(hex.substring(0, 2), 16);
@@ -159,7 +147,6 @@ function AppContent() {
       }
     }
 
-    // 3. Fallback final: Preferência do Sistema
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const updateTheme = () => {
       if (config.forceDarkMode === undefined) {
@@ -172,11 +159,9 @@ function AppContent() {
     return () => mediaQuery.removeEventListener('change', updateTheme);
   }, [config.forceDarkMode, config.backgroundColor]);
 
-  // Estados para modal de sucesso do pedido
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [completedOrderData, setCompletedOrderData] = useState<{orderId: string; total: number; phone?: string} | null>(null);
 
-  // 🏥 HEALTH CHECK - Testar conectividade com o servidor
   useEffect(() => {
     const testServerConnection = async () => {
       const response = await api.checkHealth();
@@ -190,18 +175,15 @@ function AppContent() {
     };
     
     testServerConnection();
-  }, []); // Executa apenas uma vez ao carregar
+  }, []);
 
-  // 🔔 POLLING PARA DETECTAR CONFIRMAÇÃO DE PAGAMENTO PELO ADMIN
   useEffect(() => {
-    // 🛡️ Não rodar polling de cliente em rotas admin/master/entrega
     const path = window.location.pathname;
     if (path === '/admin' || path === '/master' || path === '/entrega') {
       console.log('⚠️ [POLLING] Polling de cliente desativado - rota administrativa ativa');
       return;
     }
 
-    // Só fazer polling se tiver telefone do cliente (identificado)
     const customerPhone = localStorage.getItem('faroeste_customer_phone');
     console.log('🔔 [POLLING] Iniciando sistema de polling - Telefone:', customerPhone);
     
@@ -213,45 +195,30 @@ function AppContent() {
     const checkPendingOrders = async () => {
       try {
         console.log('🔍 [POLLING] Verificando pedidos...');
-        // Buscar pedidos do cliente
         const response = await api.searchOrdersByPhone(customerPhone);
         console.log('📦 [POLLING] Resposta da API:', response);
         
         if (response.success && response.orders) {
           console.log('📋 [POLLING] Total de pedidos encontrados:', response.orders.length);
           
-          // Verificar se existe algum pedido que mudou de pending para preparing
           const pendingOrdersKey = 'faroeste_pending_orders';
           const previousPendingOrders = JSON.parse(localStorage.getItem(pendingOrdersKey) || '{}');
           
           response.orders.forEach((order: any) => {
             const wasTracking = previousPendingOrders[order.orderId];
             
-            // LÓGICA DE DETECÇÃO DE CONFIRMAÇÃO MELHORADA
-            // O modal deve aparecer se:
-            // 1. O pedido está "preparing" (confirmado)
-            // 2. É um pedido recente (menos de 4 horas)
-            // 3. O modal ainda não foi mostrado para este ID OU a página acabou de recarregar
             
-            const isRecent = (Date.now() - new Date(order.createdAt).getTime()) < 14400000; // 4 horas
+            const isRecent = (Date.now() - new Date(order.createdAt).getTime()) < 14400000;
             const isConfirmedStatus = order.status === 'preparing' || 
                                       order.status === 'ready_for_pickup' || 
                                       order.status === 'ready_for_delivery' || 
                                       order.status === 'out_for_delivery';
             
-            // 🔥 CORREÇÃO: Se a página foi recarregada (showSuccessModal = false e modal não está aberto),
-            // permitir mostrar o modal novamente para pedidos confirmados recentes
             const modalKey = `modal_shown_${order.orderId}`;
             const hasShownModal = localStorage.getItem(modalKey) === 'true';
             const modalClosedManually = localStorage.getItem(`${modalKey}_closed`) === 'true';
             
-            // 🚀 NOVA LÓGICA: Só resetar a flag se:
-            // 1. O pedido foi confirmado recentemente
-            // 2. O modal não está sendo exibido
-            // 3. O usuário NÃO fechou manualmente o modal (evita loop infinito)
             if (isConfirmedStatus && isRecent && !showSuccessModal && !modalClosedManually) {
-              // Limpar a flag se o modal não está sendo exibido no momento
-              // Isso permite que após reload, o modal apareça novamente
               if (hasShownModal) {
                 console.log(`🔄 [POLLING] Resetando flag de modal para pedido ${order.orderId} (página recarregada)`);
                 localStorage.removeItem(modalKey);
@@ -272,17 +239,15 @@ function AppContent() {
               
               console.log('🎉 [POLLING] Pedido confirmado detectado:', order.orderId);
               
-              // Marcar que mostramos para não repetir
               localStorage.setItem(modalKey, 'true');
               
-              // Disparar modal de sucesso com TODOS os dados necessários
               setCompletedOrderData({
                 orderId: order.orderId,
                 customerName: order.customerName,
                 total: order.total,
                 paymentMethod: order.paymentMethod,
-                deliveryType: order.deliveryType, // ✅ Adicionado
-                address: order.address, // ✅ Adicionado
+                deliveryType: order.deliveryType,
+                address: order.address,
                 isAutomatic: false,
                 timestamp: Date.now()
               });
@@ -297,14 +262,12 @@ function AppContent() {
                 address: order.address
               });
               
-              // Sincronizar histórico de PRODUTOS (para "Peça de Novo")
               if (order.items && order.items.length > 0) {
                   const historyKey = 'faroeste_order_history';
                   const currentHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
                   
-                  // Adicionar itens do pedido ao histórico se não existirem
                   const newItems = order.items.map((item: any) => ({
-                      id: item.id || `hist_${Date.now()}_${Math.random()}`, // Fallback ID
+                      id: item.id || `hist_${Date.now()}_${Math.random()}`,
                       name: item.name,
                       description: item.notes || '',
                       price: item.price,
@@ -312,7 +275,6 @@ function AppContent() {
                       imageUrl: null
                   }));
                   
-                  // Mesclar e manter únicos por nome
                   const merged = [...newItems, ...currentHistory];
                   const uniqueHistory = Array.from(new Map(merged.map(item => [item.name, item])).values()).slice(0, 12);
                   
@@ -320,7 +282,6 @@ function AppContent() {
                   setOrderHistory(uniqueHistory);
               }
 
-              // Salvar também em faroeste_my_orders para histórico de pedidos
               const myOrdersKey = 'faroeste_my_orders';
               const myOrders = JSON.parse(localStorage.getItem(myOrdersKey) || '[]');
               const orderExists = myOrders.some((o: any) => o.orderId === order.orderId);
@@ -340,13 +301,11 @@ function AppContent() {
               }
             }
             
-            // Atualizar tracking de pedidos pendentes
             if (order.status === 'pending') {
               previousPendingOrders[order.orderId] = 'pending';
             }
           });
           
-          // Salvar lista atualizada
           localStorage.setItem(pendingOrdersKey, JSON.stringify(previousPendingOrders));
         }
       } catch (error) {
@@ -354,22 +313,18 @@ function AppContent() {
       }
     };
 
-    // Verificar imediatamente
     console.log('▶️ [POLLING] Primeira verificação...');
     checkPendingOrders();
     
-    // Verificar a cada 5 segundos
     console.log('⏱️ [POLLING] Configurando intervalo de 5 segundos');
     const interval = setInterval(checkPendingOrders, 5000);
     
     return () => clearInterval(interval);
-  }, [customer]); // Dependência: customer
+  }, [customer]);
 
-  // Verificar parâmetros de URL (Cupons e UTMs)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cupomURL = params.get('cupom');
-    // volta do cartão no Mercado Pago: confere o pagamento no servidor e abre o acompanhamento
     const pedidoPago = params.get('pedido');
     if (pedidoPago && params.get('pagamento')) {
       api.mpStatusPagamento(pedidoPago, params.get('payment_id') || undefined).then((r) => {
@@ -384,21 +339,17 @@ function AppContent() {
     const utmSource = params.get('utm_source');
     
     if (cupomURL) {
-      // 1. Salvar cupom no localStorage ou estado (para aplicar no checkout)
       localStorage.setItem('faroeste_cupom_ativo', cupomURL);
       
-      // 2. Mostrar notificação ao usuário
       toast.success(`Cupom ${cupomURL} aplicado com sucesso! 🎉`, {
         duration: 5000,
         position: 'top-center'
       });
       
-      // 3. Limpar URL (para não reaplicar no refresh)
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
     
-    // 4. Salvar UTMs no sessionStorage para usar depois no checkout
     if (utmSource) {
       sessionStorage.setItem('utm_tracking', JSON.stringify({
         utm_source: utmSource,
@@ -410,58 +361,45 @@ function AppContent() {
     }
   }, []);
 
-  // Update Title
   useEffect(() => {
     if (config.siteName) {
       document.title = config.siteName?.replace(/\p{Emoji}/gu, '').trim() || 'NewBurguer';
     }
   }, [config.siteName]);
 
-  // Verificar rota /master
   useEffect(() => {
     if (window.location.pathname === '/master') {
       setShowMaster(true);
     }
   }, []);
 
-  // Verificar rota /entrega
   useEffect(() => {
     if (window.location.pathname === '/entrega' && config.features?.deliverySystem !== false) {
       setShowDelivery(true);
     }
   }, [config.features]);
 
-  // Verificar rota /admin (pathname-based, como /master e /entrega)
   useEffect(() => {
     const checkRoute = () => {
       const isAdminRoute = window.location.pathname === '/admin';
       setShowAdmin(isAdminRoute);
       
-      // Limpar erro do servidor quando entrar no admin
       if (isAdminRoute) {
         setServerError(false);
       }
       
-      // APENAS restaurar autenticação se:
-      // 1. Estiver na rota /admin
-      // 2. Houver autenticação salva no sessionStorage
       if (isAdminRoute) {
         const savedAuth = sessionStorage.getItem('faroeste_admin_auth') === 'true';
         setIsAdminAuthenticated(savedAuth);
       } else {
-        // Se sair da rota /admin, limpar autenticação
         setIsAdminAuthenticated(false);
       }
     };
     
-    // Executar na inicialização
     checkRoute();
     
-    // Escutar mudanças de navegação (botão voltar/avançar do navegador)
     window.addEventListener('popstate', checkRoute);
     
-    // 🛡️ Escutar expiração de sessão admin (disparado por adminFetch ao receber 401/403)
-    // Guard: processar apenas uma vez para evitar loops de re-render
     let sessionExpiredHandled = false;
     const handleSessionExpired = () => {
       if (sessionExpiredHandled) {
@@ -472,7 +410,6 @@ function AppContent() {
       console.warn('⚠️ [APP] Sessão admin expirada — forçando logout');
       sessionStorage.removeItem('faroeste_admin_auth');
       setIsAdminAuthenticated(false);
-      // Reset guard após 5 segundos (permite re-processar se necessário após novo login)
       setTimeout(() => { sessionExpiredHandled = false; }, 5000);
     };
     window.addEventListener('admin-session-expired', handleSessionExpired);
@@ -483,7 +420,6 @@ function AppContent() {
     };
   }, []);
 
-  // Salvar autenticação no sessionStorage
   useEffect(() => {
     if (isAdminAuthenticated && showAdmin) {
       sessionStorage.setItem('faroeste_admin_auth', 'true');
@@ -492,11 +428,8 @@ function AppContent() {
     }
   }, [isAdminAuthenticated, showAdmin]);
 
-  // Carregar produtos do banco de dados
-  // 🏙️ Quando franchise ativo, só carrega quando unidade estiver selecionada
   useEffect(() => {
     if (franchiseEnabled && !lojaEscolhida) {
-      // Franchise ativo mas sem unidade: não carregar dados
       return;
     }
 
@@ -504,16 +437,14 @@ function AppContent() {
     loadStoreStatus();
     loadDeliveryFee();
     
-    // 🔄 Auto-refresh dos produtos a cada 30 segundos (apenas se não estiver no admin)
     const productRefreshInterval = setInterval(() => {
       if (!showAdmin) {
         console.log('🔄 [AUTO-REFRESH] Atualizando produtos...');
         loadProducts();
-        loadDeliveryFee(); // 🆕 Atualizar taxa de entrega também
+        loadDeliveryFee();
       }
-    }, 30000); // 30 segundos
+    }, 30000);
     
-    // Exibir boas-vindas se cliente for reconhecido
     if (customer?.name) {
        const hasWelcomed = sessionStorage.getItem(`welcome_${customer.phone}`);
        if (!hasWelcomed) {
@@ -525,11 +456,9 @@ function AppContent() {
        }
     }
     
-    // Cleanup: limpar interval quando componente desmontar ou showAdmin mudar
     return () => clearInterval(productRefreshInterval);
-  }, [customer, showAdmin, lojaEscolhida]); // 🏙️ Recarrega ao trocar de cidade/unidade
+  }, [customer, showAdmin, lojaEscolhida]);
 
-  // Carregar status da loja
   const loadStoreStatus = async () => {
     const response = await api.getStoreStatus();
     if (response.success) {
@@ -554,7 +483,6 @@ function AppContent() {
       if (response.success && response.products) {
         let loadedProducts = response.products;
         
-        // Se stockControl está ativo, filtrar produtos sem estoque (apenas para o cliente)
         if (config.features?.stockControl && !showAdmin) {
           try {
             const stockRes = await api.checkStockAvailability();
@@ -582,7 +510,6 @@ function AppContent() {
         stack: error instanceof Error ? error.stack : undefined,
       });
       
-      // Tentar verificar se é problema de CORS ou servidor
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
         console.error('❌ [LOAD PRODUCTS] Problema de conexão - Servidor pode estar offline ou problema de CORS');
         setServerError(true);
@@ -595,7 +522,6 @@ function AppContent() {
     }
   };
 
-  // Carregar histórico de compras do localStorage
   useEffect(() => {
     const savedHistory = localStorage.getItem('faroeste_order_history');
     if (savedHistory) {
@@ -603,19 +529,6 @@ function AppContent() {
     }
   }, []);
 
-  // Bloquear acesso via domínio .figma.site - Redirecionar apenas para o domínio principal
-  /* 
-  useEffect(() => {
-    const hostname = window.location.hostname;
-    
-    // Se estiver acessando via .figma.site, redirecionar para .com
-    if (hostname.includes('figma.site')) {
-      // window.location.replace('https://faroestelanches.com' + window.location.pathname + window.location.search + window.location.hash);
-    }
-  }, []);
-  */
-
-  // Detectar pedido concluído ao voltar do WhatsApp
   useEffect(() => {
     
     const timer = setTimeout(() => {
@@ -625,17 +538,15 @@ function AppContent() {
         try {
           const orderData = JSON.parse(completedOrderStr);
           
-          // Validar dados
           if (!orderData.orderId || !orderData.total) {
             console.error('❌ [APP] Dados do pedido inválidos:', orderData);
             localStorage.removeItem('faroeste_completed_order');
             return;
           }
           
-          // Verificar se o pedido é recente (última 1 hora)
-          const isRecent = (Date.now() - orderData.timestamp) < 3600000; // 1 hora em ms
+          const isRecent = (Date.now() - orderData.timestamp) < 3600000;
           
-          if (isRecent && !showSuccessModal) { // Verificar se modal já não está aberto
+          if (isRecent && !showSuccessModal) {
             setCompletedOrderData({
               orderId: orderData.orderId,
               customerName: orderData.customerName,
@@ -644,15 +555,12 @@ function AppContent() {
               isAutomatic: orderData.isAutomatic
             });
             
-            // Pequeno delay para garantir que renderizou
             setTimeout(() => {
               setShowSuccessModal(true);
             }, 100);
             
-            // Limpar localStorage IMEDIATAMENTE após exibir
             localStorage.removeItem('faroeste_completed_order');
           } else if (!isRecent) {
-            // Se não é recente, apenas limpar
             localStorage.removeItem('faroeste_completed_order');
           }
         } catch (error) {
@@ -660,10 +568,10 @@ function AppContent() {
           localStorage.removeItem('faroeste_completed_order');
         }
       }
-    }, 1000); // Aguardar 1 segundo
+    }, 1000);
     
     return () => clearTimeout(timer);
-  }, []); // Executar apenas uma vez na montagem do componente
+  }, []);
 
   const handleAdminExit = () => {
     setShowAdmin(false);
@@ -674,7 +582,6 @@ function AppContent() {
   const addToCart = (product: Product, notes?: string, quantity?: number, selectedAddons?: Array<{id: string; name: string; price: number}>) => {
     const qty = quantity || 1;
     setCartItems(prev => {
-      // Comparar produto + notas + adicionais para determinar se é o mesmo item
       const addonsKey = selectedAddons?.map(a => a.id).sort().join(',') || '';
       const existingItem = prev.find(item => {
         const itemAddonsKey = item.selectedAddons?.map(a => a.id).sort().join(',') || '';
@@ -682,7 +589,6 @@ function AppContent() {
       });
       
       if (existingItem) {
-        // Se já existe item idêntico (mesmo produto, observações e adicionais), incrementa quantidade
         const addonsKey2 = selectedAddons?.map(a => a.id).sort().join(',') || '';
         return prev.map(item => {
           const itemAddonsKey = item.selectedAddons?.map(a => a.id).sort().join(',') || '';
@@ -692,7 +598,6 @@ function AppContent() {
         });
       }
       
-      // Se não existe ou tem adicionais/observações diferentes, adiciona como novo item
       return [...prev, { ...product, quantity: qty, notes, selectedAddons }];
     });
   };
@@ -730,18 +635,16 @@ function AppContent() {
   };
 
   const handleOrderComplete = () => {
-    // Salvar produtos do pedido no histórico
     const newHistoryItems = cartItems.map(item => ({
       id: item.id,
       name: item.name,
       description: item.description,
       price: item.price,
       category: item.category,
-      imageUrl: item.imageUrl // Incluir imageUrl no histórico
+      imageUrl: item.imageUrl
     }));
 
     const updatedHistory = [...newHistoryItems, ...orderHistory];
-    // Manter apenas os últimos 12 itens únicos
     const uniqueHistory = Array.from(
       new Map(updatedHistory.map(item => [item.id, item])).values()
     ).slice(0, 12);
@@ -752,13 +655,9 @@ function AppContent() {
     setCartItems([]);
     setIsCheckoutOpen(false);
     
-    // NÃO mostrar modal aqui - ele será mostrado quando voltar do WhatsApp
-    // O modal é controlado pelo localStorage no useEffect
   };
 
   const handleOrderCreated = () => {
-    // Aqui você pode adicionar lógica para lidar com a criação do pedido
-    // Por exemplo, enviar uma notificação ou atualizar o status do pedido
   };
 
   if (showMaster) {
@@ -785,10 +684,8 @@ function AppContent() {
           className={`min-h-screen ${isClean ? 'bg-zinc-50 text-zinc-900' : 'bg-background text-foreground'} flex flex-col transition-colors duration-300 ${isDarkMode && !isClean ? 'dark' : ''}`}
           style={{ position: 'relative' }}
         >
-          {/* Imagem de fundo fixa com zoom suave (Ken Burns) — apenas no Clássico */}
           {!isClean && !isRustic && !isPrime && (config.contentBackgroundUrl || config.contentBackgroundMobileUrl) && (
             <>
-              {/* Preload da imagem em alta qualidade */}
               <link 
                 rel="preload" 
                 as="image" 
@@ -821,8 +718,6 @@ function AppContent() {
               />
             </>
           )}
-          {/* Fundo 3D fixo — substitui a imagem do Clássico no design "3D".
-              O conteúdo Clássico (header/menus/footer) fica por cima, transparente. */}
           {showDelivery ? (
             <Suspense fallback={null}><DeliverymanPage /></Suspense>
           ) : (
@@ -885,7 +780,6 @@ function AppContent() {
                 )}
               </main>
 
-              {/* Banner Cards antes do Footer */}
               {config.bannerCards && config.bannerCards.length > 0 && (
                 <section className="w-full py-8 px-4">
                   <div className="container mx-auto max-w-6xl">
@@ -941,7 +835,6 @@ function AppContent() {
                 </>
               )}
 
-              {/* 📋 Botão flutuante — Meus Pedidos (canto inferior esquerdo) */}
               {!isPrime && (
                 <button
                   onClick={() => setIsOrderSearchOpen(true)}
@@ -987,19 +880,17 @@ function AppContent() {
                   orderId={currentOrderId}
                 />
               
-                {/* Modal de Pedido Confirmado - Aparece quando admin confirma o pagamento */}
                 {showSuccessModal && completedOrderData && (
                   <OrderConfirmedModal
                     orderId={completedOrderData.orderId}
                     customerName={completedOrderData.customerName || 'Cliente'}
                     total={completedOrderData.total}
-                    estimatedTime={45} // Tempo padrão, pode ser dinâmico no futuro
+                    estimatedTime={45}
                     deliveryType={completedOrderData.deliveryType || 'delivery'}
                     address={completedOrderData.address}
                     enableTracking={config.features?.orderTracking !== false}
                     onClose={() => {
                       console.log('🚪 [MODAL] Usuário fechou o modal manualmente para pedido:', completedOrderData.orderId);
-                      // Marcar que o usuário fechou manualmente para não reabrir
                       localStorage.setItem(`modal_shown_${completedOrderData.orderId}_closed`, 'true');
                       setShowSuccessModal(false);
                       setCompletedOrderData(null);

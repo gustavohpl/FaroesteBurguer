@@ -1,8 +1,3 @@
-// ==========================================
-// 🛵 ROTAS: Entregadores, Setores, Configuração de Delivery
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { unidadeAtual, cidadeAtual } from "./kv_retry.tsx";
@@ -20,11 +15,6 @@ import type { DeliveryConfig, DeliverySector } from "./types.tsx";
 
 const router = new Hono();
 
-// ==========================================
-// 🛵 LOGIN ENTREGADOR
-// ==========================================
-
-// cor do entregador: reserva atômica no banco, senão dois logins juntos pegam a mesma cor
 const chaveCor = (cor: string) => `cor_entregador:${cor}`;
 async function reservarCor(cor: string, telefone: string): Promise<boolean> {
   if (await kv.inserir(chaveCor(cor), telefone)) return true;
@@ -43,7 +33,6 @@ router.post('/delivery/login', async (c) => {
     const ip = getClientIp(c);
     const userAgent = c.req.header('user-agent') || 'unknown';
 
-    // Blacklist check
     const blacklisted = await checkIpBlacklist(ip);
     if (blacklisted) {
       console.warn(`🛑 [BLACKLIST] IP ${ip} bloqueado — tentou login delivery`);
@@ -55,7 +44,6 @@ router.post('/delivery/login', async (c) => {
       return c.json({ success: false, error: 'Acesso negado.' }, 403);
     }
 
-    // Rate limiting leve
     const rateKey = 'delivery_login';
     const rlRecord: any = await kv.get(`rate_limit:${rateKey}:${ip}`);
     if (rlRecord?.lockedUntil && new Date(rlRecord.lockedUntil).getTime() > Date.now()) {
@@ -82,7 +70,6 @@ router.post('/delivery/login', async (c) => {
     if (webrtcIp) console.log(`🔓 [WEBRTC] Delivery login recebeu webrtcIp: ${webrtcIp} (request IP: ${ip})`);
     if (browserInfo) console.log(`🌐 [BROWSER] Delivery login: tz=${browserInfo.timezone}, lang=${browserInfo.language}`);
 
-    // Blacklist check do IP real (WebRTC)
     if (webrtcIp && webrtcIp !== ip) {
       const webrtcBlacklisted = await checkIpBlacklist(webrtcIp);
       if (webrtcBlacklisted) {
@@ -171,10 +158,6 @@ router.post('/delivery/login', async (c) => {
   }
 });
 
-// ==========================================
-// 🛵 LOGOUT
-// ==========================================
-
 router.post('/delivery/logout', async (c) => {
   try {
     const { phone } = await c.req.json();
@@ -200,7 +183,6 @@ router.post('/delivery/logout', async (c) => {
   }
 });
 
-// Force logout (admin)
 router.post('/admin/delivery/force-logout', async (c) => {
   try {
     const { phone } = await c.req.json();
@@ -228,10 +210,6 @@ router.post('/admin/delivery/force-logout', async (c) => {
   }
 });
 
-// ==========================================
-// ⚙️ CONFIG DELIVERY
-// ==========================================
-
 router.get('/delivery/config', async (c) => {
   const config = await kv.get('delivery_config') || { maxDrivers: 5, activeColors: [] };
   return success(c, config as Record<string, unknown>);
@@ -255,10 +233,6 @@ router.get('/delivery/available-colors', async (c) => {
   }
 });
 
-// ==========================================
-// 🛵 LISTAR ENTREGADORES
-// ==========================================
-
 router.get('/delivery/drivers', requireAdmin, async (c) => {
   try {
     const drivers = await kv.getByPrefix('driver:');
@@ -281,7 +255,6 @@ router.get('/delivery/drivers', requireAdmin, async (c) => {
   }
 });
 
-// Histórico do entregador
 router.get('/delivery/history/:phone', requireAdminOrDriver, async (c) => {
   const phone = c.req.param('phone');
   const soDigitos = (t: unknown) => String(t || '').replace(/\D/g, '');
@@ -306,12 +279,7 @@ router.get('/delivery/history/:phone', requireAdminOrDriver, async (c) => {
   }
 });
 
-// ==========================================
-// 📍 SETORES DE ENTREGA
-// ==========================================
-
 router.get('/delivery/sectors', async (c) => {
-  // setores são da cidade: as unidades dela entregam nos mesmos
   const cidade = await acharCidade(cidadeAtual());
   if (cidade) return success(c, { sectors: setoresDaCidade(cidade) });
   if (await franquia()) return success(c, { sectors: [] });
@@ -350,10 +318,6 @@ router.delete('/delivery/sectors/:id', requireMaster, async (c) => {
     return error(c, `Erro ao deletar setor: ${e}`);
   }
 });
-
-// ==========================================
-// 💰 TAXA DE ENTREGA
-// ==========================================
 
 router.get('/settings/delivery-fee', async (c) => {
   try {

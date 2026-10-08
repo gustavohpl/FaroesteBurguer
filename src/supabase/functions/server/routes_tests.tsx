@@ -1,9 +1,3 @@
-// ==========================================
-// 🧪 ROTAS: Testes Automatizados v8 + E2E Flow Tests
-// 80 testes unitários em 11 categorias + 3 E2E
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { success, error, sanitizeText, sanitizeName, sanitizePhone, sanitizeObjectDeep, sanitizeReviews, stripDangerousPatterns } from "./server_utils.tsx";
@@ -16,10 +10,6 @@ import { generateSecurityAnalytics } from "./analytics.tsx";
 import type { TestResult, E2ETestResult, TestRun } from "./types.tsx";
 
 const router = new Hono();
-
-// ==========================================
-// 🧪 SUITE DE TESTES UNITÁRIOS (80 testes, 11 categorias)
-// ==========================================
 
 async function executeTestSuite(): Promise<{ summary: { total: number; passed: number; failed: number; durationMs: number }; results: TestResult[]; version: string }> {
   console.log('🧪 [TESTS-v8] Executando suite de 80 testes (11 categorias)...');
@@ -35,8 +25,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
       results.push({ name, passed: false, error: msg, durationMs: Date.now() - start });
     }
   }
-
-  // ========== CATEGORIA 1: CORE (14 testes) ==========
 
   await runTest('Core: KV Store set/get/del', async () => {
     const testKey = `_test_${Date.now()}`;
@@ -144,8 +132,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
 
   await kv.del(`order:${testOrderId}`);
 
-  // ========== CATEGORIA 2: GEOLOCALIZAÇÃO (8 testes) ==========
-
   await runTest('Geo: haversineKm — São Paulo-Rio ~360km', async () => {
     const dist = haversineKm(-23.55, -46.63, -22.91, -43.17);
     if (dist < 300 || dist > 420) throw new Error(`Distância SP-RJ incorreta: ${dist.toFixed(1)}km`);
@@ -177,8 +163,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     const dist = haversineKm(-23.55, -46.63, 51.51, -0.13);
     if (dist < 8000 || dist > 10000) throw new Error(`Distância SP-Londres incorreta: ${dist.toFixed(1)}km`);
   });
-
-  // ========== CATEGORIA 3: ESTOQUE (8 testes) ==========
 
   const testIngId = `_test_ing_${Date.now()}`;
   await runTest('Estoque: criar ingrediente', async () => {
@@ -235,8 +219,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     await kv.del(`stock_deduction:${dedId}`);
   });
 
-  // ========== CATEGORIA 4: CUPONS (8 testes) ==========
-
   const testCouponId = `_test_coupon_${Date.now()}`;
   await runTest('Cupons: criar cupom', async () => {
     const coupon = { id: testCouponId, code: `TEST${Date.now()}`, type: 'percentage', value: 10, maxUses: 5, currentUses: 0, isActive: true };
@@ -277,8 +259,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     if (await kv.get(`coupon:${testCouponId}`) != null) throw new Error('Cupom não deletado');
   });
 
-  // ========== CATEGORIA 5: ENTREGADORES (6 testes) ==========
-
   const testDriverPhone = `_testdriver_${Date.now()}`;
   await runTest('Driver: criar driver', async () => {
     await kv.set(`driver:${testDriverPhone}`, { name: 'Driver Teste', phone: testDriverPhone, color: '#FF0000', status: 'online', lastLogin: new Date().toISOString() });
@@ -313,8 +293,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     if (await kv.get(`driver:${testDriverPhone}`) != null) throw new Error('Driver não deletado');
   });
 
-  // ========== CATEGORIA 6: SEGURANÇA AVANÇADA (8 testes) ==========
-
   await runTest('Security: blacklist — verificar IP não bloqueado', async () => { await checkIpBlacklist('1.2.3.4'); });
   await runTest('Security: whitelist — verificar IP não whitelisted', async () => { await checkIpWhitelist('1.2.3.4'); });
   await runTest('Security: auto-blacklist — não bloqueia IP de teste', async () => {
@@ -336,8 +314,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
   await runTest('Security: language mismatch — PT no Brasil é OK', async () => {
     if (detectLanguageMismatch({ language: 'pt-BR' }, { country: 'BR' }).mismatch) throw new Error('Falso positivo');
   });
-
-  // ========== CATEGORIA 7: IP REPUTATION (6 testes) ==========
 
   const testRepIp = `_test_rep_${Date.now()}`;
   await runTest('Reputation: getIpReputation — IP desconhecido retorna null', async () => {
@@ -364,8 +340,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     if (await getIpReputation(testRepIp) != null) throw new Error('Registro não deletado');
   });
 
-  // ========== CATEGORIA 8: WEBHOOKS (6 testes) ==========
-
   await runTest('Webhooks: getWebhookConfigs — retorna array', async () => {
     if (!Array.isArray(await getWebhookConfigs())) throw new Error('Configs não é array');
   });
@@ -390,8 +364,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     if (!REPUTATION_SIGNAL_POINTS || typeof REPUTATION_SIGNAL_POINTS !== 'object' || Object.keys(REPUTATION_SIGNAL_POINTS).length === 0) throw new Error('REPUTATION_SIGNAL_POINTS inválido');
   });
 
-  // ========== CATEGORIA 9: ANALYTICS (4 testes) ==========
-
   await runTest('Analytics: generateSecurityAnalytics — retorna métricas', async () => {
     const m = await generateSecurityAnalytics();
     if (!m || typeof m !== 'object') throw new Error('Analytics retornou null ou não-objeto');
@@ -408,8 +380,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     const m = await generateSecurityAnalytics() as Record<string, unknown>;
     if ((m.totalLogins as number) < 0 || (m.failedLogins as number) < 0) throw new Error('Contadores negativos');
   });
-
-  // ========== CATEGORIA 10: AUTENTICAÇÃO (6 testes) ==========
 
   await runTest('Auth: admin session token format', async () => {
     const t = `admin_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
@@ -428,8 +398,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
   await runTest('Auth: cleanupExpiredSessions — executa sem erro', async () => {
     if (typeof await cleanupExpiredSessions() !== 'number') throw new Error('Deveria retornar número');
   });
-
-  // ========== CATEGORIA 11: INTEGRAÇÃO PRECISION ENGINE (6 testes) ==========
 
   await runTest('Precision: enrichIpGeo com timeout — retorna em tempo', async () => {
     const start = Date.now();
@@ -461,8 +429,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
     if (!geo || (!geo.isp && !geo.org)) throw new Error('Sem ISP nem ORG');
   });
 
-  // ========== RESULTADO FINAL ==========
-
   const passed = results.filter(r => r.passed).length;
   const failed = results.filter(r => !r.passed).length;
   const totalMs = results.reduce((sum, r) => sum + r.durationMs, 0);
@@ -476,10 +442,6 @@ async function executeTestSuite(): Promise<{ summary: { total: number; passed: n
   console.log(`🧪 [TESTS-v8] ${passed}/${results.length} testes passaram (${totalMs}ms)`);
   return { summary: { total: results.length, passed, failed, durationMs: totalMs }, results, version: '3.3.0-security-v8-80tests-precision-v4.1' };
 }
-
-// ==========================================
-// 🧪 SUITE E2E (3 fluxos completos)
-// ==========================================
 
 async function executeE2ETestSuite(): Promise<{ summary: { total: number; passed: number; failed: number; durationMs: number }; results: E2ETestResult[]; runId: string }> {
   const startTime = Date.now();
@@ -558,10 +520,6 @@ async function executeE2ETestSuite(): Promise<{ summary: { total: number; passed
   console.log(`🧪 [E2E] Completo: ${passed}/${results.length} (${totalMs}ms)`);
   return { summary: { total: results.length, passed, failed, durationMs: totalMs }, results, runId: runRecord.id };
 }
-
-// ==========================================
-// 📋 ROTAS
-// ==========================================
 
 router.post('/admin/tests/run', async (c) => success(c, await executeTestSuite()));
 router.post('/master/tests/run', async (c) => success(c, await executeTestSuite()));

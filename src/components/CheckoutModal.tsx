@@ -48,9 +48,7 @@ export function CheckoutModal({
   const miolo = useRef<HTMLDivElement>(null);
   useEffect(() => { miolo.current?.scrollTo({ top: 0 }); }, [step]);
   const [pergunta, setPergunta] = useState<{ texto: string; responder: (ok: boolean) => void } | null>(null);
-  // no Prime, avisos e perguntas no visual do app em vez das caixas nativas do navegador
   const avisar = (texto: string) => (prime ? toast.error(texto) : alert(texto));
-  // automático só com o banco escolhido no Master realmente configurado no servidor
   const pagamentoAutomatico = !!config.automaticPayment && config.features?.automaticPaymentAllowed !== false &&
     (config.paymentGateway === 'mercadopago' ? !!config.mercadoPagoAtivo : !!config.hasPagSeguroToken);
   const perguntar = (texto: string) => (prime
@@ -60,43 +58,37 @@ export function CheckoutModal({
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   
-  // Modais de Pagamento
-  const [showPixPayment, setShowPixPayment] = useState(false); // Manual
-  const [showPixPaymentPagSeguro, setShowPixPaymentPagSeguro] = useState(false); // Automático
-  const [showCardPaymentOptions, setShowCardPaymentOptions] = useState(false); // Cartão Automático
+  const [showPixPayment, setShowPixPayment] = useState(false);
+  const [showPixPaymentPagSeguro, setShowPixPaymentPagSeguro] = useState(false);
+  const [showCardPaymentOptions, setShowCardPaymentOptions] = useState(false);
   const [showPaymentConfirmed, setShowPaymentConfirmed] = useState(false);
   
   const [currentOrderId, setCurrentOrderId] = useState<string>('');
   
-  // Form fields
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [street, setStreet] = useState(''); // Rua
-  const [houseNumber, setHouseNumber] = useState(''); // Número
-  const [neighborhood, setNeighborhood] = useState(''); // Bairro/Setor
-  const [address, setAddress] = useState(''); // Computed: rua + número + bairro (backward compat)
+  const [street, setStreet] = useState('');
+  const [houseNumber, setHouseNumber] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [address, setAddress] = useState('');
   const [reference, setReference] = useState('');
-  const [deliverySector, setDeliverySector] = useState(''); // 🆕 Setor de entrega
-  const [changeFor, setChangeFor] = useState(''); // 🆕 Troco para quanto?
-  const [cardType, setCardType] = useState<'credit' | 'debit' | ''>(''); // 🆕 Tipo de cartão (crédito/débito)
+  const [deliverySector, setDeliverySector] = useState('');
+  const [changeFor, setChangeFor] = useState('');
+  const [cardType, setCardType] = useState<'credit' | 'debit' | ''>('');
   
-  // 🆕 Pagamento misto (duas formas)
   const [splitPayment, setSplitPayment] = useState(false);
   const [splitMethod1, setSplitMethod1] = useState<PaymentMethod>('pix');
   const [splitMethod2, setSplitMethod2] = useState<PaymentMethod>('cash');
   const [splitAmount1, setSplitAmount1] = useState('');
   const nomeForma = (m: PaymentMethod) => (m === 'pix' ? 'PIX' : m === 'card' ? 'Cartão' : 'Dinheiro');
   const valorMisto2 = () => parseFloat((getTotalWithDiscount() - (parseFloat(splitAmount1) || 0)).toFixed(2));
-  // no misto o cliente paga em Pix só a parte dele
   const valorPix = () => (!splitPayment ? getTotalWithDiscount()
     : splitMethod1 === 'pix' ? parseFloat(splitAmount1) || 0
     : splitMethod2 === 'pix' ? valorMisto2() : 0);
   const descricaoMisto = () => `${nomeForma(splitMethod1)} R$ ${(parseFloat(splitAmount1) || 0).toFixed(2).replace('.', ',')} + ${nomeForma(splitMethod2)} R$ ${valorMisto2().toFixed(2).replace('.', ',')}`;
   
-  // 🆕 Setores disponíveis
   const [availableSectors, setAvailableSectors] = useState<Array<{id: string, name: string, color: string}>>([]);
   
-  // Cupom de desconto
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<api.Coupon | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
@@ -104,38 +96,30 @@ export function CheckoutModal({
   const [couponError, setCouponError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Acompanhamentos (molhos) selecionados pelo cliente
   const [selectedAcompanhamentos, setSelectedAcompanhamentos] = useState<string[]>([]);
 
-  // Estimates
   const [estimates, setEstimates] = useState<api.TimeEstimates | null>(null);
 
-  // Printer integration
   const { isConnected, printOrderReceipt } = usePrinter();
   
-  // Customer Hook
   const { customer, fetchCustomer, loading: loadingCustomer, logout } = useCustomer();
   const [useSavedAddress, setUseSavedAddress] = useState(false);
 
   useEffect(() => {
-    // Check for auto-applied coupon from URL
     const savedCoupon = localStorage.getItem('faroeste_cupom_ativo');
     if (savedCoupon) {
       setCouponCode(savedCoupon);
     }
 
-    // Auto-fill from localStorage (Backup se useCustomer não tiver dados ainda ou for fallback)
     const storedInfo = localStorage.getItem('faroeste_customer_info');
     if (storedInfo) {
        try {
          const parsed = JSON.parse(storedInfo);
          if (parsed.name && !name) setName(parsed.name);
          if (parsed.phone && !phone) setPhone(parsed.phone);
-         // Auto-fill address info if available and not set
          if (parsed.street && !street) setStreet(parsed.street);
          if (parsed.houseNumber && !houseNumber) setHouseNumber(parsed.houseNumber);
          if (parsed.neighborhood && !neighborhood) setNeighborhood(parsed.neighborhood);
-         // Backward compat: old format had single address field
          if (!parsed.street && parsed.address && !street) setStreet(parsed.address);
          if (parsed.reference && !reference) setReference(parsed.reference);
          if (parsed.deliverySector && !deliverySector) setDeliverySector(parsed.deliverySector);
@@ -145,20 +129,17 @@ export function CheckoutModal({
     }
   }, []);
 
-  // Computar endereço completo a partir de rua + número + bairro
   useEffect(() => {
     const parts = [street.trim(), houseNumber.trim(), neighborhood.trim()].filter(Boolean);
     setAddress(parts.join(', '));
   }, [street, houseNumber, neighborhood]);
 
   useEffect(() => {
-    // Auto-fill if customer exists (Tem prioridade sobre localStorage cru)
     if (customer) {
       setName(customer.name);
       setPhone(customer.phone);
       if (customer.addresses.length > 0) {
         setUseSavedAddress(true);
-        // Default to first address - try to split if comma-separated
         const fullAddr = customer.addresses[0].street || '';
         const commaIdx = fullAddr.indexOf(',');
         if (commaIdx > 0) {
@@ -170,7 +151,7 @@ export function CheckoutModal({
         setReference(customer.addresses[0].reference || '');
       }
     }
-  }, [customer]); // Re-run when customer loads
+  }, [customer]);
 
   const loadEstimates = async () => {
     try {
@@ -183,12 +164,9 @@ export function CheckoutModal({
     }
   };
 
-  // ao abrir: a unidade (e a cidade, dona dos setores) já está escolhida
   useEffect(() => { if (isOpen) { loadSectors(); loadEstimates(); } }, [isOpen, config.features?.deliverySystem]);
 
-  // 🆕 Carregar setores disponíveis
   const loadSectors = async () => {
-    // setor é do sistema de entregadores: desligado no Master, o checkout não pergunta
     if (config.features?.deliverySystem === false) return setAvailableSectors([]);
     try {
       const response = await api.getDeliverySectors();
@@ -211,7 +189,6 @@ export function CheckoutModal({
     }
   };
 
-  // Coletar acompanhamentos disponíveis dos produtos no carrinho (incluindo sub-produtos de promoções)
   const availableAcompanhamentos = React.useMemo(() => {
     const acompMap = new Map<string, { id: string; name: string; defaultQty: number }>();
     
@@ -229,10 +206,8 @@ export function CheckoutModal({
     };
     
     for (const item of items) {
-      // Coletar da receita do próprio item
       collectFromRecipe(item.recipe);
       
-      // Se for promoção, coletar dos sub-produtos
       if (item.promoItems && item.promoItems.length > 0 && allProducts.length > 0) {
         for (const promoItem of item.promoItems) {
           const subProduct = allProducts.find(p => p.id === promoItem.productId);
@@ -245,7 +220,6 @@ export function CheckoutModal({
     return Array.from(acompMap.values());
   }, [items, allProducts]);
 
-  // Verificar se algum produto tem acompanhamentos e não é dine-in
   const showAcompanhamentos = availableAcompanhamentos.length > 0 && deliveryType !== 'dine-in';
 
   const toggleAcompanhamento = (id: string) => {
@@ -256,22 +230,17 @@ export function CheckoutModal({
 
   const PICKUP_ADDRESS = unitOverrides.address || config.address || 'Praça Lucio Prado - Goiatuba/GO';
   const WHATSAPP_NUMBER = config.whatsappNumber || '5564993392970';
-  // const DELIVERY_FEE = 5.00; // Removed hardcoded fee
 
-  // Calcular total com taxa de entrega
   const getFinalTotal = () => {
     return deliveryType === 'delivery' ? totalPrice + deliveryFee : totalPrice;
   };
   
-  // Calcular total com desconto do cupom
-  // O cupom desconta APENAS do subtotal dos produtos, a taxa de entrega NÃO é afetada
   const getTotalWithDiscount = () => {
     const discountedProducts = Math.max(0, totalPrice - couponDiscount);
     const delivery = deliveryType === 'delivery' ? deliveryFee : 0;
     return discountedProducts + delivery;
   };
   
-  // Validar cupom
   const handleValidateCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponError('Digite um código de cupom');
@@ -282,7 +251,6 @@ export function CheckoutModal({
     setCouponError('');
     
     try {
-      // Enviar apenas o subtotal dos produtos (sem taxa de entrega) para cálculo do desconto
       const response = await api.validateCoupon(couponCode.toUpperCase().trim(), totalPrice);
       
       if (response.success && response.valid && response.coupon && response.discount !== undefined) {
@@ -303,13 +271,12 @@ export function CheckoutModal({
     }
   };
   
-  // Remover cupom aplicado
   const handleRemoveCoupon = () => {
     setCouponCode('');
     setAppliedCoupon(null);
     setCouponDiscount(0);
     setCouponError('');
-    localStorage.removeItem('faroeste_cupom_ativo'); // Clear from storage too
+    localStorage.removeItem('faroeste_cupom_ativo');
   };
 
   if (!isOpen) return null;
@@ -327,11 +294,8 @@ export function CheckoutModal({
     const formatted = formatPhone(rawValue);
     setPhone(formatted);
     
-    // Tentar identificar cliente quando terminar de digitar
     const numbers = rawValue.replace(/\D/g, '');
     if (numbers.length >= 10 && !customer) {
-      // Debounce simples ou check direto
-      // Para UX melhor, vamos fazer apenas quando sair do campo ou clicar em botão
     }
   };
 
@@ -344,13 +308,11 @@ export function CheckoutModal({
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    // Verificar se a loja está aberta
     if (!isStoreOpen) {
       avisar('🕒 Desculpe, a loja está fechada no momento!\n\n⏰ Horário de funcionamento: A partir das 18h30\n\nAguardamos você!');
       return;
     }
     
-    // Validações
     if (!name.trim() || !phone.trim()) {
       avisar('Por favor, preencha nome e telefone');
       return;
@@ -371,19 +333,16 @@ export function CheckoutModal({
       return;
     }
 
-    // 🆕 Validação de setor (obrigatório quando há setores disponíveis)
     if (deliveryType === 'delivery' && availableSectors.length > 0 && !deliverySector) {
       avisar('📍 Por favor, selecione o setor de entrega');
       return;
     }
 
-    // 🆕 Validação de tipo de cartão
     if (!splitPayment && paymentMethod === 'card' && !cardType) {
       avisar('Por favor, selecione se o pagamento será no Crédito ou Débito');
       return;
     }
 
-    // 🆕 Validação de pagamento misto
     if (splitPayment) {
       const total = getTotalWithDiscount();
       const amt1 = parseFloat(splitAmount1) || 0;
@@ -398,16 +357,12 @@ export function CheckoutModal({
       }
     }
 
-    // 🚀 IMPORTANTE: Sistema SEMPRE aceita pedidos, mesmo sem entregadores online
-    // Quando não há entregadores, o admin gerencia manualmente os status
-    // Isso garante que o negócio nunca perca vendas por falta de entregadores cadastrados
     
     console.log('✅ [CHECKOUT] Sistema aceita pedidos independente de entregadores online');
 
     try {
       setIsSubmitting(true);
       
-      // Montar info de pagamento
       const paymentInfo = splitPayment ? {
         paymentMethod: 'split' as any,
         splitPayment: true,
@@ -421,8 +376,6 @@ export function CheckoutModal({
         changeFor: paymentMethod === 'cash' && changeFor ? parseFloat(changeFor) : null,
       };
       
-      // Salvar pedido no banco de dados
-      // origem do anúncio (o App guarda os utm_* da URL de entrada): o painel de anúncios soma os pedidos por campanha
       const utm = (() => { try { return JSON.parse(sessionStorage.getItem('utm_tracking') || 'null'); } catch { return null; } })();
       const orderData = {
         ...(utm ? { utm } : {}),
@@ -447,15 +400,12 @@ export function CheckoutModal({
         estimatedTime: getEstimateForType(deliveryType),
         couponCode: appliedCoupon?.code || null,
         couponDiscount: couponDiscount || 0,
-        // Acompanhamentos selecionados pelo cliente (para desconto no estoque e exibição no admin)
         selectedAcompanhamentos: deliveryType !== 'dine-in'
           ? selectedAcompanhamentos.map(aId => {
               const acomp = availableAcompanhamentos.find(a => a.id === aId);
               return { id: aId, name: acomp?.name || aId };
             })
           : [],
-        // Se for automático e PIX, status inicial é pending (aguardando pagamento)
-        // Se for manual, status é pending (aguardando admin confirmar)
         status: 'pending' 
       };
 
@@ -473,28 +423,20 @@ export function CheckoutModal({
       console.log('✅ [CHECKOUT] Pedido criado com sucesso! ID:', orderId);
       setCurrentOrderId(orderId);
       
-      // 🎫 NOTA: O incremento do uso do cupom é feito pelo SERVIDOR durante POST /orders
-      // para evitar race conditions. NÃO incrementar novamente aqui.
       
-      // 🔔 REGISTRAR PEDIDO PARA POLLING DE CONFIRMAÇÃO
-      // Salvar telefone do cliente para polling
       localStorage.setItem('faroeste_customer_phone', phone);
       
-      // Adicionar pedido à lista de pendentes
       const pendingOrdersKey = 'faroeste_pending_orders';
       const pendingOrders = JSON.parse(localStorage.getItem(pendingOrdersKey) || '{}');
       pendingOrders[orderId] = 'pending';
       localStorage.setItem(pendingOrdersKey, JSON.stringify(pendingOrders));
       console.log('🔔 [CHECKOUT] Pedido registrado para polling:', orderId);
       
-      // Chamar callback com orderId se fornecido (para tracking analytics etc)
       if (onOrderCreated) {
         onOrderCreated(orderId);
       }
 
-      // FLUXO DE PAGAMENTO
       
-      // 1. PIX (no pagamento misto, só a parte em Pix)
       if (splitPayment ? valorPix() > 0 : paymentMethod === 'pix') {
         const isAutoPaymentEnabled = pagamentoAutomatico;
         
@@ -505,7 +447,7 @@ export function CheckoutModal({
            console.log('💳 [CHECKOUT] Usando PIX Manual');
            setShowPixPayment(true);
         }
-        return; // Pára aqui e espera o modal resolver
+        return;
       }
 
       if (splitPayment) {
@@ -519,19 +461,16 @@ export function CheckoutModal({
         return;
       }
 
-      // 2. CARTÃO
       if (paymentMethod === 'card') {
         const isAutoPaymentEnabled = pagamentoAutomatico;
 
         if (isAutoPaymentEnabled) {
           console.log('💳 [CHECKOUT] Cartão Automático - Abrindo opções');
           setShowCardPaymentOptions(true);
-          return; // Pára aqui e espera escolha (Online ou Maquininha)
+          return;
         } else {
-          // Modo Manual: Cartão = Levar Maquininha
           console.log('💳 [CHECKOUT] Cartão Manual - Perguntar antes de enviar WhatsApp');
           
-          // 🆕 PERGUNTAR ANTES DE ENVIAR WHATSAPP
           const shouldSendWhatsApp = await perguntar(
             '✅ Pedido confirmado com sucesso!\n\n' +
             '💳 Pagamento: Cartão na Entrega\n\n' +
@@ -547,11 +486,9 @@ export function CheckoutModal({
         }
       }
 
-      // 3. DINHEIRO
       if (paymentMethod === 'cash') {
         console.log('💵 [CHECKOUT] Dinheiro - Perguntar antes de enviar WhatsApp');
         
-        // 🆕 PERGUNTAR ANTES DE ENVIAR WHATSAPP
         const shouldSendWhatsApp = await perguntar(
           '✅ Pedido confirmado com sucesso!\n\n' +
           '💵 Pagamento: Dinheiro na Entrega\n\n' +
@@ -573,9 +510,7 @@ export function CheckoutModal({
     }
   };
 
-  // Função auxiliar para finalizar fluxo e notificar
   const finishOrderAndNotify = async (orderId: string, paymentDetails: string) => {
-    // Salvar no histórico local
     saveOrderToLocalHistory({
       orderId: orderId,
       customerName: name,
@@ -587,24 +522,17 @@ export function CheckoutModal({
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     });
 
-    // Tentar imprimir
     if (isConnected) {
-        // Lógica de impressão (simplificada aqui, reutiliza a existente se possível)
-        // ... (código de impressão existente seria chamado aqui)
     }
 
-    // ✅ RESETAR isSubmitting ANTES de enviar WhatsApp
     setIsSubmitting(false);
 
-    // Enviar WhatsApp
     sendWhatsAppMessage(orderId);
   };
 
-  // 🆕 Função para finalizar pedido SEM enviar WhatsApp (mas mostra modal de confirmação)
   const finishOrderWithoutWhatsApp = async (orderId: string) => {
     console.log('✅ [CHECKOUT] Finalizando pedido sem WhatsApp:', orderId);
     
-    // Salvar no histórico local
     saveOrderToLocalHistory({
       orderId: orderId,
       customerName: name,
@@ -616,7 +544,6 @@ export function CheckoutModal({
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     });
 
-    // Salvar dados básicos no localStorage para auto-preenchimento futuro
     localStorage.setItem('faroeste_customer_info', JSON.stringify({ 
       name, 
       phone,
@@ -625,7 +552,6 @@ export function CheckoutModal({
       deliverySector: deliveryType === 'delivery' ? deliverySector : undefined
     }));
     
-    // Salvar pedido concluído no localStorage para mostrar modal quando cliente voltar
     const completedOrder = {
       orderId: orderId,
       total: getTotalWithDiscount(),
@@ -635,29 +561,20 @@ export function CheckoutModal({
     localStorage.setItem('faroeste_completed_order', JSON.stringify(completedOrder));
     console.log('💾 [CHECKOUT] Pedido salvo no localStorage para exibir modal:', completedOrder);
 
-    // Incrementar uso do cupom (REMOVIDO: Agora feito no Backend ao criar pedido)
-    // if (appliedCoupon) { ... }
-
-    // ✅ RESETAR isSubmitting
     setIsSubmitting(false);
     
-    // Complete order e fechar modal
     onOrderComplete();
     resetForm();
-    onClose(); // Fecha o modal de checkout e vai exibir o modal de confirmação
+    onClose();
   };
 
-  // Callbacks para o Modal de Cartão
   const handleCardOnlineSuccess = async () => {
     console.log('✅ [CARTÃO] Pagamento Online Confirmado!');
     setShowCardPaymentOptions(false);
     
-    // Mostrar modal de sucesso final (PaymentConfirmed)
-    // Para simplificar, vamos usar o fluxo padrão de envio pro WhatsApp com status PAGO
     finishOrderAndNotify(currentOrderId, 'Cartão (PAGO ONLINE)');
   };
 
-  // Mercado Pago: cartão na página do próprio MP; na volta o App lê ?pedido= e abre o acompanhamento
   const pagarCartaoMercadoPago = async () => {
     const r = await api.mpPagarCartao(currentOrderId);
     if (r.status === 'paid') {
@@ -699,18 +616,15 @@ export function CheckoutModal({
       return;
     }
     
-    // Gerar mensagem do WhatsApp usando template literals normais
-    const nl = '\n'; // quebra de linha
+    const nl = '\n';
     let message = '🍔 *NOVO PEDIDO - ' + (config.siteName || 'NewBurguer Lanches').replace(/\p{Extended_Pictographic}/gu, '').trim().toUpperCase() + '*' + nl + nl;
     message += '📋 *Código do Pedido:* #' + orderId + nl;
     message += '👤 *Nome:* ' + name + nl;
     message += '📱 *Telefone:* ' + phone + nl + nl;
     
-    // Tipo de pedido
     if (deliveryType === 'delivery') {
       message += '🛵 *Tipo:* Entrega' + nl;
       message += '📍 *Endereço:* ' + address + nl;
-      // 🆕 Setor de Entrega
       if (deliverySector && availableSectors.length > 0) {
         const sector = availableSectors.find(s => s.id === deliverySector);
         if (sector) {
@@ -728,7 +642,6 @@ export function CheckoutModal({
       message += '📍 *Endereço:* ' + PICKUP_ADDRESS + nl;
     }
     
-    // Adicionar estimativa de tempo
     const estimate = getEstimateForType(deliveryType);
     if (estimate && typeof estimate === 'object' && 'min' in estimate && 'max' in estimate) {
       message += '⏱️ *Tempo Estimado:* ~' + estimate.min + '-' + estimate.max + ' min' + nl;
@@ -744,7 +657,6 @@ export function CheckoutModal({
       message += '   📦 Quantidade: ' + item.quantity + 'x' + nl;
       message += '   💵 Preço Unit.: R$ ' + item.price.toFixed(2).replace('.', ',') + nl;
       
-      // Adicionais selecionados
       if (item.selectedAddons && item.selectedAddons.length > 0) {
         message += '   🛒 *Adicionais:*' + nl;
         item.selectedAddons.forEach((addon: any) => {
@@ -765,7 +677,6 @@ export function CheckoutModal({
     
     message += nl + '━━━━━━━━━━━━━━━━━━' + nl;
 
-    // Acompanhamentos selecionados
     if (selectedAcompanhamentos.length > 0 && deliveryType !== 'dine-in') {
       message += nl + '🍟 *ACOMPANHAMENTOS:*' + nl;
       selectedAcompanhamentos.forEach(aId => {
@@ -777,10 +688,8 @@ export function CheckoutModal({
       message += nl;
     }
     
-    // Detalhamento de valores
     message += '💵 *Subtotal:* R$ ' + totalPrice.toFixed(2).replace('.', ',') + nl;
     
-    // Cupom de desconto (aplicado apenas no subtotal, não na entrega)
     if (appliedCoupon && couponDiscount > 0) {
       message += '🎫 *Cupom (' + appliedCoupon.code + '):* - R$ ' + couponDiscount.toFixed(2).replace('.', ',') + nl;
     }
@@ -791,7 +700,6 @@ export function CheckoutModal({
     
     message += '💰 *TOTAL:* R$ ' + getTotalWithDiscount().toFixed(2).replace('.', ',') + nl;
     
-    // Forma de pagamento atualizada
     let paymentText = '';
     if (splitPayment) {
       const amt1 = parseFloat(splitAmount1) || 0;
@@ -812,14 +720,12 @@ export function CheckoutModal({
     message += '_📱 Guarde o código do pedido para acompanhamento:_' + nl;
     message += '*#' + orderId + '*';
 
-    // Encode message for WhatsApp URL
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
 
     console.log('📱 [WHATSAPP] Abrindo WhatsApp com URL:', whatsappUrl);
     console.log('📱 [WHATSAPP] Mensagem completa:', message);
 
-    // Open WhatsApp
     try {
       window.open(whatsappUrl, '_blank');
       console.log('✅ [WHATSAPP] WhatsApp aberto com sucesso!');
@@ -828,7 +734,6 @@ export function CheckoutModal({
       avisar('Erro ao abrir WhatsApp. Por favor, tente novamente.');
     }
 
-    // Salvar dados básicos no localStorage para auto-preenchimento futuro (backup)
     localStorage.setItem('faroeste_customer_info', JSON.stringify({ 
       name, 
       phone,
@@ -840,31 +745,24 @@ export function CheckoutModal({
       deliverySector: deliveryType === 'delivery' ? deliverySector : undefined
     }));
     
-    // Salvar pedido concluído no localStorage para mostrar modal quando cliente voltar
     const completedOrder = {
       orderId: orderId,
-      total: getTotalWithDiscount(), // Usar total com desconto
+      total: getTotalWithDiscount(),
       phone: phone,
       timestamp: Date.now()
     };
     localStorage.setItem('faroeste_completed_order', JSON.stringify(completedOrder));
     console.log('💾 [CHECKOUT] Pedido salvo no localStorage para exibir modal ao voltar:', completedOrder);
 
-    // Incrementar uso do cupom (REMOVIDO: Agora feito no Backend ao criar pedido)
-    // if (appliedCoupon) { ... }
-
-    // Complete order e fechar modal
     onOrderComplete();
     resetForm();
-    onClose(); // Fechar o modal de checkout sem mostrar o success modal ainda
+    onClose();
   };
 
   const handlePixPaymentComplete = () => {
     console.log('💳 [PIX] Pagamento PIX concluído - enviando para WhatsApp');
     console.log('💳 [PIX] Order ID atual:', currentOrderId);
     
-    // Após o cliente pagar via PIX e enviar o comprovante,
-    // enviar a mensagem de confirmação do pedido
     if (!currentOrderId) {
       console.error('❌ [PIX] Erro: currentOrderId está vazio!');
       avisar('Erro: ID do pedido não encontrado. Por favor, entre em contato conosco.');
@@ -888,14 +786,11 @@ export function CheckoutModal({
     setDeliveryType('delivery');
     setPaymentMethod('pix');
     setShowPixPayment(false);
-    // Limpar cupom
     setCouponCode('');
     setAppliedCoupon(null);
     setCouponDiscount(0);
     setCouponError('');
-    // Limpar acompanhamentos
     setSelectedAcompanhamentos([]);
-    // Limpar pagamento misto
     setSplitPayment(false);
     setSplitMethod1('pix');
     setSplitMethod2('cash');
@@ -909,13 +804,11 @@ export function CheckoutModal({
 
   return (
     <>
-      {/* PIX Payment Modal (Manual) */}
       {showPixPayment && (
         <PixPayment
           amount={valorPix()}
           onClose={() => {
             setShowPixPayment(false);
-            // Após fechar, limpar e fechar o checkout
             onOrderComplete();
             resetForm();
             onClose();
@@ -924,12 +817,11 @@ export function CheckoutModal({
         />
       )}
 
-      {/* PIX Payment Modal (PagSeguro Automático) */}
       {showPixPaymentPagSeguro && (
         <PixPaymentPagSeguro
           amount={valorPix()}
           customerName={name}
-          customerEmail={`${phone.replace(/\D/g, '')}@temp.com`} // Email temporário
+          customerEmail={`${phone.replace(/\D/g, '')}@temp.com`}
           customerPhone={phone}
           items={items.map(item => ({
              name: item.name,
@@ -938,22 +830,18 @@ export function CheckoutModal({
           }))}
           deliveryType={deliveryType}
           address={address}
-          orderId={currentOrderId} // Passando o ID do pedido criado
+          orderId={currentOrderId}
           onPaymentConfirmed={(orderId) => {
             console.log('✅ [PAGSEGURO] Pagamento confirmado!', orderId);
             setShowPixPaymentPagSeguro(false);
-            // Enviar para WhatsApp agora que pagou (com status PAGO)
             finishOrderAndNotify(currentOrderId, 'PIX (PAGO AUTOMÁTICO)');
           }}
           onClose={() => {
             setShowPixPaymentPagSeguro(false);
-            // Se fechar sem pagar, manter pedido pendente mas notificar admin de abandono?
-            // Por enquanto, permite fechar e o pedido fica pendente.
           }}
         />
       )}
 
-      {/* Opções de Pagamento com Cartão (Automático) */}
       {showCardPaymentOptions && (
         <CardPaymentOptions
           amount={getTotalWithDiscount()}
@@ -973,18 +861,15 @@ export function CheckoutModal({
         />
       )}
 
-      {/* Overlay */}
       <div
         className={prime ? 'pr-veu' : 'fixed inset-0 bg-black bg-opacity-50 z-40'}
         onClick={handleClose}
       />
 
-      {/* Modal */}
       <div className={prime ? 'ck-palco' : 'fixed inset-0 z-50 flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto'}>
         <div className={prime ? 'pr-folha ck' : 'bg-white dark:bg-zinc-900 rounded-none sm:rounded-lg shadow-2xl w-full sm:max-w-2xl min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto'}
           {...(prime ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Finalizar pedido' } : {})}>
           {prime && <span className="pegador" aria-hidden />}
-          {/* Header */}
           <div className={prime ? 'ck-cab' : 'bg-amber-600 text-white p-4 flex items-center justify-between sticky top-0'}>
             <div className="flex items-center gap-2">
               {step > 1 && (
@@ -1008,9 +893,7 @@ export function CheckoutModal({
             </button>
           </div>
 
-          {/* Content */}
           <div ref={miolo} className={prime ? 'ck-miolo rola' : 'px-4 py-5 sm:p-6'}>
-            {/* Progress Steps */}
             {prime ? (
               <ol className="ck-passos">
                 {['Seus dados', 'Entrega', 'Pagamento'].map((t, i) => (
@@ -1037,7 +920,6 @@ export function CheckoutModal({
             </div>
             )}
 
-            {/* Step 1: Customer Info */}
             {step === 1 && (
               <div className="space-y-4">
                 <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 rounded-lg text-center mb-6 flex justify-between items-center border border-zinc-200 dark:border-zinc-700 shadow-sm">
@@ -1138,7 +1020,6 @@ export function CheckoutModal({
               </div>
             )}
 
-            {/* Step 2: Delivery Type */}
             {step === 2 && (
               <div className="space-y-4">
                 <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 rounded-lg text-center mb-6 border border-zinc-200 dark:border-zinc-700 shadow-sm">
@@ -1190,7 +1071,6 @@ export function CheckoutModal({
                     </div>
                   </button>
 
-                  {/* 🆕 Botão "Consumir no Local" */}
                   {(config.features?.dineIn !== false) && (
                     <button
                       onClick={() => setDeliveryType('dine-in')}
@@ -1213,7 +1093,6 @@ export function CheckoutModal({
 
                 {deliveryType === 'delivery' ? (
                   <div className="mt-8 space-y-6">
-                    {/* Saved Addresses Selection */}
                     {customer && customer.addresses.length > 0 && (
                       <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-inner">
                         <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -1318,7 +1197,6 @@ export function CheckoutModal({
                       />
                     </div>
 
-                    {/* Setor de Entrega */}
                     {availableSectors.length > 0 && (
                       <div>
                         <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2 block ml-1">Setor de Entrega *</label>
@@ -1347,7 +1225,6 @@ export function CheckoutModal({
                   </div>
                 )}
 
-                {/* Seleção de Molhos / Acompanhamentos */}
                 {showAcompanhamentos && (
                   <div className="mt-8 bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-200 dark:border-indigo-800/30">
                     <div className="flex items-center gap-3 mb-4">
@@ -1417,7 +1294,6 @@ export function CheckoutModal({
               </div>
             )}
 
-            {/* Step 3: Payment & Confirmation */}
             {step === 3 && (
               <div className="space-y-6">
                 <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 rounded-lg text-center mb-6 border border-zinc-200 dark:border-zinc-700 shadow-sm">
@@ -1461,7 +1337,6 @@ export function CheckoutModal({
                     </div>
                   </button>
 
-                {/* Opções de Cartão (Crédito/Débito) */}
                 {paymentMethod === 'card' && (
                   <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
                     <button
@@ -1505,7 +1380,6 @@ export function CheckoutModal({
                   </button>
                 </div>
 
-                {/* Toggle Pagamento Misto */}
                 <div className="mt-4">
                   <button
                     onClick={() => {
@@ -1527,14 +1401,12 @@ export function CheckoutModal({
                   </button>
                 </div>
 
-                {/* Pagamento Misto UI */}
                 {splitPayment && (
                   <div className="mt-4 bg-purple-50/50 dark:bg-purple-900/10 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/30 space-y-4">
                     <p className="text-sm font-bold text-purple-800 dark:text-purple-400 flex items-center gap-2">
                       <CreditCard className="w-4 h-4" /> Dividir pagamento em duas formas
                     </p>
                     
-                    {/* Forma 1 */}
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">1ª Forma de Pagamento</label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1565,7 +1437,6 @@ export function CheckoutModal({
                       />
                     </div>
 
-                    {/* Forma 2 */}
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">2ª Forma de Pagamento</label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1588,7 +1459,6 @@ export function CheckoutModal({
                       </div>
                     </div>
 
-                    {/* Aviso se valores não batem */}
                     {splitAmount1 && parseFloat(splitAmount1) > 0 && parseFloat(splitAmount1) < getTotalWithDiscount() && (
                       <div className="text-xs text-center text-purple-600 dark:text-purple-400 font-medium">
                         ✓ Total: R$ {(parseFloat(splitAmount1) || 0).toFixed(2).replace('.', ',')} + R$ {(getTotalWithDiscount() - (parseFloat(splitAmount1) || 0)).toFixed(2).replace('.', ',')} = R$ {getTotalWithDiscount().toFixed(2).replace('.', ',')}
@@ -1602,7 +1472,6 @@ export function CheckoutModal({
                   </div>
                 )}
 
-                {/* Campo de Troco */}
                 {!splitPayment && paymentMethod === 'cash' && (
                   <div className="mt-6 bg-emerald-50/30 dark:bg-emerald-900/10 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/30">
                     <label className="text-sm font-bold text-emerald-800 dark:text-emerald-400 mb-3 block flex items-center gap-2">
@@ -1633,7 +1502,6 @@ export function CheckoutModal({
                   </div>
                 )}
 
-                {/* Cupom de Desconto */}
                 {(config.features?.coupons !== false) && (
                   <div className="mt-6">
                     {!appliedCoupon ? (
@@ -1693,7 +1561,6 @@ export function CheckoutModal({
                   </div>
                 )}
 
-                {/* Resumo do Pedido */}
                 <div className="mt-8 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-inner">
                   <div className="bg-zinc-200/50 dark:bg-zinc-800 p-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                     <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest flex items-center gap-2">
@@ -1702,7 +1569,6 @@ export function CheckoutModal({
                   </div>
                   
                   <div className="p-3 sm:p-5 space-y-6">
-                    {/* Dados do Cliente */}
                     <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800/50 shadow-sm">
                       <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <User className="w-3 h-3" /> Dados do Cliente
@@ -1739,7 +1605,6 @@ export function CheckoutModal({
                       </div>
                     </div>
 
-                    {/* Itens */}
                     <div className="space-y-3">
                       <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Itens Selecionados</p>
                       {items.map((item, idx) => {
@@ -1771,7 +1636,6 @@ export function CheckoutModal({
                       })}
                     </div>
 
-                    {/* Acompanhamentos selecionados */}
                     {selectedAcompanhamentos.length > 0 && deliveryType !== 'dine-in' && (
                       <div className="space-y-2">
                         <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -1789,7 +1653,6 @@ export function CheckoutModal({
                       </div>
                     )}
                     
-                    {/* Totais */}
                     <div className="space-y-2 pt-4 border-t border-zinc-200 dark:border-zinc-700">
                       <div className="flex justify-between text-sm">
                         <span className="text-zinc-500">Subtotal</span>
@@ -1863,7 +1726,6 @@ export function CheckoutModal({
   );
 }
 
-// Função para salvar o pedido no histórico local do dispositivo
 function saveOrderToLocalHistory(order: {
   orderId: string;
   customerName: string;
@@ -1878,15 +1740,12 @@ function saveOrderToLocalHistory(order: {
     const historyKey = 'faroeste_my_orders';
     const currentHistory = JSON.parse(localStorage.getItem(historyKey) || '[]') as typeof order[];
     
-    // Adicionar novo pedido ao histórico
     currentHistory.push(order);
     
-    // Limitar histórico a 50 entradas mais recentes
     if (currentHistory.length > 50) {
       currentHistory.shift();
     }
     
-    // Salvar histórico atualizado no localStorage
     localStorage.setItem(historyKey, JSON.stringify(currentHistory));
     console.log('💾 [HISTÓRICO] Pedido salvo no histórico local:', order.orderId);
   } catch (error) {

@@ -37,7 +37,6 @@ interface TestRunnerProps {
   historyEndpoint?: string;
 }
 
-// Definicao das 11 categorias com metadados visuais
 const CATEGORIES = [
   { id: 'Core',        label: 'Core',                 icon: Database,      color: 'blue',    prefix: 'Core:',        expectedCount: 14 },
   { id: 'Geo',         label: 'Precision Engine v4.1',  icon: Globe,         color: 'emerald', prefix: 'Geo:',         expectedCount: 15 },
@@ -67,7 +66,6 @@ function getCategoryMeta(catId: CategoryId) {
   };
 }
 
-// Cores por categoria
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; badge: string; badgeFail: string; ring: string }> = {
   blue:    { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    badge: 'bg-blue-100 text-blue-700',       badgeFail: 'bg-red-100 text-red-700',   ring: 'ring-blue-500' },
   emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700', badgeFail: 'bg-red-100 text-red-700',   ring: 'ring-emerald-500' },
@@ -101,7 +99,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
   const [showCelebration, setShowCelebration] = useState(false);
   const [previousRun, setPreviousRun] = useState<TestRun | null>(null);
 
-  // Carregar historico
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
@@ -110,7 +107,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
       const response = await doFetch(url);
       const data = await response.json();
       if (data.success && data.runs) {
-        // histórico gravado em outro formato (sem resumo) derrubava a tela inteira do Master
         data.runs = data.runs.filter((r: any) => r?.summary && Array.isArray(r.results));
         setHistory(data.runs);
         if (data.runs.length > 0) {
@@ -156,13 +152,11 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         setRunVersion(data.version || '');
         setProgress(100);
 
-        // Celebracao se todos passaram
         if (data.summary?.failed === 0) {
           setShowCelebration(true);
           setTimeout(() => setShowCelebration(false), 4000);
         }
 
-        // Recarregar historico
         setTimeout(loadHistory, 500);
       } else {
         setError(data.error || 'Erro desconhecido ao executar testes');
@@ -194,7 +188,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
 
   const expandAll = () => setCollapsed(new Set());
 
-  // Copiar resultados para clipboard
   const copyResults = async () => {
     if (!results || !summary) return;
     const lines = [
@@ -211,7 +204,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
       const ta = document.createElement('textarea');
       ta.value = lines.join('\n');
       document.body.appendChild(ta);
@@ -223,7 +215,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     }
   };
 
-  // Exportar JSON
   const exportJSON = () => {
     if (!results || !summary) return;
     const blob = new Blob([JSON.stringify({ summary, results, version: runVersion, timestamp: new Date().toISOString() }, null, 2)], { type: 'application/json' });
@@ -235,7 +226,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     URL.revokeObjectURL(url);
   };
 
-  // Agrupar resultados por categoria
   const grouped = useMemo(() => {
     if (!results) return [];
     const groups: { catId: CategoryId; tests: TestResult[] }[] = [];
@@ -252,7 +242,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     return groups;
   }, [results]);
 
-  // Filtrar resultados
   const filteredGroups = useMemo(() => {
     if (filter === 'all') return grouped;
     return grouped.map(g => ({
@@ -261,7 +250,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     })).filter(g => g.tests.length > 0);
   }, [grouped, filter]);
 
-  // Detectar regressoes comparando com run anterior
   const regressions = useMemo(() => {
     if (!results || !previousRun?.results) return new Set<string>();
     const prevMap = new Map(previousRun.results.map(r => [r.name, r.passed]));
@@ -274,7 +262,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     return regSet;
   }, [results, previousRun]);
 
-  // Detectar testes novos (nao existiam no run anterior)
   const newTests = useMemo(() => {
     if (!results || !previousRun?.results) return new Set<string>();
     const prevNames = new Set(previousRun.results.map(r => r.name));
@@ -285,7 +272,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     return newSet;
   }, [results, previousRun]);
 
-  // Limpar prefixo da categoria do nome
   const cleanTestName = (name: string) => {
     for (const cat of CATEGORIES) {
       if (name.startsWith(cat.prefix)) return name.slice(cat.prefix.length).trim();
@@ -293,7 +279,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
     return name;
   };
 
-  // Trend badge por run
   const getTrendBadge = (run: TestRun, prevRun?: TestRun) => {
     if (!prevRun) return null;
     const diff = run.summary.passed - prevRun.summary.passed;
@@ -307,7 +292,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
-      {/* Celebration Overlay */}
       {showCelebration && (
         <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
           <div className="animate-bounce">
@@ -320,7 +304,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -338,7 +321,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </p>
       </div>
 
-      {/* Actions Row */}
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <button
           onClick={runTests}
@@ -358,7 +340,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
           )}
         </button>
 
-        {/* Filter Buttons */}
         {results && (
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <button
@@ -385,7 +366,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
           </div>
         )}
 
-        {/* Action Buttons */}
         {results && (
           <div className="flex items-center gap-1 ml-auto">
             <button
@@ -427,7 +407,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         )}
       </div>
 
-      {/* Progress Bar */}
       {running && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-1.5">
@@ -448,7 +427,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
           <p className="font-semibold flex items-center gap-2">
@@ -466,7 +444,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* History Panel */}
       {showHistory && (
         <div className="mb-6 bg-gray-50 border border-gray-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
@@ -521,7 +498,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Summary Cards */}
       {summary && (
         <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-center">
@@ -547,7 +523,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Regression Warning */}
       {regressions.size > 0 && (
         <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
           <p className="font-semibold text-sm text-orange-700 flex items-center gap-2 mb-2">
@@ -568,7 +543,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* New Tests Info */}
       {newTests.size > 0 && (
         <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
           <p className="font-semibold text-sm text-indigo-700 flex items-center gap-2">
@@ -578,7 +552,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Category Summary Badges */}
       {summary && grouped.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           {grouped.map(g => {
@@ -607,7 +580,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Results by Category */}
       {results && filteredGroups.length > 0 && (
         <div className="space-y-4">
           {filteredGroups.map(g => {
@@ -624,7 +596,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
 
             return (
               <div key={g.catId} id={`cat-${g.catId}`} className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
-                {/* Category Header */}
                 <button
                   onClick={() => toggleCategory(g.catId)}
                   className={`w-full flex items-center gap-3 px-4 py-3 ${colors.bg} ${colors.border} border-b transition-all cursor-pointer hover:brightness-95`}
@@ -661,7 +632,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
                   </div>
                 </button>
 
-                {/* Tests List */}
                 {!isCollapsed && (
                   <div className="divide-y divide-gray-100">
                     {g.tests.map((result, index) => {
@@ -710,7 +680,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
                             )}
                           </div>
 
-                          {/* Timing bar */}
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden hidden md:block">
                               <div
@@ -737,7 +706,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
         </div>
       )}
 
-      {/* Empty State */}
       {!results && !running && !error && (
         <div className="text-center py-16 text-gray-400">
           <div className="relative mx-auto w-20 h-20 mb-5">
@@ -758,7 +726,6 @@ export function TestRunner({ fetchFn, endpoint, historyEndpoint }: TestRunnerPro
               );
             })}
           </div>
-          {/* Show last run if available */}
           {previousRun && (
             <div className="mt-8 inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-xs text-gray-500">
               <History className="w-3.5 h-3.5" />

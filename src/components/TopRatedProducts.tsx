@@ -93,7 +93,6 @@ export function TopRatedProducts({ products, onAddToCart }: TopRatedProductsProp
         <HorizontalScroll>
           {topRated.map((product, index) => (
             <div key={product.id} className="flex-shrink-0 w-[280px] sm:w-[320px] relative">
-              {/* Badge de Ranking */}
               <div className="absolute -top-2 -left-1 z-10 w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-lg border-2 border-white dark:border-zinc-800"
                    style={{ backgroundColor: index === 0 ? '#fbbf24' : index === 1 ? '#94a3b8' : '#b45309' }}>
                 #{index + 1}

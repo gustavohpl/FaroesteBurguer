@@ -22,15 +22,11 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
   const { t } = useI18n();
   const themeColor = config.themeColor || '#d97706';
 
-  // Estado para zoom da imagem (hover desktop + touch mobile)
   const [imgZoomed, setImgZoomed] = useState(false);
 
-  // Derivar cor da categoria direto do ConfigContext (sem API call)
-  // O config.categories já vem do endpoint /config/public com todas as cores
   const categoryColor = useMemo(() => {
     if (!config.useCategoryColorInModals) return undefined;
     
-    // 1) Tentar config.categories do ConfigContext
     const cats = config.categories as Array<{ id: string; label?: string; color?: string }> | undefined;
     if (cats && cats.length > 0) {
       const cat = cats.find((c) => c.id === product.category);
@@ -39,7 +35,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
       }
     }
     
-    // 2) Fallback: localStorage faroeste_categories (salvo pelo api.getCategories)
     try {
       const local = localStorage.getItem('faroeste_categories');
       if (local) {
@@ -54,11 +49,9 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
     return undefined;
   }, [config.useCategoryColorInModals, config.categories, product.category]);
 
-  // Cor efetiva: cor da categoria (resolvida para hex) se habilitada, senão themeColor
   const resolvedCatColor = resolveColorToHex(categoryColor);
   const effectiveColor = (config.useCategoryColorInModals && resolvedCatColor) ? resolvedCatColor : themeColor;
 
-  // Detectar dark mode reativamente
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -73,7 +66,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
   const hasPromo = promoData && promoData.length > 0 && originalTotal && originalTotal > product.price;
   const discountPct = hasPromo ? Math.round(((originalTotal - product.price) / originalTotal) * 100) : 0;
 
-  // Montar lista de ingredientes visíveis para o cliente
   const visibleIngredients = getVisibleIngredients(product);
 
   const handleAddClick = () => {
@@ -86,7 +78,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
     onAddToCart(product, notes, quantity, selectedAddons);
     setShowModal(false);
     
-    // Feedback visual com toast
     const qtyLabel = quantity > 1 ? `${quantity}x ` : '';
     const message = notes 
       ? `${qtyLabel}${product.name} ${t('products.addToCart')}! 🛒`
@@ -98,7 +89,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
     });
   };
 
-  // Obter URL da imagem - suportar tanto 'image' quanto 'imageUrl'
   const getImageUrl = () => {
     if (product.imageUrl) return product.imageUrl;
     if (product.image) return product.image;
@@ -114,7 +104,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
         }`}
       >
         <div className="flex">
-          {/* Imagem - Thumbnail à esquerda */}
           <div
             className="relative w-28 min-w-[7rem] sm:w-32 sm:min-w-[8rem] h-28 sm:h-32 flex-shrink-0 overflow-hidden"
             onMouseEnter={() => setImgZoomed(true)}
@@ -141,15 +130,12 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
             )}
           </div>
 
-          {/* Conteúdo - Nome, descrição, preço à direita */}
           <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between min-w-0">
-            {/* Nome */}
             <div>
               <h3 className="text-sm sm:text-base font-bold text-foreground uppercase leading-tight line-clamp-2">
                 {product.name}
               </h3>
 
-              {/* Produtos inclusos na promoção */}
               {hasPromo && promoData && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {promoData.map((item, idx) => (
@@ -163,14 +149,12 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
                 </div>
               )}
 
-              {/* Descrição — só mostra se NÃO houver ingredientes visíveis */}
               {product.description && visibleIngredients.length === 0 && !hasPromo && (
                 <p className="text-gray-400 text-xs sm:text-sm mt-1 line-clamp-2 leading-snug">
                   {product.description}
                 </p>
               )}
 
-              {/* Ingredientes visíveis para o cliente */}
               {visibleIngredients.length > 0 && (
                 <p className="text-gray-400 text-xs sm:text-sm mt-1 line-clamp-2 leading-snug uppercase">
                   {visibleIngredients.join(', ')}
@@ -178,7 +162,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
               )}
             </div>
 
-            {/* Preço + Botão */}
             <div className="flex items-center justify-between mt-2.5 gap-2">
               <div className="flex items-baseline gap-1.5 flex-wrap">
                 {hasPromo && originalTotal && (
@@ -209,7 +192,6 @@ export function ProductCard({ product, onAddToCart, noBorder }: ProductCardProps
         </div>
       </div>
 
-      {/* Modal de Observações */}
       {showModal && (
         <AddToCartModal
           product={product}

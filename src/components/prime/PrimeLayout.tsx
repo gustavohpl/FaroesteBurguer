@@ -47,7 +47,7 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
   const [aberto, setAberto] = useState<Product | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [celular, setCelular] = useState(() => window.innerWidth < 768);
-  const [abertura, setAbertura] = useState<boolean | null>(null);   // null = ainda vendo se há quadros
+  const [abertura, setAbertura] = useState<boolean | null>(null);
   const reduzido = semMovimento();
 
   const cor = config.themeColor || '#04af06';
@@ -60,7 +60,7 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
   const taxa = unitOverrides.deliveryFee ?? config.deliveryFee;
   const whats = (config.whatsappNumber || telefone || '').replace(/\D/g, '');
   const fundoSite = cfg.primeFundo || config.backgroundColor || '#161617';
-  const verdeEscuro = misturarHex(cor, fundoSite, 0.5); // papel de parede: verde do site escurecido
+  const verdeEscuro = misturarHex(cor, fundoSite, 0.5);
   const redes = Object.entries((cfg.socialMedia || {}) as Record<string, string>).filter(([, url]) => url && url.trim())
     .map(([rede, url]) => ({ rede, url, cor: cfg.socialMediaColors?.[rede] || SocialBrandColors[rede] || cor }));
   const capaPropria = celular ? cfg.primeHeroMobileUrl || cfg.primeHeroUrl : cfg.primeHeroUrl;
@@ -112,12 +112,10 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
   }, []);
 
   useEffect(() => {
-    // toque já rola nativo (smoothWheel só age na roda); sem Lenis o ticker não força quadro na thread principal todo vsync
     if (reduzido || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
     const l = new Lenis({
       lerp: 0.1,
       smoothWheel: true,
-      // modais rolam por conta própria
       prevent: (no: HTMLElement) => !!no.closest?.('[data-lenis-prevent], [role="dialog"], .overflow-y-auto, .overflow-auto'),
     } as any);
     lenis.current = l;
@@ -163,7 +161,6 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
     return () => { window.removeEventListener('pointermove', mover); ctx.revert(); };
   }, [reduzido, secoes.length, abertura]);
 
-  // refeito quando surgem itens novos (busca, abertura carregada)
   useEffect(() => {
     if (reduzido || !raiz.current) return;
     const ctx = gsap.context(() => {
@@ -298,7 +295,6 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
         </div>
       </div>
 
-      {/* sem quadros ou com capa própria no Master, vale a capa em camadas */}
       {!capaPropria && abertura !== false && (
         <div ref={abertura ? capa : undefined}>
           <PrimeAbertura nome={titulo} logo={leve(config.logoUrl, 828) || logoPadrao} logoOriginal={config.logoUrl} aberta={isStoreOpen} horario={horario} cor={cor} redes={redes} fundo="#000000" parede={verdeEscuro} aoPronta={setAbertura} onCardapio={() => secoes[0] && irPara(secoes[0].id)} />
@@ -326,7 +322,6 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
         </div>
       </header>
       )}
-
 
       <section className="pr-loja">
         <div className="pr-loja-card">
@@ -482,7 +477,6 @@ export function PrimeLayout({ products, onAddToCart, cartCount, onOpenCart, isSt
   );
 }
 
-/** Imagem com brilho de carregamento (skeleton) e entrada suave. */
 function ImagemComBrilho({ src, ilustra, w }: { src: string; ilustra?: boolean; w: 480 | 828 }) {
   const [ok, setOk] = useState(false);
   return (
@@ -495,7 +489,6 @@ function ImagemComBrilho({ src, ilustra, w }: { src: string; ilustra?: boolean; 
   );
 }
 
-/** Vapor subindo do lanche da capa (canvas leve, pausa fora da tela). */
 function Vapor() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {

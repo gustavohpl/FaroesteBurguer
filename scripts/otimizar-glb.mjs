@@ -1,6 +1,3 @@
-// Deixa um .glb leve para o site (celular): simplifica a malha, texturas em WebP e geometria compactada (meshopt).
-//   node scripts/otimizar-glb.mjs entrada.glb saida.glb [fracao_triangulos=0.15]
-// O site abre meshopt sem baixar nada de fora (o decodificador vem junto do drei/three).
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, weld, simplify, textureCompress, prune, meshopt } from '@gltf-transform/functions';
@@ -26,7 +23,6 @@ await doc.transform(
   dedup(),
   weld(),
   simplify({ simplifier: MeshoptSimplifier, ratio: Number(fracao), error: 0.0008 }),
-  // faixas laterais são compridas (8:1): 2048 px; o resto (topos, fundos, folhas) 1024 px
   textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [2048, 2048], quality: 82, pattern: /lateral/ }),
   textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [1024, 1024], quality: 82 }),
   prune(),

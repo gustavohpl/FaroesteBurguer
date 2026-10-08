@@ -3,7 +3,6 @@ import { MoreHorizontal } from 'lucide-react';
 
 type Item = { id: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
-// celular: abas embaixo como app (igual ao Engaja Aí); o que não cabe vai para "Mais"
 export function BarraCelular({ itens, ativo, aoEscolher, cor, extras }: {
   itens: Item[];
   ativo: string;

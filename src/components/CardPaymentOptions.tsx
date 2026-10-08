@@ -12,7 +12,7 @@ interface CardPaymentOptionsProps {
   onClose: () => void;
   onConfirmOnline: () => void;
   onConfirmMachine: () => void;
-  onPagarOnline?: () => Promise<void>; // Mercado Pago: abre a página de pagamento dele (sem formulário de cartão aqui)
+  onPagarOnline?: () => Promise<void>;
 }
 
 export function CardPaymentOptions({ 
@@ -31,17 +31,14 @@ export function CardPaymentOptions({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Card Form State
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   
-  // Basic validation helpers
   const validateLuhn = (num: string) => {
     let sum = 0;
     let isEven = false;
-    // Loop through values starting from the rightmost
     for (let i = num.length - 1; i >= 0; i--) {
       let digit = parseInt(num.charAt(i));
       if (isEven) {
@@ -58,7 +55,6 @@ export function CardPaymentOptions({
     e.preventDefault();
     setError(null);
     
-    // Validate inputs
     const cleanNumber = cardNumber.replace(/\D/g, '');
     const cleanCvv = cvv.replace(/\D/g, '');
     
@@ -80,7 +76,6 @@ export function CardPaymentOptions({
     setIsProcessing(true);
     
     try {
-      // Create payment payload
       const paymentData = {
         amount,
         customerName,
@@ -142,7 +137,7 @@ export function CardPaymentOptions({
     if (/^4/.test(n)) return 'Visa';
     if (/^5[1-5]/.test(n)) return 'Mastercard';
     if (/^3[47]/.test(n)) return 'Amex';
-    if (/^6/.test(n)) return 'Elo'; // Simplified Elo check
+    if (/^6/.test(n)) return 'Elo';
     return 'Cartão';
   };
 
@@ -150,7 +145,6 @@ export function CardPaymentOptions({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
         
-        {/* Header */}
         <div className="bg-gray-900 dark:bg-zinc-950 text-white p-4 flex justify-between items-center">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
@@ -161,7 +155,6 @@ export function CardPaymentOptions({
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6">
           {view === 'selection' ? (
             <div className="space-y-4">

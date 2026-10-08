@@ -13,9 +13,9 @@ import { useFranchise } from '../../FranchiseContext';
 export interface Coupon {
   id: string;
   code: string;
-  type: 'percentage' | 'fixed'; // porcentagem ou valor fixo
-  value: number; // valor do desconto (10 para 10% ou 10 para R$10)
-  maxUses: number; // -1 para ilimitado
+  type: 'percentage' | 'fixed';
+  value: number;
+  maxUses: number;
   currentUses: number;
   isActive: boolean;
   createdAt: string;
@@ -47,7 +47,6 @@ export function CouponsManager() {
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Form fields
   const [code, setCode] = useState('');
   const [type, setType] = useState<'percentage' | 'fixed'>('percentage');
   const [value, setValue] = useState('');
@@ -55,7 +54,6 @@ export function CouponsManager() {
   const [isUnlimited, setIsUnlimited] = useState(true);
   const [expiresAt, setExpiresAt] = useState('');
   const [hasExpiration, setHasExpiration] = useState(false);
-  // franquia: o cupom pode valer também em outras unidades da cidade (o limite de usos é somado entre elas)
   const { franchiseEnabled, selectedCity, selectedUnit } = useFranchise();
   const outrasUnidades = franchiseEnabled ? (selectedCity?.units || []).filter((u) => u.id !== selectedUnit?.id) : [];
   const nomeDaUnidade = (id: string) => selectedCity?.units.find((u) => u.id === id)?.name || id;
@@ -109,7 +107,6 @@ export function CouponsManager() {
     
     if (coupon.expiresAt) {
       setHasExpiration(true);
-      // Format YYYY-MM-DD
       const date = new Date(coupon.expiresAt);
       setExpiresAt(date.toISOString().split('T')[0]);
     } else {
@@ -271,7 +268,6 @@ export function CouponsManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Cupons de Desconto (Gerenciador)</h2>
@@ -305,7 +301,6 @@ export function CouponsManager() {
         </div>
       </div>
 
-      {/* Form */}
       {showForm && (
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -323,7 +318,6 @@ export function CouponsManager() {
               </Button>
             </div>
 
-            {/* Código do cupom */}
             <div>
               <Label htmlFor="code">Código do Cupom*</Label>
               <Input
@@ -336,7 +330,6 @@ export function CouponsManager() {
               />
             </div>
 
-            {/* Tipo de desconto */}
             <div>
               <Label>Tipo de Desconto*</Label>
               <div className="grid grid-cols-2 gap-3 mt-2">
@@ -374,7 +367,6 @@ export function CouponsManager() {
               </div>
             </div>
 
-            {/* Valor do desconto */}
             <div>
               <Label htmlFor="value">
                 Valor do Desconto* {type === 'percentage' ? '(%)' : '(R$)'}
@@ -392,7 +384,6 @@ export function CouponsManager() {
               />
             </div>
 
-            {/* Quantidade de usos */}
             <div>
               <Label>Quantidade de Usos*</Label>
               <div className="space-y-3 mt-2">
@@ -422,7 +413,6 @@ export function CouponsManager() {
               </div>
             </div>
 
-            {/* Validade */}
             <div>
               <Label>Validade do Cupom</Label>
               <div className="space-y-3 mt-2">
@@ -465,7 +455,6 @@ export function CouponsManager() {
               </div>
             )}
 
-            {/* Botões */}
             <div className="flex gap-3 pt-4">
               <Button
                 type="submit"
@@ -485,7 +474,6 @@ export function CouponsManager() {
         </Card>
       )}
 
-      {/* Lista de cupons */}
       {coupons.length === 0 ? (
         <Card className="p-12 text-center">
           <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />

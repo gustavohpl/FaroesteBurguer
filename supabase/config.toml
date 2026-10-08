@@ -1,4 +1,3 @@
-# o webhook do Mercado Pago chega sem o JWT do Supabase: a função faz o próprio controle de acesso em cada rota
 project_id = "faroeste-burguer"
 
 [functions.make-server-dfe23da2]

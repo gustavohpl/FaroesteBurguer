@@ -51,7 +51,7 @@ export function TopRatedManager({ products, onProductUpdate }: TopRatedManagerPr
             count: data.count,
             productId: products.find(p => p.name === name)?.id
           }))
-          .filter(s => !!s.productId) // Só mostra produtos que ainda existem
+          .filter(s => !!s.productId)
           .sort((a, b) => b.rating - a.rating || b.count - a.count);
 
         setStats(computedStats);
@@ -68,7 +68,6 @@ export function TopRatedManager({ products, onProductUpdate }: TopRatedManagerPr
     try {
       const newStatus = !product.featuredRating;
       
-      // Se estiver ativando, verifique quantos já estão ativos
       if (newStatus) {
         const currentActive = products.filter(p => p.featuredRating).length;
         if (currentActive >= 3) {
@@ -101,7 +100,6 @@ export function TopRatedManager({ products, onProductUpdate }: TopRatedManagerPr
     );
   }
 
-  // Combinar produtos existentes com estatísticas
   const displayedProducts = products.map(p => {
     const stat = stats.find(s => s.productId === p.id);
     return {
@@ -109,9 +107,8 @@ export function TopRatedManager({ products, onProductUpdate }: TopRatedManagerPr
       avgRating: stat ? stat.rating : 0,
       reviewCount: stat ? stat.count : 0
     };
-  }).filter(p => p.reviewCount > 0 || p.featuredRating) // Mostrar se tem review OU se já está destacado
+  }).filter(p => p.reviewCount > 0 || p.featuredRating)
     .sort((a, b) => {
-        // Ordenar: Destacados primeiro, depois por Rating
         if (a.featuredRating && !b.featuredRating) return -1;
         if (!a.featuredRating && b.featuredRating) return 1;
         return b.avgRating - a.avgRating;

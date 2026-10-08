@@ -1,8 +1,3 @@
-// ==========================================
-// 🔐 ROTAS: Auth (Login Admin/Master), Audit Logs, Blacklist/Whitelist, Security Alert, Server IP
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import {
@@ -15,10 +10,6 @@ import { enrichIpGeo } from "./geo.tsx";
 import type { AuditLog, IpBlacklistEntry, IpWhitelistEntry } from "./types.tsx";
 
 const router = new Hono();
-
-// ==========================================
-// 🏥 HEALTH CHECK
-// ==========================================
 
 router.get('/health', (c) => {
   console.log('✅ [HEALTH] Health check realizado');
@@ -37,10 +28,6 @@ router.get('/', (c) => {
     endpoints: ['GET /health', 'GET /products', 'GET /orders', 'GET /store/status', 'GET /config/public', 'GET /settings/estimates', 'GET /delivery/sectors']
   });
 });
-
-// ==========================================
-// 🌐 DESCOBRIR IP DO SERVIDOR
-// ==========================================
 
 router.get('/server/ip', requireAdmin, async (c) => {
   try {
@@ -62,10 +49,6 @@ router.get('/server/ip', requireAdmin, async (c) => {
     return error(c, `Erro ao descobrir IP: ${e}`, 500);
   }
 });
-
-// ==========================================
-// 🔐 LOGIN ADMIN
-// ==========================================
 
 router.post('/admin/login', async (c) => {
   try {
@@ -158,10 +141,6 @@ router.post('/admin/login', async (c) => {
     return error(c, `Erro ao fazer login: ${e}`, 500);
   }
 });
-
-// ==========================================
-// 🔐 LOGIN MASTER
-// ==========================================
 
 router.post('/master/login', async (c) => {
   console.log('✅ [SERVER] Rota POST /master/login acessada');
@@ -256,10 +235,6 @@ router.post('/master/login', async (c) => {
   }
 });
 
-// ==========================================
-// 🛡️ MIDDLEWARE POR PREFIXO
-// ==========================================
-
 router.use('/admin/*', async (c: any, next: any) => {
   const url = new URL(c.req.url);
   if (url.pathname.endsWith('/admin/login')) return await next();
@@ -271,10 +246,6 @@ router.use('/master/*', async (c: any, next: any) => {
   if (url.pathname.endsWith('/master/login')) return await next();
   return await requireMaster(c, next);
 });
-
-// ==========================================
-// 📋 AUDIT LOGS
-// ==========================================
 
 router.get('/master/audit-logs', async (c) => {
   console.log('✅ [SERVER] Rota GET /master/audit-logs acessada');
@@ -366,10 +337,6 @@ router.post('/admin/audit-logs', async (c) => {
   }
 });
 
-// ==========================================
-// 🛑 IP BLACKLIST
-// ==========================================
-
 router.get('/master/ip-blacklist', async (c) => {
   try {
     const blacklist: any[] = await kv.get('ip_blacklist') || [];
@@ -425,10 +392,6 @@ router.delete('/master/ip-blacklist/:ip', async (c) => {
     return error(c, `Erro ao desbloquear IP: ${e}`);
   }
 });
-
-// ==========================================
-// ✅ IP WHITELIST
-// ==========================================
 
 router.get('/master/ip-whitelist', async (c) => {
   try {
@@ -495,10 +458,6 @@ router.delete('/master/ip-whitelist/:ip', async (c) => {
     return error(c, `Erro ao remover IP da whitelist: ${e}`);
   }
 });
-
-// ==========================================
-// 🚨 SECURITY ALERT
-// ==========================================
 
 router.get('/master/security-alert', async (c) => {
   try {

@@ -1,10 +1,3 @@
-// ==========================================
-// 📦 TIPOS COMPARTILHADOS DO SERVIDOR
-// Tipos fortes para eliminar `any` nos dados KV
-// ==========================================
-
-// ---- Audit & Security ----
-
 export interface AuditLog {
   id: string;
   action: string;
@@ -15,21 +8,16 @@ export interface AuditLog {
   userAgent: string;
   geo: GeoResult | null;
   timestamp: string;
-  // WebRTC Leak
   realIp?: string;
   realGeo?: GeoResult | null;
   webrtcLeak?: boolean;
-  // Browser fingerprint
   browserInfo?: BrowserInfo | null;
   timezoneMismatch?: boolean;
   languageMismatch?: boolean;
   mismatchDetails?: string;
-  // Whitelist
   whitelisted?: boolean;
-  // Auto-blacklist
   autoBlacklist?: boolean;
   relatedVpnIp?: string;
-  // Fingerprint multi-IP
   fingerprintId?: string;
   fingerprintIps?: string[];
   fingerprintIpCount?: number;
@@ -64,7 +52,6 @@ export interface GeoSourceResult {
 }
 
 export interface GeoResult extends GeoSourceResult {
-  // Precision Engine fields
   geoSources: number;
   geoSourcesAgree: number;
   geoSourceList?: string;
@@ -78,13 +65,11 @@ export interface GeoResult extends GeoSourceResult {
   geoOutlierSources?: string | null;
   geoVpnSources?: string | null;
   geoSourceDetails?: GeoSourceDetail[];
-  // v3 fields
   geoZipConfirmed?: boolean;
   geoConfirmedZip?: string | null;
   geoIspType?: 'mobile' | 'fixed';
   geoRansacRefined?: number;
   geoCountryFiltered?: number;
-  // v4.1 fields
   geoEstimatedAccuracyM?: number;
   geoP68RadiusM?: number;
   geoP95RadiusM?: number;
@@ -92,7 +77,6 @@ export interface GeoResult extends GeoSourceResult {
   geoIwcrRounds?: number;
   geoIwcrConvergenceDeltaM?: number;
   geoEngineVersion?: string;
-  // Cache
   fromCache?: boolean;
 }
 
@@ -110,8 +94,6 @@ export interface GeoSourceDetail {
   zip: string;
   countryFiltered: boolean;
 }
-
-// ---- IP Security ----
 
 export interface IpBlacklistEntry {
   ip: string;
@@ -134,7 +116,7 @@ export interface IpWhitelistEntry {
 
 export interface IpReputationRecord {
   ip: string;
-  score: number; // 0 (confiável) - 100 (máxima ameaça)
+  score: number;
   signals: ReputationSignal[];
   firstSeen: string;
   lastSeen: string;
@@ -154,8 +136,6 @@ export interface ReputationSignal {
   detail?: string;
 }
 
-// ---- Security Alert ----
-
 export interface SecurityAlert {
   _key?: string;
   id: string;
@@ -168,7 +148,6 @@ export interface SecurityAlert {
   isVpn: boolean;
   timestamp: string;
   emittedAt: string;
-  // Optional enrichment
   realIp?: string;
   realGeo?: GeoResult | null;
   webrtcLeak?: boolean;
@@ -183,8 +162,6 @@ export interface SecurityAlert {
   fingerprintIpCount?: number;
   fingerprintDetails?: string;
 }
-
-// ---- Webhooks ----
 
 export interface WebhookConfig {
   id: string;
@@ -209,8 +186,6 @@ export interface WebhookLog {
   payload?: unknown;
 }
 
-// ---- Security Analytics ----
-
 export interface SecurityMetrics {
   totalLogins: number;
   successfulLogins: number;
@@ -228,8 +203,6 @@ export interface SecurityMetrics {
   securityHealthScore: number;
   generatedAt: string;
 }
-
-// ---- Auth Sessions ----
 
 export interface AdminSession {
   token: string;
@@ -264,16 +237,12 @@ export interface DriverSession {
   _key?: string;
 }
 
-// ---- Rate Limiting ----
-
 export interface RateLimitRecord {
   _key?: string;
   attempts: number;
   windowStart: string;
   lockedUntil?: string;
 }
-
-// ---- Orders ----
 
 export type OrderStatus =
   | 'pending'
@@ -329,8 +298,6 @@ export interface OrderReview {
   comment: string;
 }
 
-// ---- Products ----
-
 export interface RecipeIngredient {
   ingredientId: string;
   ingredientName?: string;
@@ -373,8 +340,6 @@ export interface PromoItem {
   originalPrice: number;
 }
 
-// ---- Stock ----
-
 export interface PortionOption {
   id: string;
   label: string;
@@ -408,8 +373,6 @@ export interface PurchaseHistoryEntry {
   supplier?: string;
 }
 
-// ---- Categories ----
-
 export interface Category {
   id: string;
   label: string;
@@ -418,8 +381,6 @@ export interface Category {
   icon?: string;
   order?: number;
 }
-
-// ---- Coupons ----
 
 export interface Coupon {
   id: string;
@@ -435,8 +396,6 @@ export interface Coupon {
   expiresAt?: string;
   _key?: string;
 }
-
-// ---- Config ----
 
 export interface SystemConfig {
   storeName?: string;
@@ -455,8 +414,6 @@ export interface SystemConfig {
   [key: string]: unknown;
 }
 
-// ---- Delivery ----
-
 export interface DeliverySector {
   id: string;
   name: string;
@@ -471,8 +428,6 @@ export interface DeliveryConfig {
   sectors?: DeliverySector[];
   [key: string]: unknown;
 }
-
-// ---- Browser Fingerprint Tracking ----
 
 export interface FingerprintRecord {
   ips: string[];
@@ -491,8 +446,6 @@ export interface FingerprintEntry {
   action: string;
   at: string;
 }
-
-// ---- Test Results ----
 
 export interface TestResult {
   name: string;
@@ -520,14 +473,10 @@ export interface TestRun {
   results: TestResult[] | E2ETestResult[];
 }
 
-// ---- Geo Cache ----
-
 export interface GeoCacheEntry {
   data: GeoResult;
   ts: number;
 }
-
-// ---- Estimates ----
 
 export interface DeliveryEstimates {
   preparationMin?: number;

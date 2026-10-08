@@ -1,8 +1,3 @@
-// ==========================================
-// 🛵 ROTAS: Entregadores, Setores, Configuração de Delivery
-// Sub-router Hono extraído do index.tsx monolítico
-// ==========================================
-
 import { Hono } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import {
@@ -18,16 +13,11 @@ import type { DeliveryConfig, DeliverySector } from "./types.tsx";
 
 const router = new Hono();
 
-// ==========================================
-// 🛵 LOGIN ENTREGADOR
-// ==========================================
-
 router.post('/delivery/login', async (c) => {
   try {
     const ip = getClientIp(c);
     const userAgent = c.req.header('user-agent') || 'unknown';
 
-    // Blacklist check
     const blacklisted = await checkIpBlacklist(ip);
     if (blacklisted) {
       console.warn(`🛑 [BLACKLIST] IP ${ip} bloqueado — tentou login delivery`);
@@ -39,7 +29,6 @@ router.post('/delivery/login', async (c) => {
       return c.json({ success: false, error: 'Acesso negado.' }, 403);
     }
 
-    // Rate limiting leve
     const rateKey = 'delivery_login';
     const rlRecord: any = await kv.get(`rate_limit:${rateKey}:${ip}`);
     if (rlRecord?.lockedUntil && new Date(rlRecord.lockedUntil).getTime() > Date.now()) {
@@ -65,7 +54,6 @@ router.post('/delivery/login', async (c) => {
     if (webrtcIp) console.log(`🔓 [WEBRTC] Delivery login recebeu webrtcIp: ${webrtcIp} (request IP: ${ip})`);
     if (browserInfo) console.log(`🌐 [BROWSER] Delivery login: tz=${browserInfo.timezone}, lang=${browserInfo.language}`);
 
-    // Blacklist check do IP real (WebRTC)
     if (webrtcIp && webrtcIp !== ip) {
       const webrtcBlacklisted = await checkIpBlacklist(webrtcIp);
       if (webrtcBlacklisted) {
@@ -159,10 +147,6 @@ router.post('/delivery/login', async (c) => {
   }
 });
 
-// ==========================================
-// 🛵 LOGOUT
-// ==========================================
-
 router.post('/delivery/logout', async (c) => {
   try {
     const { phone } = await c.req.json();
@@ -187,7 +171,6 @@ router.post('/delivery/logout', async (c) => {
   }
 });
 
-// Force logout (admin)
 router.post('/admin/delivery/force-logout', async (c) => {
   try {
     const { phone } = await c.req.json();
@@ -213,10 +196,6 @@ router.post('/admin/delivery/force-logout', async (c) => {
     return error(c, `Erro ao forçar logout: ${e}`);
   }
 });
-
-// ==========================================
-// ⚙️ CONFIG DELIVERY
-// ==========================================
 
 router.get('/delivery/config', async (c) => {
   const config = await kv.get('delivery_config') || { maxDrivers: 5, activeColors: [] };
@@ -244,10 +223,6 @@ router.get('/delivery/available-colors', async (c) => {
   }
 });
 
-// ==========================================
-// 🛵 LISTAR ENTREGADORES
-// ==========================================
-
 router.get('/delivery/drivers', async (c) => {
   try {
     const drivers = await kv.getByPrefix('driver:');
@@ -270,7 +245,6 @@ router.get('/delivery/drivers', async (c) => {
   }
 });
 
-// Histórico do entregador
 router.get('/delivery/history/:phone', async (c) => {
   const phone = c.req.param('phone');
   console.log('📋 [DELIVERYMAN] Buscando histórico do entregador:', phone);
@@ -290,10 +264,6 @@ router.get('/delivery/history/:phone', async (c) => {
     return error(c, `Erro ao buscar histórico: ${e}`);
   }
 });
-
-// ==========================================
-// 📍 SETORES DE ENTREGA
-// ==========================================
 
 router.get('/delivery/sectors', async (c) => {
   const sectors = await kv.getByPrefix('sector:');
@@ -331,10 +301,6 @@ router.delete('/delivery/sectors/:id', requireMaster, async (c) => {
     return error(c, `Erro ao deletar setor: ${e}`);
   }
 });
-
-// ==========================================
-// 💰 TAXA DE ENTREGA
-// ==========================================
 
 router.get('/settings/delivery-fee', async (c) => {
   try {

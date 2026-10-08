@@ -1,15 +1,7 @@
-// ==========================================
-// 🚀 SERVIDOR DELIVERY MULTI-TENANT
-// Modularização v5 — Orquestrador puro (~50 linhas)
-// 7 sub-routers + 9 módulos extraídos
-// Última atualização: 2026-02-10
-// ==========================================
-
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 
-// Sub-routers
 import authRoutes from "./routes_auth.tsx";
 import productRoutes from "./routes_products.tsx";
 import orderRoutes from "./routes_orders.tsx";
@@ -18,13 +10,8 @@ import configRoutes from "./routes_config.tsx";
 import securityRoutes from "./routes_security.tsx";
 import testRoutes from "./routes_tests.tsx";
 
-// ==========================================
-// 🔗 API — Monta todos os sub-routers
-// ==========================================
-
 const api = new Hono();
 
-// Middleware: injeta header X-New-CSRF-Token quando o middleware de auth requisita rotação
 api.use('*', async (c: any, next: any) => {
   await next();
   const newCsrf = c.get('_newCsrf');
@@ -39,18 +26,13 @@ api.use('*', async (c: any, next: any) => {
   }
 });
 
-// Montar sub-routers
-api.route('/', authRoutes);       // health, login admin/master, audit-logs, blacklist/whitelist, security-alert, server/ip
-api.route('/', productRoutes);    // products CRUD, categories, migrate-scale
-api.route('/', orderRoutes);      // orders CRUD, reviews, customers
-api.route('/', deliveryRoutes);   // delivery login/logout, drivers, sectors, delivery-fee
-api.route('/', configRoutes);     // config, coupons, store, payment, upload, stock, settings, estimates
-api.route('/', securityRoutes);   // IP reputation, webhooks, analytics
-api.route('/', testRoutes);       // 80 unit tests + 3 E2E tests + history
-
-// ==========================================
-// 🚀 APP — CORS, Logger, Mount
-// ==========================================
+api.route('/', authRoutes);
+api.route('/', productRoutes);
+api.route('/', orderRoutes);
+api.route('/', deliveryRoutes);
+api.route('/', configRoutes);
+api.route('/', securityRoutes);
+api.route('/', testRoutes);
 
 const app = new Hono();
 

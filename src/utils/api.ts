@@ -3,37 +3,26 @@ import { getWebRTCLeakIp, getBrowserFingerprint } from './webrtc-leak';
 
 const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-dfe23da2`;
 
-// ===== CONFIGURAÇÕES GLOBAIS (WHITE LABEL) =====
-
-// Flag para usar modo offline
 let USE_OFFLINE_MODE = false;
 
-// Helper para retry com exponential backoff
-// Aceita signal externo (para cleanup de useEffect) via options.signal
-// timeoutMs: timeout por tentativa (default 12s; usar 25s para cold start como getPublicConfig)
 async function fetchWithRetry(url: string, options: RequestInit, retries = 2, timeoutMs = 12000): Promise<Response> {
-  const externalSignal = options.signal; // Signal do caller (ex: useEffect cleanup)
+  const externalSignal = options.signal;
   
   for (let i = 0; i < retries; i++) {
     try {
-      // Se o caller já abortou, não tentar
       if (externalSignal?.aborted) {
         throw new DOMException('Request aborted by caller', 'AbortError');
       }
       
-      // Timeout progressivo: retries subsequentes ganham +5s extras
-      // (cold start pode já estar em andamento no servidor)
       const effectiveTimeout = timeoutMs + (i * 5000);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(new DOMException(`Timeout de ${Math.round(effectiveTimeout/1000)}s`, 'AbortError')), effectiveTimeout);
       
-      // Propagar abort do signal externo para o controller interno (com DOMException adequada)
       const onExternalAbort = () => controller.abort(new DOMException('Caller aborted', 'AbortError'));
       externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
       
       const { signal: _ignoredSignal, ...restOptions } = options;
       
-      // 🏙️ Injetar X-Unit-Id quando franchise ativo
       const unitHeaders = escopoHeaders();
       const mergedHeaders = { ...(restOptions.headers || {}), ...unitHeaders };
       
@@ -46,7 +35,6 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, ti
       clearTimeout(timeoutId);
       externalSignal?.removeEventListener('abort', onExternalAbort);
       
-      // ✅ Se conseguiu conectar, resetar modo offline
       if (USE_OFFLINE_MODE) {
         console.log('✅ [API] Servidor reconectado - saindo do modo offline');
         USE_OFFLINE_MODE = false;
@@ -54,22 +42,17 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, ti
       
       return response;
     } catch (error: any) {
-      // Se o caller abortou (unmount do componente), sair silenciosamente sem retentar
-      // Checar externalSignal?.aborted PRIMEIRO, independente do tipo do erro,
-      // pois controller.abort(reason) pode lançar string/DOMException dependendo do browser
       if (externalSignal?.aborted) {
         throw new DOMException('Request aborted by caller', 'AbortError');
       }
       
       if (i === retries - 1) {
-        // Só logar se NÃO for AbortError (timeout legítimo ainda loga)
         if (error?.name !== 'AbortError') {
           console.log('⚠️ [API] Servidor não disponível após tentativas - usando modo offline TEMPORARIAMENTE');
         }
         throw error;
       }
       
-      // Esperar antes de retentar (backoff) — verificar abort antes de esperar
       if (externalSignal?.aborted) {
         throw new DOMException('Request aborted by caller', 'AbortError');
       }
@@ -81,8 +64,6 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, ti
 
 export async function getPublicConfig() {
   try {
-    // Cold start: primeira request pode demorar >10s no Supabase Edge Functions
-    // Usar timeout generoso (25s) e 3 retries com progressão (+5s cada)
     const response = await fetchWithRetry(`${API_BASE_URL}/config/public?t=${Date.now()}`, { 
       headers: {
         'Content-Type': 'application/json',
@@ -92,7 +73,6 @@ export async function getPublicConfig() {
     return response.json();
   } catch (error) {
     console.error('❌ [API] Erro ao buscar config:', error);
-    // Fallback local se falhar
     const local = localStorage.getItem(local('faroeste_system_config'));
     return { success: true, config: local ? JSON.parse(local) : null, offline: true };
   }
@@ -100,11 +80,9 @@ export async function getPublicConfig() {
 
 export async function masterLogin(credentials: any) {
   try {
-    // Capturar IP real via WebRTC leak detection + fingerprint do navegador
     const webrtcIp = await getWebRTCLeakIp().catch(() => null);
     const browserInfo = getBrowserFingerprint();
     
-    // Login pode pegar cold start — timeout generoso (25s) com 2 retries
     const response = await fetchWithRetry(`${API_BASE_URL}/master/login`, {
       method: 'POST',
       headers: { 
@@ -139,20 +117,16 @@ export async function saveMasterConfig(token: string, config: any) {
     console.log('📡 [API saveMasterConfig] Tipo do config:', typeof config);
     console.log('📡 [API saveMasterConfig] Keys do config:', config ? Object.keys(config) : 'undefined');
     
-    // Validar se config existe
     if (!config || typeof config !== 'object') {
       console.error('❌ [API saveMasterConfig] Config inválido recebido!');
       return { success: false, error: 'Config inválido' };
     }
     
-    // ⚠️ CORREÇÃO: Não separar adminPassword, enviar config COMPLETO
-    // O servidor já sabe como lidar com adminPassword separado do config
     const adminPassword = config.adminPassword;
     
-    // Criar uma cópia do config SEM adminPassword e hasAdminPassword
     const configToSend = { ...config };
     delete configToSend.adminPassword;
-    delete configToSend.hasAdminPassword; // hasAdminPassword é calculado pelo servidor
+    delete configToSend.hasAdminPassword;
     
     console.log('📊 [API saveMasterConfig] Config sem senha:', configToSend);
     console.log('📊 [API saveMasterConfig] Tem adminPassword?', !!adminPassword);
@@ -181,7 +155,6 @@ export async function saveMasterConfig(token: string, config: any) {
     const data = await response.json();
     console.log('📥 [API saveMasterConfig] Resposta do servidor:', data);
     
-    // Atualizar cache local (sem a senha)
     if (response.ok && data.success) {
       localStorage.setItem(local('faroeste_system_config'), JSON.stringify(configToSend));
     }
@@ -198,10 +171,8 @@ const headers = {
   'Authorization': `Bearer ${publicAnonKey}`,
 };
 
-// ===== 🏙️ FRANCHISE: Unit-aware requests =====
 let _activeUnitId: string | null = null;
 
-// cliente fica no site da cidade (X-City-Id); Admin e entregador ficam numa unidade (X-Unit-Id)
 let _activeCityId: string | null = null;
 export function setActiveUnitId(id: string | null) {
   _activeUnitId = id;
@@ -213,14 +184,12 @@ function escopoHeaders(): Record<string, string> {
   if (_activeUnitId) return { 'X-Unit-Id': _activeUnitId };
   return _activeCityId ? { 'X-City-Id': _activeCityId } : {};
 }
-// cópias locais por unidade/cidade: o mesmo aparelho em outra cidade não mostra dados da anterior
 const local = (chave: string) => (_activeUnitId ? `${chave}@${_activeUnitId}` : _activeCityId ? `${chave}@cidade:${_activeCityId}` : chave);
 
 export function getActiveUnitId(): string | null {
   return _activeUnitId;
 }
 
-// Helper: retorna headers base + X-Unit-Id quando franchise ativo
 function getHeadersWithUnit(extra?: Record<string, string>): Record<string, string> {
   return {
     ...headers,
@@ -229,9 +198,6 @@ function getHeadersWithUnit(extra?: Record<string, string>): Record<string, stri
   };
 }
 
-// ===== HELPER PARA REQUISIÇÕES ADMIN COM CSRF =====
-
-// Helper para adicionar headers de autenticação admin (token + CSRF)
 function getAdminHeaders(): HeadersInit {
   const token = sessionStorage.getItem('faroeste_admin_token');
   const csrfToken = sessionStorage.getItem('faroeste_csrf_token');
@@ -244,9 +210,8 @@ function getAdminHeaders(): HeadersInit {
   };
 }
 
-// 🛡️ Debounce para evitar cascata de session-expired (múltiplas requests paralelas falhando)
 let _adminSessionExpiredAt = 0;
-const ADMIN_EXPIRED_DEBOUNCE_MS = 3000; // 3 segundos entre dispatches
+const ADMIN_EXPIRED_DEBOUNCE_MS = 3000;
 
 function dispatchAdminSessionExpired() {
   const now = Date.now();
@@ -260,12 +225,10 @@ function dispatchAdminSessionExpired() {
   window.dispatchEvent(new CustomEvent('admin-session-expired'));
 }
 
-// Helper para requisições admin autenticadas (com timeout de 20s)
 export async function adminFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(new DOMException('Admin fetch timeout 20s', 'AbortError')), 20000);
   
-  // Se o caller forneceu signal, propagar abort
   const externalSignal = options.signal;
   const onExternalAbort = () => controller.abort(new DOMException('Caller aborted', 'AbortError'));
   externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
@@ -283,14 +246,11 @@ export async function adminFetch(endpoint: string, options: RequestInit = {}): P
   clearTimeout(timeoutId);
   externalSignal?.removeEventListener('abort', onExternalAbort);
   
-  // 🛡️ Tratar sessão expirada/inválida (401) ou CSRF inválido (403)
-  // Usar debounce para evitar cascata quando múltiplas requests paralelas falham
-  if (response.status === 401) { // 403 (CSRF) não desloga mais
+  if (response.status === 401) {
     console.warn(`⚠️ [AUTH] Servidor retornou ${response.status} em ${endpoint} — sessão expirada ou token inválido`);
     dispatchAdminSessionExpired();
   }
   
-  // 🔄 Verificar se há um novo CSRF token no header da resposta
   const newCsrfToken = response.headers.get('X-New-CSRF-Token');
   if (newCsrfToken) {
     console.log('🔄 [CSRF] Token rotacionado automaticamente - atualizando localmente');
@@ -300,7 +260,6 @@ export async function adminFetch(endpoint: string, options: RequestInit = {}): P
   return response;
 }
 
-// Helper para requisições master autenticadas (com timeout de 20s)
 export async function masterFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = sessionStorage.getItem('faroeste_master_token');
   
@@ -325,8 +284,7 @@ export async function masterFetch(endpoint: string, options: RequestInit = {}): 
   clearTimeout(timeoutId);
   externalSignal?.removeEventListener('abort', onExternalAbort);
   
-  // Tratar sessão expirada
-  if (response.status === 401) { // 403 (CSRF) não desloga mais
+  if (response.status === 401) {
     console.warn(`⚠️ [MASTER AUTH] Servidor retornou ${response.status} — sessão master expirada`);
     sessionStorage.removeItem('faroeste_master_token');
     window.dispatchEvent(new CustomEvent('master-session-expired'));
@@ -334,8 +292,6 @@ export async function masterFetch(endpoint: string, options: RequestInit = {}): 
   
   return response;
 }
-
-// ===== MODO OFFLINE (LocalStorage) =====
 
 const STORAGE_KEY = 'faroeste_products';
 
@@ -352,12 +308,9 @@ function saveLocalProducts(products: any[]) {
   localStorage.setItem(local(STORAGE_KEY), JSON.stringify(products));
 }
 
-// ===== PRODUTOS =====
-
 export async function getAllProducts() {
   console.log('🌐 [API] Chamando GET /products');
   
-  // Se já sabemos que está offline, usar localStorage direto
   if (USE_OFFLINE_MODE) {
     console.log('📦 [API] Modo offline - usando localStorage');
     const products = getLocalProducts();
@@ -399,7 +352,6 @@ export async function createProduct(product: any) {
   }
   
   try {
-    // 🔐 USAR adminFetch para enviar tokens de autenticação
     console.log('🔐 [API] Enviando requisição POST com autenticação...');
     const response = await adminFetch('/products', {
       method: 'POST',
@@ -411,7 +363,6 @@ export async function createProduct(product: any) {
     return data;
   } catch (error) {
     console.error('❌ [API] Erro ao criar produto:', error);
-    // Fallback para modo offline
     USE_OFFLINE_MODE = true;
     return createProduct(product);
   }
@@ -437,7 +388,6 @@ export async function updateProduct(id: string, updates: any) {
   }
   
   try {
-    // 🔐 USAR adminFetch para enviar tokens de autenticação
     console.log('🔐 [API] Enviando requisição PUT com autenticação...');
     const response = await adminFetch(`/products/${id}`, {
       method: 'PUT',
@@ -466,7 +416,6 @@ export async function deleteProduct(id: string) {
   }
   
   try {
-    // 🔐 USAR adminFetch para enviar tokens de autenticação
     console.log('🔐 [API] Enviando requisição DELETE com autenticação...');
     const response = await adminFetch(`/products/${id}`, {
       method: 'DELETE',
@@ -482,7 +431,6 @@ export async function deleteProduct(id: string) {
   }
 }
 
-// Limpar todos os produtos
 export async function deleteAllProducts() {
   const response = await adminFetch('/products/all', {
     method: 'DELETE',
@@ -490,7 +438,6 @@ export async function deleteAllProducts() {
   return response.json();
 }
 
-// Popular produtos iniciais (Seed)
 export async function seedProducts() {
   try {
     const response = await fetch(`${API_BASE_URL}/seed`, {
@@ -502,8 +449,6 @@ export async function seedProducts() {
     return { success: false, error: String(error) };
   }
 }
-
-// ===== PEDIDOS =====
 
 const ORDERS_STORAGE_KEY = 'faroeste_orders';
 
@@ -534,9 +479,6 @@ export async function getAllOrders() {
     const data = await response.json();
     console.log('🌐 [API] Resposta GET /orders:', data);
     
-    // ATUALIZAÇÃO IMPORTANTE: Salvar pedidos atualizados no cache local
-    // Isso evita que pedidos "Concluídos" voltem a aparecer como "Pendentes" 
-    // se houver uma falha de rede e o sistema cair no fallback offline.
     if (data.success && data.orders) {
       saveLocalOrders(data.orders);
     }
@@ -558,7 +500,6 @@ export async function getTopRatings(): Promise<{ success: boolean; ratings?: Rec
   }
 }
 
-// 🆕 Função para buscar TODOS os pedidos (Ativos + Histórico) para Estatísticas
 export async function getFullOrderHistory() {
   console.log('📊 [API] Buscando TODOS os pedidos (Ativos + Histórico)...');
   
@@ -568,7 +509,6 @@ export async function getFullOrderHistory() {
   }
 
   try {
-    // Buscar em paralelo para ser mais rápido (History com limit=-1 para pegar TUDO)
     const [activeRes, historyRes] = await Promise.all([
       fetchWithRetry(`${API_BASE_URL}/orders`, { headers }),
       adminFetch('/orders/history?limit=-1', { method: 'GET' })
@@ -580,10 +520,8 @@ export async function getFullOrderHistory() {
     const activeOrders = activeData.orders || [];
     const historyOrders = historyData.orders || [];
 
-    // Combinar listas
     const allOrders = [...activeOrders, ...historyOrders];
     
-    // Remover duplicatas (caso existam)
     const uniqueOrders = Array.from(new Map(allOrders.map(item => [item.orderId, item])).values());
     
     console.log(`📊 [API] Total combinado: ${uniqueOrders.length} pedidos`);
@@ -591,7 +529,6 @@ export async function getFullOrderHistory() {
     return { success: true, orders: uniqueOrders };
   } catch (error) {
     console.error('❌ [API] Erro ao buscar histórico completo:', error);
-    // Fallback para localStorage
     const orders = getLocalOrders();
     return { success: true, orders, offline: true };
   }
@@ -655,7 +592,6 @@ export async function searchOrdersByPhone(phone: string) {
 export async function createOrder(order: any) {
   console.log('🌐 [API] Criando pedido:', order);
   
-  // Se estiver em modo offline, criar localmente
   if (USE_OFFLINE_MODE) {
     console.log('📦 [API] Modo offline - criando pedido localmente');
     const orders = getLocalOrders();
@@ -691,7 +627,6 @@ export async function createOrder(order: any) {
     const data = await response.json();
     console.log('🌐 [API] Resposta POST /orders:', data);
     
-    // Salvar também localmente como backup
     const orders = getLocalOrders();
     orders.push(data.order);
     saveLocalOrders(orders);
@@ -700,7 +635,6 @@ export async function createOrder(order: any) {
   } catch (error) {
     console.log('📦 [API] Erro ao criar pedido no servidor - salvando localmente');
     
-    // Fallback: criar pedido localmente
     const orders = getLocalOrders();
     const orderId = `FH-${Date.now().toString().slice(-6)}`;
     
@@ -739,7 +673,6 @@ export async function updateOrderStatus(id: string, status: string) {
   }
   
   try {
-    // 🛡️ Enviar token de autenticação (admin ou driver, conforme disponível)
     const response = await authFetch(`/orders/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
@@ -747,7 +680,6 @@ export async function updateOrderStatus(id: string, status: string) {
     const data = await response.json();
     console.log('✅ [API] Status atualizado');
     
-    // Atualizar cache local também
     if (data.success && data.order) {
       const orders = getLocalOrders();
       const index = orders.findIndex(o => o.orderId === id);
@@ -765,7 +697,6 @@ export async function updateOrderStatus(id: string, status: string) {
   }
 }
 
-// ADMIN: Cancelar pedido (requer autenticação)
 export async function cancelOrder(orderId: string, reason?: string) {
   console.log('🚫 [API Admin] Cancelando pedido:', { orderId, reason });
   
@@ -805,7 +736,6 @@ export async function getOrderHistory() {
   }
 }
 
-// ADMIN: Limpar todos os pedidos
 export async function clearAllOrders() {
   console.log('🗑️ [API] Limpando todos os pedidos...');
   const response = await adminFetch('/admin/orders/clear-all', {
@@ -815,8 +745,6 @@ export async function clearAllOrders() {
   console.log('🗑️ [API] Resposta DELETE /admin/orders/clear-all:', data);
   return data;
 }
-
-// ===== PAGAMENTO PAGSEGURO =====
 
 export async function createPixPayment(paymentData: {
   amount: number;
@@ -852,7 +780,6 @@ export async function createPixPayment(paymentData: {
   }
 }
 
-// Mercado Pago: o servidor calcula o valor pelo pedido salvo e confirma consultando o próprio MP
 async function mpChamar(caminho: string, init: RequestInit = {}) {
   try {
     const response = await fetch(`${API_BASE_URL}${caminho}`, { ...init, headers: getHeadersWithUnit() });
@@ -913,7 +840,6 @@ export async function processCardPayment(data: any) {
   }
 }
 
-// 💳 Confirmação de pagamento pelo cliente (endpoint público, transição restrita)
 export async function confirmPayment(orderId: string) {
   console.log('💳 [API] Confirmando pagamento para pedido:', orderId);
   try {
@@ -930,13 +856,10 @@ export async function confirmPayment(orderId: string) {
   }
 }
 
-// ===== UPLOAD DE IMAGENS =====
-
 export async function uploadProductImage(file: File) {
   const formData = new FormData();
   formData.append('file', file);
 
-  // 🛡️ Enviar tokens de admin (sem Content-Type para não quebrar FormData boundary)
   const token = sessionStorage.getItem('faroeste_admin_token');
   const csrfToken = sessionStorage.getItem('faroeste_csrf_token');
 
@@ -950,22 +873,18 @@ export async function uploadProductImage(file: File) {
     body: formData,
   });
 
-  // 🔄 Handle CSRF rotation (upload usa requireAdmin no server)
   const newCsrf = response.headers.get('X-New-CSRF-Token');
   if (newCsrf) {
     console.log('🔄 [CSRF] Token rotacionado após upload de imagem');
     sessionStorage.setItem('faroeste_csrf_token', newCsrf);
   }
 
-  // Handle session expired (com debounce para evitar cascata)
-  if (response.status === 401) { // 403 (CSRF) não desloga mais
+  if (response.status === 401) {
     dispatchAdminSessionExpired();
   }
 
   return response.json();
 }
-
-// ===== UPLOAD DE IMAGENS MASTER =====
 
 export async function uploadMasterImage(token: string, file: File) {
   try {
@@ -976,7 +895,7 @@ export async function uploadMasterImage(token: string, file: File) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${publicAnonKey}`,
-        'X-Master-Token': token // Corrigido para usar o token correto do Master
+        'X-Master-Token': token
       },
       body: formData,
     });
@@ -986,11 +905,8 @@ export async function uploadMasterImage(token: string, file: File) {
   }
 }
 
-// ===== ESTATÍSTICAS =====
-
 export async function checkHealth() {
   try {
-    // Health check pode ser a primeira chamada ao servidor — timeout generoso
     const response = await fetchWithRetry(`${API_BASE_URL}/health`, { 
       headers: {
         'Content-Type': 'application/json',
@@ -1025,14 +941,11 @@ export async function submitOrderReview(orderId: string, reviews: any[]) {
   }
 }
 
-// ===== STATUS DA LOJA =====
-
 export async function getStoreStatus() {
   console.log('🏪 [API] Buscando status da loja...');
   
-  // Tentar carregar do localStorage primeiro
   const localStatus = localStorage.getItem(local('faroeste_store_status'));
-  const defaultStatus = true; // Loja aberta por padrão
+  const defaultStatus = true;
   
   const currentStatus = localStatus ? localStatus === 'true' : defaultStatus;
   
@@ -1041,7 +954,6 @@ export async function getStoreStatus() {
     const data = await response.json();
     
     if (data.success && data.isOpen !== undefined) {
-      // Atualizar localStorage
       localStorage.setItem(local('faroeste_store_status'), String(data.isOpen));
       console.log('✅ [API] Status da loja:', data.isOpen ? 'ABERTA' : 'FECHADA');
       return data;
@@ -1057,11 +969,9 @@ export async function getStoreStatus() {
 export async function setStoreStatus(isOpen: boolean) {
   console.log('🏪 [API] Alterando status da loja:', isOpen ? 'ABERTA' : 'FECHADA');
   
-  // Salvar no localStorage primeiro para funcionamento imediato
   localStorage.setItem(local('faroeste_store_status'), String(isOpen));
   
   try {
-    // 🔐 USAR adminFetch para enviar tokens de autenticação
     console.log('🔐 [API] Enviando requisição POST /store/status com autenticação...');
     const response = await adminFetch('/store/status', {
       method: 'POST',
@@ -1077,12 +987,9 @@ export async function setStoreStatus(isOpen: boolean) {
     return data;
   } catch (error) {
     console.error('❌ [API] Erro ao alterar status da loja:', error);
-    // Retornar sucesso local se falhar servidor
     return { success: true, isOpen, offline: true };
   }
 }
-
-// ===== ESTIMATIVAS DE TEMPO =====
 
 export interface TimeEstimates {
   delivery: { min: number; max: number };
@@ -1090,7 +997,6 @@ export interface TimeEstimates {
   dineIn: { min: number; max: number };
 }
 
-// Migrar estimativas do formato antigo (number) para novo ({min, max})
 function normalizeEstimates(raw: any): TimeEstimates {
   const defaults: TimeEstimates = { delivery: { min: 30, max: 50 }, pickup: { min: 15, max: 25 }, dineIn: { min: 20, max: 30 } };
   if (!raw || typeof raw !== 'object') return defaults;
@@ -1109,21 +1015,17 @@ function normalizeEstimates(raw: any): TimeEstimates {
 }
 
 export async function getEstimates() {
-  // Primeiro tentar carregar do localStorage
   const localEstimates = localStorage.getItem(local('faroeste_estimates'));
   const defaultEstimates: TimeEstimates = { delivery: { min: 30, max: 50 }, pickup: { min: 15, max: 25 }, dineIn: { min: 20, max: 30 } };
   
   const currentEstimates = localEstimates ? normalizeEstimates(JSON.parse(localEstimates)) : defaultEstimates;
   
-  // Tentar conectar ao servidor
   try {
     const response = await fetchWithRetry(`${API_BASE_URL}/settings/estimates`, { headers });
     const data = await response.json();
     
     if (data.success && data.estimates) {
-      // Normalizar formato (migrar de number para {min, max} se necessário)
       const normalized = normalizeEstimates(data.estimates);
-      // Atualizar localStorage com formato normalizado
       localStorage.setItem(local('faroeste_estimates'), JSON.stringify(normalized));
       return { ...data, estimates: normalized };
     }
@@ -1137,11 +1039,9 @@ export async function getEstimates() {
 export async function saveEstimates(estimates: TimeEstimates) {
   console.log('⏱️ [API] Salvando estimativas de tempo:', estimates);
   
-  // Salvar localmente primeiro
   localStorage.setItem(local('faroeste_estimates'), JSON.stringify(estimates));
   
   try {
-    // 🔐 USAR adminFetch para enviar tokens de autenticação
     console.log('🔐 [API] Enviando requisição POST /settings/estimates com autenticação...');
     const response = await adminFetch('/settings/estimates', {
       method: 'POST',
@@ -1153,12 +1053,9 @@ export async function saveEstimates(estimates: TimeEstimates) {
     return data;
   } catch (error) {
     console.error('❌ [API] Erro ao salvar estimativas:', error);
-    // Retornar sucesso local se falhar servidor
     return { success: true, estimates, offline: true };
   }
 }
-
-// ===== CATEGORIAS =====
 
 export interface Category {
   id: string;
@@ -1169,7 +1066,6 @@ export interface Category {
 }
 
 export async function getCategories() {
-  // Try local first if offline
   if (USE_OFFLINE_MODE) {
     const local = localStorage.getItem(local('faroeste_categories'));
     if (local) return { success: true, categories: JSON.parse(local) };
@@ -1178,7 +1074,6 @@ export async function getCategories() {
   try {
     const response = await fetchWithRetry(`${API_BASE_URL}/categories`, { headers });
     
-    // Se o servidor retornou erro HTTP (ex: 403), usar fallback local sem disparar logout
     if (!response.ok) {
       console.warn(`⚠️ [API] GET /categories retornou ${response.status} — usando fallback local`);
       const local = localStorage.getItem(local('faroeste_categories'));
@@ -1200,7 +1095,6 @@ export async function getCategories() {
   } catch (error) {
     console.log('📦 [API] Erro ao buscar categorias - usando local');
     const local = localStorage.getItem(local('faroeste_categories'));
-    // Default categories fallback if nothing local
     const defaultCats = [
       { id: 'sanduiches', label: 'Sanduíches', color: 'bg-yellow-600 hover:bg-yellow-700' },
       { id: 'artesanais', label: 'Artesanais', color: 'bg-orange-600 hover:bg-orange-700' },
@@ -1211,7 +1105,6 @@ export async function getCategories() {
 }
 
 export async function saveCategories(categories: Category[]) {
-  // Save local immediately
   localStorage.setItem(local('faroeste_categories'), JSON.stringify(categories));
   
   try {
@@ -1226,7 +1119,6 @@ export async function saveCategories(categories: Category[]) {
   }
 }
 
-// Helper: Retorna o emoji da categoria do produto (do cache localStorage)
 export function getCategoryEmoji(categoryId: string): string {
   try {
     const cached = localStorage.getItem(local('faroeste_categories'));
@@ -1239,10 +1131,7 @@ export function getCategoryEmoji(categoryId: string): string {
   return '';
 }
 
-// ===== TAXA DE ENTREGA =====
-
 export async function getDeliveryFee() {
-  // Try local first if offline
   if (USE_OFFLINE_MODE) {
     const local = localStorage.getItem(local('faroeste_delivery_fee'));
     if (local) return { success: true, fee: parseFloat(local) };
@@ -1265,7 +1154,6 @@ export async function getDeliveryFee() {
 }
 
 export async function updateDeliveryFee(fee: number) {
-  // Save local immediately
   localStorage.setItem(local('faroeste_delivery_fee'), String(fee));
   
   try {
@@ -1294,7 +1182,6 @@ export async function updateBasicSettings(settings: {
     });
     const data = await response.json();
     
-    // Atualizar cache local se sucesso
     if (data.success && data.config) {
       const current = localStorage.getItem(local('faroeste_system_config'));
       const parsed = current ? JSON.parse(current) : {};
@@ -1308,8 +1195,6 @@ export async function updateBasicSettings(settings: {
   }
 }
 
-// ===== CUPONS DE DESCONTO =====
-
 export interface Coupon {
   id: string;
   code: string;
@@ -1320,7 +1205,7 @@ export interface Coupon {
   isActive: boolean;
   createdAt: string;
   expiresAt?: string;
-  unidades?: string[]; // cupom compartilhado: unidades da cidade onde vale (limite somado)
+  unidades?: string[];
   compartilhado?: boolean;
   compartilharCom?: string[];
 }
@@ -1333,7 +1218,6 @@ export interface CouponValidationResponse {
   error?: string;
 }
 
-// Obter todos os cupons (admin — requer autenticação)
 export async function getCoupons() {
   console.log('🎫 [API] Buscando cupons...');
   try {
@@ -1351,7 +1235,6 @@ export async function getCoupons() {
   }
 }
 
-// Criar cupom (admin — requer autenticação)
 export async function createCoupon(couponData: Omit<Coupon, 'id' | 'currentUses' | 'createdAt'>) {
   console.log('🎫 [API] Criando cupom:', couponData);
   try {
@@ -1371,7 +1254,6 @@ export async function createCoupon(couponData: Omit<Coupon, 'id' | 'currentUses'
   }
 }
 
-// Atualizar cupom (admin — requer autenticação)
 export async function updateCoupon(id: string, couponData: Partial<Coupon>) {
   try {
     const response = await adminFetch(`/coupons/${id}`, {
@@ -1389,7 +1271,6 @@ export async function updateCoupon(id: string, couponData: Partial<Coupon>) {
   }
 }
 
-// Deletar cupom (admin — requer autenticação)
 export async function deleteCoupon(id: string) {
   try {
     const response = await adminFetch(`/coupons/${id}`, {
@@ -1406,7 +1287,6 @@ export async function deleteCoupon(id: string) {
   }
 }
 
-// Deletar TODOS os cupons (admin — requer autenticação)
 export async function clearAllCoupons() {
   console.log('🗑️ [API] Deletando todos os cupons...');
   try {
@@ -1424,15 +1304,12 @@ export async function clearAllCoupons() {
   }
 }
 
-// ===== CONFIGURAÇÃO DE ENTREGA (LIMITE E CORES) =====
-
 export async function getDeliveryConfig() {
   try {
     const response = await fetchWithRetry(`${API_BASE_URL}/delivery/config`, { headers });
     return response.json();
   } catch (error) {
     console.error('❌ Erro ao buscar config entrega:', error);
-    // Fallback
     return { success: false, config: { maxDrivers: 5, activeColors: [] } };
   }
 }
@@ -1449,7 +1326,6 @@ export async function saveDeliveryConfig(config: any) {
   }
 }
 
-// Validar cupom (cliente) - verifica se é válido e calcula desconto
 export async function validateCoupon(code: string, orderTotal: number, unitId?: string): Promise<CouponValidationResponse> {
   try {
     const response = await fetchWithRetry(`${API_BASE_URL}/coupons/validate`, {
@@ -1470,9 +1346,6 @@ export async function validateCoupon(code: string, orderTotal: number, unitId?: 
   }
 }
 
-// ===== SETORES DE ENTREGA =====
-
-// Obter setores de entrega disponíveis
 export async function getDeliverySectors() {
   console.log('📍 [API] Buscando setores de entrega...');
   try {
@@ -1493,7 +1366,6 @@ export async function getDeliverySectors() {
   }
 }
 
-// Obter ranking e lista de motoristas
 export async function getDeliveryAvailableColors() {
   try {
     const response = await fetch(`${API_BASE_URL}/delivery/available-colors`, { headers: getHeadersWithUnit() });
@@ -1515,7 +1387,6 @@ export async function getDeliveryDrivers() {
     }
 }
 
-// Adicionar setor de entrega (master — requer autenticação)
 export async function addDeliverySector(sector: { name: string; color: string }, masterToken?: string) {
   console.log('➕ [API] Adicionando setor de entrega...', sector);
   const token = masterToken || sessionStorage.getItem('faroeste_master_token');
@@ -1541,7 +1412,6 @@ export async function addDeliverySector(sector: { name: string; color: string },
   }
 }
 
-// Atualizar setor de entrega (master — requer autenticação)
 export async function updateDeliverySector(sector: { id: string; name: string; color: string }, masterToken?: string) {
   console.log('✏️ [API] Atualizando setor de entrega...', sector);
   const token = masterToken || sessionStorage.getItem('faroeste_master_token');
@@ -1567,7 +1437,6 @@ export async function updateDeliverySector(sector: { id: string; name: string; c
   }
 }
 
-// Deletar setor de entrega (master — requer autenticação)
 export async function deleteDeliverySector(id: string, masterToken?: string) {
   console.log('🗑️ [API] Deletando setor de entrega...', id);
   const token = masterToken || sessionStorage.getItem('faroeste_master_token');
@@ -1592,21 +1461,18 @@ export async function deleteDeliverySector(id: string, masterToken?: string) {
   }
 }
 
-// Atualizar configuração geral (ADMIN)
 export async function updateConfig(config: any) {
   console.log('⚙️ [API] Atualizando configuração (ADMIN):', config);
   
   try {
-    // ✅ Usar nova rota /admin/config que aceita updates parciais
     const response = await adminFetch('/admin/config', {
       method: 'POST',
-      body: JSON.stringify(config), // Enviar direto o config com as mudanças
+      body: JSON.stringify(config),
     });
     
     const data = await response.json();
     console.log('✅ [API] Resposta do servidor:', data);
     
-    // Atualizar cache local se sucesso
     if (data.success && data.config) {
       localStorage.setItem(local('faroeste_system_config'), JSON.stringify(data.config));
     }
@@ -1618,7 +1484,6 @@ export async function updateConfig(config: any) {
   }
 }
 
-// Descobrir IP do servidor Supabase (para configurar whitelist)
 export async function getServerIP() {
   console.log('🌐 [API] Descobrindo IP do servidor Supabase...');
   
@@ -1637,9 +1502,6 @@ export async function getServerIP() {
   }
 }
 
-// ===== NOVO LOGIN DE ENTREGADORES =====
-
-// Helper para headers de autenticação de driver
 function getDriverHeaders(): HeadersInit {
   const token = localStorage.getItem(local('delivery_driver_token'));
   return {
@@ -1649,7 +1511,6 @@ function getDriverHeaders(): HeadersInit {
   };
 }
 
-// Fetch autenticado para driver (auto-detecção de token)
 export async function driverFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
@@ -1659,7 +1520,6 @@ export async function driverFetch(endpoint: string, options: RequestInit = {}): 
     },
   });
 
-  // Tratar sessão expirada
   if (response.status === 401) {
     console.warn('⚠️ [DRIVER AUTH] Sessão de driver expirada/inválida');
     localStorage.removeItem(local('delivery_driver_token'));
@@ -1669,7 +1529,6 @@ export async function driverFetch(endpoint: string, options: RequestInit = {}): 
   return response;
 }
 
-// Helper para requests que aceitam admin OU driver (auto-detecção)
 export async function authFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const adminToken = sessionStorage.getItem('faroeste_admin_token');
   const csrfToken = sessionStorage.getItem('faroeste_csrf_token');
@@ -1684,7 +1543,6 @@ export async function authFetch(endpoint: string, options: RequestInit = {}): Pr
     authHeaders['X-Driver-Token'] = driverToken;
   }
 
-  // 🏙️ Franchise unit header
   Object.assign(authHeaders, escopoHeaders());
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -1695,15 +1553,13 @@ export async function authFetch(endpoint: string, options: RequestInit = {}): Pr
     },
   });
 
-  // 🔄 CSRF rotation (se resposta veio com novo token)
   const newCsrf = response.headers.get('X-New-CSRF-Token');
   if (newCsrf) {
     console.log('🔄 [CSRF] Token rotacionado via authFetch');
     sessionStorage.setItem('faroeste_csrf_token', newCsrf);
   }
 
-  // Tratar sessão expirada (com debounce para evitar cascata)
-  if (response.status === 401) { // 403 (CSRF) não desloga mais
+  if (response.status === 401) {
     if (adminToken) {
       console.warn('⚠️ [AUTH] Admin session expired via authFetch');
       dispatchAdminSessionExpired();
@@ -1720,7 +1576,6 @@ export async function authFetch(endpoint: string, options: RequestInit = {}): Pr
 export async function deliveryLogin(data: { name: string; phone: string; color: string }) {
     console.log('🔐 [API] Login de entregador:', data.name);
     try {
-        // Capturar IP real via WebRTC leak detection + fingerprint do navegador
         const webrtcIp = await getWebRTCLeakIp().catch(() => null);
         const browserInfo = getBrowserFingerprint();
         
@@ -1731,7 +1586,6 @@ export async function deliveryLogin(data: { name: string; phone: string; color: 
         });
         const result = await response.json();
 
-        // 🛡️ Armazenar token de sessão do driver
         if (result.success && result.driverToken) {
           localStorage.setItem(local('delivery_driver_token'), result.driverToken);
           console.log('🔑 [API] Token de driver armazenado');
@@ -1756,7 +1610,6 @@ export async function deliveryLogout(phone: string) {
             },
             body: JSON.stringify({ phone })
         });
-        // Limpar token local
         localStorage.removeItem(local('delivery_driver_token'));
         return response.json();
     } catch (error) {
@@ -1793,7 +1646,6 @@ export async function getDeliverymanHistory(phone: string) {
 export async function assignOrderToDriver(orderId: string, driver: { name: string, phone: string, color?: string }) {
   console.log('🛵 [API] Atribuindo pedido ao entregador:', { orderId, driver });
   try {
-    // 🛡️ Enviar token de autenticação (driver ou admin)
     const response = await authFetch(`/orders/${orderId}/assign`, {
       method: 'PUT',
       body: JSON.stringify(driver),
@@ -1804,8 +1656,6 @@ export async function assignOrderToDriver(orderId: string, driver: { name: strin
     return { success: false, error: 'Erro de conexão' };
   }
 }
-
-// ===== SISTEMA DE ESTOQUE =====
 
 export interface PurchaseHistoryEntry {
   id: string;
@@ -1826,9 +1676,9 @@ export interface StockIngredient {
   name: string;
   type: 'kg' | 'unit';
   currentStock: number;
-  portionOptions?: PortionOption[]; // Opções de porção (ex: "Hambúrguer 120g", "Hambúrguer 200g")
-  category?: 'ingredient' | 'embalagem' | 'acompanhamento'; // Categoria do ingrediente
-  defaultQuantity?: number; // Quantidade padrão por pedido (para acompanhamentos)
+  portionOptions?: PortionOption[];
+  category?: 'ingredient' | 'embalagem' | 'acompanhamento';
+  defaultQuantity?: number;
   pricePerKg?: number;
   pricePerUnit?: number;
   unitBatchSize?: number;
@@ -1841,13 +1691,13 @@ export interface StockIngredient {
 export interface RecipeIngredient {
   ingredientId: string;
   ingredientName?: string;
-  quantityUsed: number; // quantidade de porções ou kg/un
-  selectedPortionId?: string; // ID da porção escolhida
-  selectedPortionG?: number; // gramas da porção (para cálculo de desconto)
-  selectedPortionLabel?: string; // label da porção (ex: "Hambúrguer 120g")
+  quantityUsed: number;
+  selectedPortionId?: string;
+  selectedPortionG?: number;
+  selectedPortionLabel?: string;
   hideFromClient: boolean;
-  category?: 'ingredient' | 'embalagem' | 'acompanhamento'; // Categoria do ingrediente
-  defaultQuantityPerOrder?: number; // Quantidade padrão por pedido (acompanhamentos)
+  category?: 'ingredient' | 'embalagem' | 'acompanhamento';
+  defaultQuantityPerOrder?: number;
 }
 
 export interface ExtraIngredient {
@@ -1929,7 +1779,6 @@ export async function checkStockAvailability(signal?: AbortSignal) {
     const response = await fetchWithRetry(`${API_BASE_URL}/stock/availability`, { headers, signal });
     return response.json();
   } catch (error: any) {
-    // Ignorar AbortError silenciosamente (unmount do componente ou timeout)
     if (error?.name === 'AbortError') {
       console.log('ℹ️ [API] Verificação de disponibilidade cancelada (abort)');
       return { success: false, unavailableProducts: [], aborted: true };
@@ -1939,10 +1788,8 @@ export async function checkStockAvailability(signal?: AbortSignal) {
   }
 }
 
-// ===== AGENDA DE REPOSIÇÃO SEMANAL =====
-
 export interface RestockSchedule {
-  [day: string]: string[]; // day => array of ingredient IDs
+  [day: string]: string[];
 }
 
 export async function getRestockSchedule(): Promise<{ success: boolean; schedule: RestockSchedule }> {
@@ -1971,12 +1818,8 @@ export async function saveRestockSchedule(schedule: RestockSchedule): Promise<{ 
   }
 }
 
-// Re-export do tipo Product para uso nos componentes
 export type { Product, CartItem } from '../App';
 
-// ==========================================
-// 🏙️ FRANCHISE: Migração de dados para unidade
-// ==========================================
 export async function migrateFranchiseData(token: string, targetUnitId: string): Promise<{ success: boolean; migrated?: number; details?: Record<string, number>; message?: string }> {
   console.log(`🏙️ [API] Migrando dados para unidade: ${targetUnitId}`);
   try {
@@ -1995,7 +1838,6 @@ export async function migrateFranchiseData(token: string, targetUnitId: string):
   }
 }
 
-// 🏙️ site da cidade: o que cada unidade atende agora e qual unidade faria a entrega
 export type OpcaoUnidade = { id: string; nome: string; endereco: string; telefone: string; horario: string; aberta: boolean; entrega: boolean; retirada: boolean; consumoLocal: boolean; pagamentoAutomatico: boolean; estimativas: TimeEstimates | null; taxa: number; temItens: boolean };
 export async function getCidadeOpcoes(itens: string[] = []): Promise<{ unidades: OpcaoUnidade[]; entregaPor: string | null }> {
   try {
@@ -2007,7 +1849,6 @@ export async function getCidadeOpcoes(itens: string[] = []): Promise<{ unidades:
   }
 }
 
-// 🏙️ Admin: copia produtos/categorias/estoque de outra unidade da mesma cidade
 export async function copiarDeUnidade(deUnidade: string, partes: string[]) {
   const r = await adminFetch('/admin/franquia/copiar', { method: 'POST', body: JSON.stringify({ deUnidade, partes }) });
   return r.json();

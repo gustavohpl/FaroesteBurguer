@@ -11,7 +11,6 @@ export function StoreStatusControl({ onStatusChange }: StoreStatusControlProps) 
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
 
-  // Carregar status inicial
   useEffect(() => {
     loadStatus();
   }, []);
@@ -28,7 +27,6 @@ export function StoreStatusControl({ onStatusChange }: StoreStatusControlProps) 
         }
       }
     } catch (error) {
-      // Erro silencioso - usar modo offline
       setIsOffline(true);
     } finally {
       setIsLoading(false);
@@ -47,7 +45,6 @@ export function StoreStatusControl({ onStatusChange }: StoreStatusControlProps) 
         }
       }
     } catch (error) {
-      // Erro silencioso - usar modo offline
       setIsOffline(true);
     }
   };

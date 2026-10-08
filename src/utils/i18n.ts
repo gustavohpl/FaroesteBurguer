@@ -1,15 +1,7 @@
-// ==========================================
-// 🌐 SISTEMA i18n — Internacionalização
-// Suporta pt-BR (padrão) e en-US
-// ==========================================
-
 export type Locale = 'pt-BR' | 'en-US';
 
-// Tipo recursivo para o dicionário de strings
 type TranslationValue = string | Record<string, TranslationValue>;
 export type TranslationDictionary = Record<string, TranslationValue>;
-
-// ---- Localidades disponíveis ----
 
 const ptBR: TranslationDictionary = {
   common: {
@@ -351,14 +343,10 @@ const enUS: TranslationDictionary = {
   },
 };
 
-// ---- Registry ----
-
 const locales: Record<Locale, TranslationDictionary> = {
   'pt-BR': ptBR,
   'en-US': enUS,
 };
-
-// ---- Engine ----
 
 let currentLocale: Locale = 'pt-BR';
 let listeners: Array<() => void> = [];
@@ -385,10 +373,6 @@ export function subscribe(fn: () => void): () => void {
   };
 }
 
-/**
- * Recupera uma string traduzida por chave "dotted" (ex: "products.addToCart").
- * Suporta interpolação simples: t('auth.tooManyAttempts', { minutes: '5' })
- */
 export function t(key: string, params?: Record<string, string | number>): string {
   const dict = locales[currentLocale] || locales['pt-BR'];
   const parts = key.split('.');
@@ -398,14 +382,12 @@ export function t(key: string, params?: Record<string, string | number>): string
     if (typeof value === 'object' && value !== null && part in value) {
       value = (value as Record<string, TranslationValue>)[part];
     } else {
-      // Key not found — return the key itself as fallback
       return key;
     }
   }
 
   if (typeof value !== 'string') return key;
 
-  // Interpolação: substitui {param} pelo valor
   if (params) {
     let result = value;
     for (const [k, v] of Object.entries(params)) {

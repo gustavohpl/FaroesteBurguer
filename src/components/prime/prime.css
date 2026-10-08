@@ -152,7 +152,7 @@
 .pr-item.off { opacity: .55; filter: grayscale(.8); }
 .pr-tag { position: absolute; top: 10px; left: 10px; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 800;
   background: var(--ink); color: #fff; }
-.pr-carrega { position: absolute; inset: 0; background: var(--chip); overflow: hidden; content-visibility: auto; } /* fora da tela o brilho não roda */
+.pr-carrega { position: absolute; inset: 0; background: var(--chip); overflow: hidden; content-visibility: auto; }
 .pr-carrega::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.55) 50%, transparent 80%);
   animation: pr-brilho 1.2s linear infinite; }
 
@@ -232,7 +232,6 @@
 .pr-voo { position: fixed; z-index: 80; border-radius: 16px; overflow: hidden; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 .pr-voo img { width: 100%; height: 100%; object-fit: cover; }
 
-/* o GSAP revela; sem JS ou sem movimento fica visível */
 .prime.anima .pr-revela:not(.revelado) { opacity: 0; transform: translateY(26px); }
 
 @keyframes pr-pulso { 0% { box-shadow: 0 0 0 0 rgba(62,230,111,.6); } 100% { box-shadow: 0 0 0 10px rgba(62,230,111,0); } }
@@ -243,7 +242,6 @@
   .prime *, .prime *::before, .prime *::after, .prime-mod *, .prime-mod *::before, .prime-mod *::after { animation: none !important; transition: none !important; }
 }
 
-/* #client-app: vencer o "#client-app input { background:#303134 !important }" global */
 #client-app .prime .pr-busca input, .prime .pr-busca input { background: transparent !important; color: var(--ink) !important;
   box-shadow: none !important; padding: 0 !important; height: auto !important; border: 0 !important; }
 #client-app .prime .pr-busca input::placeholder, #client-app .prime .pr-obs::placeholder { color: var(--soft) !important; }
@@ -257,10 +255,8 @@
 .ab-intro { position: absolute; left: 0; right: 0; top: clamp(12px, 2vh, 40px); text-align: center; padding: 0 20px; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; will-change: transform, opacity; }
 .ab-logo { position: relative; margin-bottom: 6px; }
 .ab-logo i { position: absolute; inset: 0; border-radius: 50%; filter: blur(40px); transform: scale(1.25); animation: ab-pulso 2s cubic-bezier(.4,0,.6,1) infinite; }
-/* max-width: none = a logo ocupa a altura toda do espaço dela (laterais transparentes podem passar da coluna) */
 .ab-logo img { position: relative; height: clamp(250px, 40vh, 520px); width: auto; max-width: none; object-fit: contain; filter: drop-shadow(0 0 25px rgba(251,191,36,.5)); }
 @keyframes ab-pulso { 50% { opacity: .5; } }
-/* rede social e status sempre lado a lado; ::before quebra a linha antes do horário */
 .ab-classico { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 8px; margin-bottom: 8px; font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif); }
 .ab-redes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .ab-redes a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 700;
@@ -296,7 +292,6 @@
     .ab-final { left: 6vw; right: auto; top: 50vh; bottom: auto; text-align: left; justify-items: start; max-width: 28vw; }
 }
 
-/* Sacola Prime */
 .pr-folha.pc { max-height: 88vh; display: flex; flex-direction: column; }
 @media (min-width: 860px) { .pr-folha.pc { width: 480px; max-height: 82vh; } }
 .pc-cab { display: flex; align-items: center; gap: 10px; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
@@ -326,7 +321,6 @@
 .pc-total span { color: var(--muted); font-weight: 600; }
 .pc-total b { font-size: 22px; font-weight: 800; color: var(--ink); }
 
-/* modais compartilhados no Prime (PrimeEscopo: portal fora do .dark) */
 .prime-mod { color: var(--ink); -webkit-font-smoothing: antialiased; }
 .ck-palco { display: contents; }
 .pr-folha.ck { height: 94vh; max-height: 94vh; animation: ck-sobe .5s var(--suave) both; }

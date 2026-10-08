@@ -2,7 +2,6 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-// Simple chart context without recharts dependency
 const ChartContext = React.createContext<{ config?: any } | null>(null);
 
 function useChart() {
@@ -42,7 +41,6 @@ const ChartContainer = React.forwardRef<HTMLDivElement, ChartContainerProps>(
 );
 ChartContainer.displayName = "ChartContainer";
 
-// Simple placeholder components
 const ChartTooltip = ({ children, ...props }: any) => <div {...props}>{children}</div>;
 const ChartTooltipContent = ({ children, ...props }: any) => <div {...props}>{children}</div>;
 const ChartLegend = ({ children, ...props }: any) => <div {...props}>{children}</div>;

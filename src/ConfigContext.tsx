@@ -5,12 +5,11 @@ import { applyTheme } from './utils/themeUtils';
 export interface SystemConfig {
   siteName: string;
   themeColor: string;
-  designStyle?: 'classic' | 'clean' | 'rustic' | 'prime'; // 🎨 Estilo de design do site (extensível)
-  heroModelUrl?: string; // 🍔 Modelo 3D (.glb) do Hero Awwwards
-  heroEffects?: string[]; // ✨ Efeitos extras da cena 3D ('sparkles' | 'ring' | 'orbiters' | 'stars')
-  // opções próprias de cada design (vazias = usam as do Clássico)
-  paymentGateway?: 'pagseguro' | 'mercadopago'; // banco do pagamento automático
-  mercadoPagoAtivo?: boolean;                    // só leitura: o servidor tem o token
+  designStyle?: 'classic' | 'clean' | 'rustic' | 'prime';
+  heroModelUrl?: string;
+  heroEffects?: string[];
+  paymentGateway?: 'pagseguro' | 'mercadopago';
+  mercadoPagoAtivo?: boolean;
   primeHeroUrl?: string;
   primeHeroMobileUrl?: string;
   primeHeroTitle?: string;
@@ -26,24 +25,24 @@ export interface SystemConfig {
   address: string;
   logoUrl?: string;
   headerBackgroundUrl?: string;
-  headerEffectShape?: string; // Formato do efeito no header
-  headerEffectCount?: number; // Quantidade de efeitos pulsantes (1-15)
-  headerEffectRandomPosition?: boolean; // Se true, posiciona aleatoriamente
-  headerEffectRandomSeed?: number; // Seed para gerar posições aleatórias diferentes
-  siteSubtitle?: string; // Subtítulo do site
-  siteEmoji?: string; // Emoji do site (ao lado do nome)
-  openingHours?: string; // Texto de horário de funcionamento
+  headerEffectShape?: string;
+  headerEffectCount?: number;
+  headerEffectRandomPosition?: boolean;
+  headerEffectRandomSeed?: number;
+  siteSubtitle?: string;
+  siteEmoji?: string;
+  openingHours?: string;
   isOpen: boolean;
   deliveryFee: number;
-  uiOpacity?: number; // Opacidade dos elementos de UI (0-100)
-  useCategoryColorInModals?: boolean; // Usar cor da categoria nos modais de produto
+  uiOpacity?: number;
+  useCategoryColorInModals?: boolean;
   whatsappNumber?: string;
   instagramUrl?: string;
-  automaticPayment?: boolean; // Flag se pagamento automático está ativado pelo ADMIN
-  manualPixKey?: string; // Chave PIX manual configurada pelo MASTER
-  hasPagSeguro?: boolean; // (Depreciado, usar automaticPayment) Flag pública se tem pagamento ativado
-  hasPagSeguroToken?: boolean; // Flag se o TOKEN do PagSeguro está configurado no backend
-  categories?: Array<{ id: string; label: string; color?: string; emoji?: string; }>; // Categorias personalizadas (com cor)
+  automaticPayment?: boolean;
+  manualPixKey?: string;
+  hasPagSeguro?: boolean;
+  hasPagSeguroToken?: boolean;
+  categories?: Array<{ id: string; label: string; color?: string; emoji?: string; }>;
   features?: {
     thermalPrinter?: boolean;
     coupons?: boolean;
@@ -53,18 +52,16 @@ export interface SystemConfig {
     automaticPaymentAllowed?: boolean;
     deliverySystem?: boolean;
     dineIn?: boolean;
-    stockControl?: boolean; // Sistema de controle de estoque
+    stockControl?: boolean;
   };
-  // Campos privados (só existem no master config, não no public)
   pagSeguroToken?: string;
-  pagSeguroEmail?: string; // Email da conta PagSeguro (necessário para API)
+  pagSeguroEmail?: string;
   metaPixelId?: string;
   adminUsername?: string;
-  // Temas (Modo Escuro / Cores Customizadas)
   backgroundColor?: string;
   cardColor?: string;
   textColor?: string;
-  forceDarkMode?: boolean; // 🌓 NOVO: Forçar modo claro ou escuro
+  forceDarkMode?: boolean;
 }
 
 interface ConfigContextType {
@@ -76,12 +73,12 @@ interface ConfigContextType {
 
 const DEFAULT_CONFIG: SystemConfig = {
   siteName: 'NewBurguer Lanches',
-  themeColor: '#d97706', // amber-600
+  themeColor: '#d97706',
   phone: '(64) 99339-2970',
   address: 'Praça Lucio Prado - Goiatuba/GO',
   isOpen: true,
   deliveryFee: 5.00,
-  uiOpacity: 35 // Valor padrão - efeito glass/vidro
+  uiOpacity: 35
 };
 
 const ConfigContext = createContext<ConfigContextType>({
@@ -95,12 +92,10 @@ export const useConfig = () => useContext(ConfigContext);
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SystemConfig>(() => {
-    // Tentar carregar do localStorage SÍNCRONO na inicialização para evitar Flash of Default Content
     try {
       const local = localStorage.getItem('faroeste_system_config');
       if (local) {
         const parsed = JSON.parse(local);
-        // Aplicar tema imediatamente se existir no localstorage
         if (parsed.themeColor) {
           applyTheme(parsed.themeColor, {
             backgroundColor: parsed.backgroundColor,
@@ -127,10 +122,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       if (response.success && response.config) {
         setConfig(prev => ({ ...prev, ...response.config }));
         
-        // Salvar no localStorage para próxima vez ser instantâneo
         localStorage.setItem('faroeste_system_config', JSON.stringify(response.config));
 
-        // Aplicar tema
         if (response.config.themeColor) {
           applyTheme(response.config.themeColor, {
             backgroundColor: response.config.backgroundColor,
@@ -164,9 +157,6 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     refreshConfig();
   }, []);
 
-  // Se estiver carregando e não tivermos nenhuma config salva (está usando default),
-  // mostramos um loader para evitar o "Flash of Default Content" (FOUC) com dados incorretos.
-  // Se já tiver config do localStorage, mostra ela enquanto atualiza em background (stale-while-revalidate).
   const hasLocalConfig = typeof localStorage !== 'undefined' && !!localStorage.getItem('faroeste_system_config');
   
   if (loading && !hasLocalConfig) {

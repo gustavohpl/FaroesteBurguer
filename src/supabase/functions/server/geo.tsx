@@ -1,12 +1,5 @@
-// ==========================================
-// 🌍 GEOLOCALIZAÇÃO PRECISION ENGINE v4.1
-// Consulta 8 provedores em paralelo, pipeline de 11 passos
-// Extraído de index.tsx para modularização
-// ==========================================
-
 import type { GeoResult, GeoSourceResult, GeoSourceDetail, GeoCacheEntry } from "./types.tsx";
 
-// 🗄️ Cache de geolocalização em memória (TTL de 10 minutos)
 const geoCache = new Map<string, GeoCacheEntry>();
 const GEO_CACHE_TTL = 10 * 60 * 1000;
 
@@ -27,8 +20,6 @@ function setCachedGeo(ip: string, data: GeoResult) {
   }
   geoCache.set(ip, { data, ts: Date.now() });
 }
-
-// ---- VPN Detection ----
 
 const vpnKeywords = ['vpn','proxy','tunnel','anonymo','mullvad','nordvpn','expressvpn',
   'surfshark','cyberghost','protonvpn','private internet','torguard','hidemy','windscribe',
@@ -58,8 +49,6 @@ export function detectVpnHeuristic(isp: string, org: string, asn: string): boole
   return false;
 }
 
-// ---- City Normalization ----
-
 function normalizeCity(city: string): string {
   return (city || '')
     .toLowerCase().trim()
@@ -72,15 +61,11 @@ function normalizeCity(city: string): string {
     .trim();
 }
 
-// ---- Source Weights ----
-
 const SOURCE_WEIGHTS: Record<string, number> = {
   'ip-api.com': 1.0, 'ipwho.is': 0.95, 'ipapi.co': 0.85,
   'ipwhois.app': 0.85, 'freeipapi.com': 0.75, 'reallyfreegeoip.org': 0.70,
   'geoplugin.net': 0.65, 'iplocate.io': 0.70,
 };
-
-// ---- Mobile ISP Detection ----
 
 const MOBILE_ISP_KEYWORDS = [
   'claro','vivo','tim ','oi ','nextel','algar','sercomtel',
@@ -93,8 +78,6 @@ function detectMobileIsp(isp: string, org: string): boolean {
   return MOBILE_ISP_KEYWORDS.some(kw => combined.includes(kw));
 }
 
-// ---- Haversine Distance ----
-
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -102,8 +85,6 @@ export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: numb
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-
-// ---- 8 Geo Sources ----
 
 async function geoFromIpApi(ip: string, signal: AbortSignal): Promise<GeoSourceResult | null> {
   try {
@@ -189,8 +170,6 @@ async function geoFromIpLocate(ip: string, signal: AbortSignal): Promise<GeoSour
   } catch { return null; }
 }
 
-// ---- Precision Engine: selectBestGeo ----
-
 export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
   const valid = results.filter(r =>
     r && r.lat != null && r.lon != null
@@ -207,7 +186,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
     return { ...r, geoSources: 1, geoSourcesAgree: 1, geoConfidence: 'baixa', geoAccuracy: 'single-source', geoIspType: isMobile ? 'mobile' : 'fixed' } as GeoResult;
   }
 
-  // Country pre-filter
   const countryVotes: Record<string, number> = {};
   for (const r of valid) { const c = (r.country||'').toLowerCase().trim(); if (c) countryVotes[c] = (countryVotes[c]||0)+1; }
   const topCountry = Object.entries(countryVotes).sort((a,b) => b[1]-a[1])[0];
@@ -221,7 +199,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
   }
   const working = countryFiltered;
 
-  // Clustering
   const clusters: GeoSourceResult[][] = [];
   const assigned = new Set<number>();
   for (let i = 0; i < working.length; i++) {
@@ -242,7 +219,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
     clusters.push(cluster);
   }
 
-  // Transitive merge
   let merged = true;
   while (merged) {
     merged = false;
@@ -266,7 +242,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
   const clusterOutliers = clusters.slice(1).flat();
   const allOutliers = [...clusterOutliers, ...countryOutliers];
 
-  // RANSAC
   const effectiveWeights = new Map<GeoSourceResult, number>();
   let refinedCount = 0;
   for (const r of bestGroup) effectiveWeights.set(r, SOURCE_WEIGHTS[r.source]||0.5);
@@ -285,7 +260,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
     }
   }
 
-  // IWCR
   let avgLat: number, avgLon: number;
   let totalWeight = 0;
   let wLat = 0, wLon = 0;
@@ -311,7 +285,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
     if (convergenceDeltaM < 1) break;
   }
 
-  // Accuracy estimation
   const sourceDists = bestGroup.map(r => ({ distM: haversineKm(r.lat!,r.lon!,avgLat,avgLon)*1000, weight: effectiveWeights.get(r)||0.5 }));
   sourceDists.sort((a,b) => a.distM-b.distM);
   const totalW = sourceDists.reduce((s,d) => s+d.weight, 0);
@@ -327,14 +300,12 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
   const maxRadiusM = sourceDists.length > 0 ? sourceDists[sourceDists.length-1].distM : 0;
   const estimatedAccuracyM = Math.round(Math.max(p68RadiusM, 50));
 
-  // ZIP validation
   const zipCounts: Record<string,number> = {};
   for (const r of bestGroup) { const z = (r.zip||'').replace(/\D/g,'').trim(); if (z && z.length >= 4) zipCounts[z] = (zipCounts[z]||0)+1; }
   const topZip = Object.entries(zipCounts).sort((a,b) => b[1]-a[1])[0];
   const zipConfirmed = !!(topZip && topZip[1] >= 2);
   const confirmedZip = zipConfirmed ? topZip![0] : null;
 
-  // Distances
   const groupDistances: number[] = [];
   for (let i = 0; i < bestGroup.length; i++) {
     for (let j = i+1; j < bestGroup.length; j++) {
@@ -351,7 +322,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
   }
   const globalMaxDist = globalDistances.length > 0 ? Math.max(...globalDistances) : 0;
 
-  // Confidence
   const agreeSources = bestGroup.length;
   let confidence: string;
   let accuracy: string;
@@ -374,7 +344,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
   }
   if (agreeSources === 1 && valid.length > 1) { confidence = 'baixa'; accuracy = 'sem-consenso'; }
 
-  // Mobile ISP cap
   const allIsps = bestGroup.map(r => [r.isp||'',r.org||'']).flat();
   const isMobileIsp = allIsps.some(v => detectMobileIsp(v,''));
   const strongEvidence = zipConfirmed && groupMaxDist < 0.3;
@@ -383,7 +352,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
     accuracy = accuracy.replace('exata','alta').replace('muito-alta','alta') + '|mobile-cap';
   }
 
-  // Richest data
   const richest = bestGroup.reduce((best, cur) => {
     const curScore = [cur.district,cur.zip,cur.org,cur.asn,cur.isp,cur.timezone].filter(Boolean).length;
     const bestScore = [best.district,best.zip,best.org,best.asn,best.isp,best.timezone].filter(Boolean).length;
@@ -437,8 +405,6 @@ export function selectBestGeo(results: GeoSourceResult[]): GeoResult {
     geoEngineVersion: 'v4.1',
   };
 }
-
-// ---- Main Export: enrichIpGeo ----
 
 export async function enrichIpGeo(ip: string): Promise<GeoResult | null> {
   if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {

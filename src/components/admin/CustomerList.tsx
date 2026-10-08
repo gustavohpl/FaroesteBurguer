@@ -30,7 +30,6 @@ export function CustomerList() {
       const response = await api.getFullOrderHistory();
       
       if (response.success && response.orders) {
-        // Agrupar pedidos por cliente
         const customerMap = new Map<string, Customer>();
         
         response.orders.forEach((order: any) => {
@@ -102,13 +101,11 @@ export function CustomerList() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Lista de Clientes</h1>
         <p className="text-gray-600">Visualize informações e histórico dos seus clientes</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
           <div className="flex items-center justify-between">
@@ -151,7 +148,6 @@ export function CustomerList() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -165,7 +161,6 @@ export function CustomerList() {
         </div>
       </div>
 
-      {/* Customer List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredCustomers.map(customer => {
           const badge = getCustomerBadge(customer.totalOrders);
@@ -177,7 +172,6 @@ export function CustomerList() {
               onClick={() => setSelectedCustomer(customer)}
             >
               <div className="p-6">
-                {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-full">
@@ -193,7 +187,6 @@ export function CustomerList() {
                   </span>
                 </div>
 
-                {/* Contact Info */}
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Phone className="w-4 h-4 text-gray-500" />
@@ -217,7 +210,6 @@ export function CustomerList() {
                   )}
                 </div>
 
-                {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-600">{customer.totalOrders}</p>
@@ -247,7 +239,6 @@ export function CustomerList() {
         </div>
       )}
 
-      {/* Customer Detail Modal */}
       {selectedCustomer && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
@@ -317,14 +308,12 @@ export function CustomerList() {
         </div>
       )}
 
-      {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
         </div>
       )}
 
-      {/* No Customers State */}
       {customers.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />

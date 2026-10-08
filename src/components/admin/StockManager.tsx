@@ -12,7 +12,6 @@ import { getCurrentBrasiliaTime, formatBrasiliaDate } from '../../utils/dateUtil
 
 type TabView = 'ingredients' | 'report' | 'restock-schedule';
 
-// Gerar beep sonoro via Web Audio API (sem arquivos externos)
 function playAlertSound(type: 'warning' | 'critical' = 'warning') {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -58,25 +57,21 @@ export function StockManager() {
   const [activeTab, setActiveTab] = useState<TabView>('ingredients');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'ingredient' | 'embalagem' | 'acompanhamento'>('all');
 
-  // Modal states
   const [showIngredientModal, setShowIngredientModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<StockIngredient | null>(null);
   const [restockTarget, setRestockTarget] = useState<StockIngredient | null>(null);
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
 
-  // Report state
   const [report, setReport] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
-  // Notificacao sonora
   const [alertsMuted, setAlertsMuted] = useState(() => {
     return localStorage.getItem('stock_alerts_muted') === 'true';
   });
   const hasPlayedInitialAlert = useRef(false);
   const previousAlertIds = useRef<Set<string>>(new Set());
 
-  // Form state
   const [form, setForm] = useState({
     name: '',
     type: 'kg' as 'kg' | 'unit',
@@ -89,13 +84,11 @@ export function StockManager() {
   const [newPortionLabel, setNewPortionLabel] = useState('');
   const [newPortionGrams, setNewPortionGrams] = useState('');
 
-  // Restock form
   const [restockForm, setRestockForm] = useState({
     quantity: '',
     price: '',
   });
 
-  // Restock schedule state
   const [restockSchedule, setRestockSchedule] = useState<RestockSchedule>({});
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
@@ -111,7 +104,6 @@ export function StockManager() {
     { key: 'sunday', label: 'Domingo', short: 'Dom' },
   ];
 
-  // Detectar dia atual da semana
   const getTodayKey = () => {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     return days[new Date().getDay()];
@@ -181,7 +173,6 @@ export function StockManager() {
     }
   };
 
-  // === Notificacoes sonoras de estoque ===
   useEffect(() => {
     if (isLoading || alertsMuted || ingredients.length === 0) return;
 
@@ -209,7 +200,6 @@ export function StockManager() {
     previousAlertIds.current = currentAlertIds;
   }, [ingredients, isLoading, alertsMuted]);
 
-  // Polling: recarregar estoque a cada 60 segundos
   useEffect(() => {
     const interval = setInterval(() => { loadIngredients(); }, 60000);
     return () => clearInterval(interval);
@@ -295,7 +285,6 @@ export function StockManager() {
       defaultQuantity: form.category === 'acompanhamento' ? (parseFloat(form.defaultQuantity) || 1) : undefined,
     };
 
-    // Opcoes de porcao so para ingredientes tipo kg
     if (form.type === 'kg') {
       data.portionOptions = portionOptions;
     } else {
@@ -403,7 +392,6 @@ export function StockManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Controle de Estoque</h2>
@@ -475,7 +463,6 @@ export function StockManager() {
         </div>
       </div>
 
-      {/* Alertas de estoque baixo */}
       {lowStockCount > 0 && activeTab === 'ingredients' && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-red-700 font-semibold mb-2">
@@ -501,10 +488,8 @@ export function StockManager() {
         </div>
       )}
 
-      {/* TAB: Ingredientes */}
       {activeTab === 'ingredients' && (
         <>
-          {/* Filtro por categoria */}
           {ingredients.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {([
@@ -572,14 +557,12 @@ export function StockManager() {
                     }`}
                   >
                     <div className="p-4 flex items-center gap-4">
-                      {/* Icone tipo */}
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                         ing.type === 'kg' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                       }`}>
                         {ing.type === 'kg' ? <Scale className="w-5 h-5" /> : <Hash className="w-5 h-5" />}
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-gray-800 truncate">{ing.name}</h3>
@@ -590,7 +573,6 @@ export function StockManager() {
                           }`}>
                             {status === 'empty' ? 'ZERADO' : status === 'low' ? 'BAIXO' : 'OK'}
                           </span>
-                          {/* Badge de categoria */}
                           {(ing.category === 'embalagem' || ing.category === 'acompanhamento') && (
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${catInfo.color}`}>
                               {ing.category === 'embalagem' ? <BoxSelect className="w-3 h-3" /> : <Utensils className="w-3 h-3" />}
@@ -600,7 +582,6 @@ export function StockManager() {
                               )}
                             </span>
                           )}
-                          {/* Badges de opcoes de porcao */}
                           {portions.length > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200">
                               {portions.length} {portions.length === 1 ? 'porcao' : 'porcoes'}
@@ -611,7 +592,6 @@ export function StockManager() {
                           <span className="font-semibold text-lg text-gray-800">
                             {formatStock(ing)}
                           </span>
-                          {/* Mostrar opcoes de porcao inline */}
                           {portions.length > 0 && (
                             <span className="text-xs text-gray-500">
                               ({portions.map(p => `${p.label}: ${p.grams}g`).join(' | ')})
@@ -626,7 +606,6 @@ export function StockManager() {
                         </div>
                       </div>
 
-                      {/* Acoes */}
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           onClick={() => handleOpenRestock(ing)}
@@ -659,7 +638,6 @@ export function StockManager() {
                       </div>
                     </div>
 
-                    {/* Historico de Compras expandido */}
                     {isExpanded && (
                       <div className="border-t bg-gray-50 p-4">
                         <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -724,7 +702,6 @@ export function StockManager() {
         </>
       )}
 
-      {/* TAB: Relatorio do Dia */}
       {activeTab === 'report' && (
         <div className="space-y-4">
           <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-lg p-6 text-white">
@@ -813,10 +790,8 @@ export function StockManager() {
         </div>
       )}
 
-      {/* TAB: Agenda de Reposição Semanal */}
       {activeTab === 'restock-schedule' && (
         <div className="space-y-4">
-          {/* Header */}
           <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-lg p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <div>
@@ -855,7 +830,6 @@ export function StockManager() {
             </div>
           ) : (
             <>
-              {/* Seletor de dias */}
               <div className="grid grid-cols-7 gap-2">
                 {WEEK_DAYS.map(day => {
                   const isToday = getTodayKey() === day.key;
@@ -899,7 +873,6 @@ export function StockManager() {
                 })}
               </div>
 
-              {/* Painel de ingredientes para o dia selecionado */}
               {scheduleSelectedDay && (
                 <div className="bg-white border border-orange-200 rounded-xl overflow-hidden">
                   <div className="bg-orange-50 border-b border-orange-200 px-4 py-3">
@@ -927,7 +900,6 @@ export function StockManager() {
                               : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
                           } ${scheduleSaving ? 'opacity-60' : ''}`}
                         >
-                          {/* Checkbox visual */}
                           <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                             isOnDay
                               ? 'border-orange-500 bg-orange-500'
@@ -936,14 +908,12 @@ export function StockManager() {
                             {isOnDay && <Check className="w-4 h-4 text-white" />}
                           </div>
 
-                          {/* Icone tipo */}
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                             ing.type === 'kg' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                           }`}>
                             {ing.type === 'kg' ? <Scale className="w-4 h-4" /> : <Hash className="w-4 h-4" />}
                           </div>
 
-                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className={`font-medium text-sm truncate ${isOnDay ? 'text-orange-800' : 'text-gray-800'}`}>
@@ -975,7 +945,6 @@ export function StockManager() {
                 </div>
               )}
 
-              {/* Resumo geral — mostra todos os ingredientes e seus dias */}
               {!scheduleSelectedDay && (
                 <div className="bg-white border rounded-xl overflow-hidden">
                   <div className="bg-gray-50 border-b px-4 py-3">
@@ -1028,7 +997,6 @@ export function StockManager() {
                 </div>
               )}
 
-              {/* Visão do dia de hoje — destaque */}
               {(() => {
                 const todayKey = getTodayKey();
                 const todayIngredients = (restockSchedule[todayKey] || [])
@@ -1087,7 +1055,6 @@ export function StockManager() {
         </div>
       )}
 
-      {/* Modal: Novo/Editar Ingrediente */}
       {showIngredientModal && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setShowIngredientModal(false)} />
@@ -1151,7 +1118,6 @@ export function StockManager() {
                   </div>
                 </div>
 
-                {/* Categoria */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -1200,7 +1166,6 @@ export function StockManager() {
                   )}
                 </div>
 
-                {/* Quantidade padrão por pedido — só acompanhamentos */}
                 {form.category === 'acompanhamento' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1221,7 +1186,6 @@ export function StockManager() {
                   </div>
                 )}
 
-                {/* Estoque e Alerta */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1251,7 +1215,6 @@ export function StockManager() {
                   </div>
                 </div>
 
-                {/* Opcoes de Porcao — so para tipo kg */}
                 {form.type === 'kg' && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -1264,7 +1227,6 @@ export function StockManager() {
                       Defina diferentes tamanhos de porcao. Na ficha tecnica do produto, voce escolhe qual usar.
                     </p>
 
-                    {/* Lista de porcoes existentes */}
                     {portionOptions.length > 0 && (
                       <div className="space-y-2">
                         {portionOptions.map(p => (
@@ -1287,7 +1249,6 @@ export function StockManager() {
                       </div>
                     )}
 
-                    {/* Adicionar nova porcao */}
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -1348,7 +1309,6 @@ export function StockManager() {
         </>
       )}
 
-      {/* Modal: Reposicao de Estoque */}
       {showRestockModal && restockTarget && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setShowRestockModal(false)} />

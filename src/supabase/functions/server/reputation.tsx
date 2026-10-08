@@ -1,8 +1,3 @@
-// ==========================================
-// 🎯 IP REPUTATION SCORE SYSTEM
-// Pontuação de ameaça 0-100 por IP, baseada em sinais agregados
-// ==========================================
-
 import * as kv from "./kv_retry.tsx";
 import type { IpReputationRecord, ReputationTier } from "./types.tsx";
 import { dispatchWebhook } from "./webhooks.tsx";
@@ -62,7 +57,6 @@ export async function updateIpReputation(ip: string, signalType: string, detail?
   existing.lastSeen = new Date().toISOString();
   existing.totalEvents = (existing.totalEvents || 0) + 1;
   
-  // Recalcular score: soma com decaimento temporal
   const now = Date.now();
   const DECAY_WINDOW = 72 * 60 * 60 * 1000;
   let rawScore = 0;
@@ -80,7 +74,6 @@ export async function updateIpReputation(ip: string, signalType: string, detail?
   
   await kv.set(key, { ...existing, _key: key });
   
-  // Se score > 80, disparar webhook de alta ameaça
   if (existing.score > 80) {
     await dispatchWebhook('high_threat_score', {
       ip,

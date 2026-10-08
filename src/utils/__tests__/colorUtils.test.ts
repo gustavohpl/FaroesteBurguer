@@ -1,16 +1,9 @@
-// ==========================================
-// 🧪 TESTES UNITÁRIOS — colorUtils
-// hexToRgba, resolveColorToHex, darkenHex, TAILWIND_CLASS_TO_HEX
-// ==========================================
-
 import {
   hexToRgba,
   resolveColorToHex,
   darkenHex,
   TAILWIND_CLASS_TO_HEX,
 } from '../colorUtils';
-
-// ---- Test Runner Simples (sem dependências externas) ----
 
 interface TestResult {
   name: string;
@@ -59,10 +52,6 @@ function expect<T>(actual: T) {
   };
 }
 
-// ==========================================
-// hexToRgba
-// ==========================================
-
 test('hexToRgba: converte #ff0000 alpha 1', () => {
   expect(hexToRgba('#ff0000', 1)).toBe('rgba(255, 0, 0, 1)');
 });
@@ -86,10 +75,6 @@ test('hexToRgba: branco com alpha 1', () => {
 test('hexToRgba: cor intermediária #d97706', () => {
   expect(hexToRgba('#d97706', 0.3)).toBe('rgba(217, 119, 6, 0.3)');
 });
-
-// ==========================================
-// resolveColorToHex
-// ==========================================
 
 test('resolveColorToHex: retorna hex direto', () => {
   expect(resolveColorToHex('#ff5500')).toBe('#ff5500');
@@ -131,10 +116,6 @@ test('resolveColorToHex: retorna null para string vazia', () => {
   expect(resolveColorToHex('')).toBeNull();
 });
 
-// ==========================================
-// darkenHex
-// ==========================================
-
 test('darkenHex: escurece #ffffff em 15% -> ~#d9d9d9', () => {
   const result = darkenHex('#ffffff', 0.15);
   expect(result).toBe('#d9d9d9');
@@ -152,7 +133,6 @@ test('darkenHex: escurece #000000 em 50% -> #000000 (preto permanece preto)', ()
 
 test('darkenHex: escurece #d97706 (amber) em 15%', () => {
   const result = darkenHex('#d97706', 0.15);
-  // r=217*0.85=184.45≈184=b8, g=119*0.85=101.15≈101=65, b=6*0.85=5.1≈5=05
   expect(result).toBe('#b86505');
 });
 
@@ -171,10 +151,6 @@ test('darkenHex: amount 1 gera preto', () => {
   expect(result).toBe('#000000');
 });
 
-// ==========================================
-// TAILWIND_CLASS_TO_HEX completude
-// ==========================================
-
 test('TAILWIND_CLASS_TO_HEX: tem pelo menos 8 entradas', () => {
   expect(Object.keys(TAILWIND_CLASS_TO_HEX).length).toBeGreaterThan(7);
 });
@@ -186,10 +162,6 @@ test('TAILWIND_CLASS_TO_HEX: todos os valores são hex válidos', () => {
     }
   }
 });
-
-// ==========================================
-// Exportar resultados
-// ==========================================
 
 export function runColorUtilsTests(): { results: TestResult[]; passed: number; failed: number; total: number } {
   const passed = results.filter(r => r.passed).length;

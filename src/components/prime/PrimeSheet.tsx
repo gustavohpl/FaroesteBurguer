@@ -12,7 +12,6 @@ interface Props {
   ilustracao: string | null;
   lojaAberta: boolean;
   onClose: () => void;
-  /** origem = a foto da folha, para a animação de "voar até a sacola" */
   onAdd: (product: Product, notes: string, quantity: number, addons: Adicional[] | undefined, origem: HTMLElement | null) => void;
 }
 

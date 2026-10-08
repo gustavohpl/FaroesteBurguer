@@ -1,9 +1,3 @@
--- =============================================
--- Função SQL para desconto atômico de estoque
--- Executar no SQL Editor do Supabase:
--- https://supabase.com/dashboard → SQL Editor → New Query → Cole e Execute
--- =============================================
-
 CREATE OR REPLACE FUNCTION atomic_stock_decrement(
   p_key TEXT,
   p_amount NUMERIC,
@@ -17,7 +11,6 @@ DECLARE
   v_new NUMERIC;
   v_result JSONB;
 BEGIN
-  -- UPDATE atômico: decrementa currentStock e atualiza updatedAt em uma única operação
   UPDATE kv_store_dfe23da2
   SET value = jsonb_set(
     jsonb_set(

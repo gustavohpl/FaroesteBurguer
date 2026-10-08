@@ -1,16 +1,7 @@
-// ==========================================
-// 🔒 Validação e recomputação de preços do pedido (server-side)
-// Corrige adulteração de preço/total: o servidor é a fonte da verdade.
-// - Quantidades: inteiro positivo (1..MAX_QTY)
-// - Preços/frete/desconto: número finito >= 0
-// - Preço por item não pode ficar ABAIXO do preço de catálogo (product:<id>)
-// - Total é RECOMPUTADO no servidor e comparado ao enviado pelo cliente
-// ==========================================
-
 import * as kv from "./kv_retry.tsx";
 
 const MAX_QTY = 99;
-const EPS = 0.01; // tolerância de 1 centavo para arredondamento
+const EPS = 0.01;
 
 function isFiniteNumber(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
@@ -24,13 +15,9 @@ export interface OrderPricing {
   discount: number;
   deliveryFee: number;
   total: number;
-  tampered?: boolean; // total do cliente divergiu do recomputado
+  tampered?: boolean;
 }
 
-/**
- * Valida o corpo do pedido e recomputa subtotal/desconto/frete/total no servidor.
- * Retorna ok=false com status/message quando a entrada é inválida (rejeitar com 400).
- */
 export async function validateAndPriceOrder(body: any): Promise<OrderPricing> {
   const fail = (message: string, status = 400): OrderPricing => ({
     ok: false, status, message, subtotal: 0, discount: 0, deliveryFee: 0, total: 0,
@@ -53,7 +40,6 @@ export async function validateAndPriceOrder(body: any): Promise<OrderPricing> {
       return fail(`Preço inválido para "${item?.name ?? "item"}".`);
     }
 
-    // Preço de catálogo como piso: o cliente não pode enviar um preço menor.
     const productId = item?.productId ?? item?.id;
     if (productId) {
       const product: any = await kv.get(`product:${productId}`);
@@ -62,7 +48,6 @@ export async function validateAndPriceOrder(body: any): Promise<OrderPricing> {
       }
     }
 
-    // Adicionais (opcionais) só podem SOMAR; nunca negativos.
     const addons = Array.isArray(item?.selectedAddons) ? item.selectedAddons : [];
     let addonsTotal = 0;
     for (const addon of addons) {
@@ -73,12 +58,10 @@ export async function validateAndPriceOrder(body: any): Promise<OrderPricing> {
     subtotal += (clientPrice + addonsTotal) * qty;
   }
 
-  // Frete: >= 0 e só aplicado em entrega.
   const rawFee = Number(body?.deliveryFee);
   const feeGiven = isFiniteNumber(rawFee) && rawFee >= 0 ? rawFee : 0;
   const deliveryFee = body?.deliveryType === "delivery" ? feeGiven : 0;
 
-  // Desconto: re-derivado do cupom no servidor (nunca confiar no valor enviado).
   let discount = 0;
   const code = typeof body?.couponCode === "string" ? body.couponCode.trim() : "";
   if (code) {
@@ -98,7 +81,6 @@ export async function validateAndPriceOrder(body: any): Promise<OrderPricing> {
 
   const total = Math.max(0, subtotal - discount) + deliveryFee;
 
-  // Compara com o total enviado pelo cliente (defesa em profundidade + auditoria).
   const clientTotal = Number(body?.total);
   const tampered = isFiniteNumber(clientTotal) ? Math.abs(clientTotal - total) > EPS : true;
 

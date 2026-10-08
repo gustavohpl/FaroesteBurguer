@@ -33,7 +33,6 @@ export function OrderConfirmedModal({
       address
     });
     
-    // Animação de entrada
     setTimeout(() => setShow(true), 100);
   }, []);
 
@@ -68,7 +67,6 @@ export function OrderConfirmedModal({
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Botão X no canto — fixo dentro do modal */}
         <button
           onClick={handleClose}
           className="absolute top-3 right-3 z-20 text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-colors"
@@ -76,9 +74,7 @@ export function OrderConfirmedModal({
           <X className="w-6 h-6" />
         </button>
 
-        {/* Header com animação de sucesso */}
         <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 sm:p-8 rounded-t-2xl text-white text-center relative overflow-hidden">
-          {/* Efeito de confete animado */}
           <div className="absolute inset-0 opacity-20">
             {[...Array(20)].map((_, i) => (
               <div
@@ -103,9 +99,7 @@ export function OrderConfirmedModal({
           </div>
         </div>
 
-        {/* Corpo do modal */}
         <div className="p-5 sm:p-6 space-y-5">
-          {/* Informações do pedido */}
           <div className="bg-gray-50 dark:bg-zinc-800 rounded-xl p-4 space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-400 font-medium">Pedido</span>
@@ -137,7 +131,6 @@ export function OrderConfirmedModal({
             </div>
           </div>
 
-          {/* Status atual */}
           <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="bg-green-500 rounded-full p-2 flex-shrink-0">
@@ -156,7 +149,6 @@ export function OrderConfirmedModal({
             </div>
           </div>
 
-          {/* Mensagem */}
           {enableTracking && (
             <div className="text-center">
               <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm">
@@ -168,7 +160,6 @@ export function OrderConfirmedModal({
             </div>
           )}
 
-          {/* Botão de fechar */}
           <button
             onClick={handleClose}
             className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -176,7 +167,6 @@ export function OrderConfirmedModal({
             Entendido
           </button>
 
-          {/* Link de suporte */}
           <div className="text-center text-sm text-gray-500 dark:text-gray-400 pb-1">
             Dúvidas? Entre em contato conosco
           </div>

@@ -37,7 +37,7 @@ interface Driver {
 
 export function DeliveryArea() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [completedOrders, setCompletedOrders] = useState<Order[]>([]); // Novo estado para pedidos concluídos
+  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,12 +54,9 @@ export function DeliveryArea() {
 
   useEffect(() => {
     loadData();
-    loadConfig(); // Load config once on mount
+    loadConfig();
   }, []);
 
-  // Realtime: substitui o polling fixo de 1s
-  // Se Realtime conectar → safety net a cada 10s (delivery precisa ser responsivo)
-  // Se Realtime falhar → fallback a cada 5s
   const { isRealtimeConnected: isDeliveryAreaRealtime } = useOrdersRealtime(useCallback(() => {
     console.log('🔄 [DELIVERY AREA] Refresh via Realtime/polling');
     loadData();
@@ -83,30 +80,26 @@ export function DeliveryArea() {
     try {
       console.log('📦 [DELIVERY AREA] Carregando dados...');
       
-      // Carregar pedidos, setores E drivers em paralelo
       const [ordersResponse, sectorsResponse, driversResponse, historyResponse] = await Promise.all([
         api.getAllOrders(),
         api.getDeliverySectors(),
         api.getDeliveryDrivers(),
-        api.getOrderHistory() // Buscar histórico para aba de concluídos
+        api.getOrderHistory()
       ]);
 
       if (ordersResponse.success && ordersResponse.orders) {
-        // Filtrar apenas pedidos de delivery
         const deliveryOrders = ordersResponse.orders.filter(
           (o: Order) => o.deliveryType === 'delivery'
         );
         
         setOrders(deliveryOrders);
         
-        // Calcular estatísticas dos pedidos ATIVOS
         const ready = deliveryOrders.filter((o: Order) => o.status === 'ready_for_delivery').length;
         const outFor = deliveryOrders.filter((o: Order) => o.status === 'out_for_delivery').length;
         
         console.log('✅ [DELIVERY AREA] Pedidos ativos carregados:', deliveryOrders.length);
         console.log('📊 [DELIVERY AREA] Pedidos ativos - Prontos:', ready, '| Em Rota:', outFor);
         
-        // Processar histórico e calcular "Entregues Hoje"
         if (historyResponse.success && historyResponse.orders) {
           const deliveryHistory = historyResponse.orders.filter(
             (o: Order) => o.deliveryType === 'delivery' && o.status === 'completed'
@@ -114,7 +107,6 @@ export function DeliveryArea() {
           
           setCompletedOrders(deliveryHistory);
           
-          // Contar pedidos concluídos HOJE (considerando Dia de Negócio: reseta às 4h da manhã)
           const getBusinessDate = (date: Date | string) => {
             const d = new Date(date);
             const businessTime = new Date(d.getTime() - (4 * 60 * 60 * 1000));
@@ -134,7 +126,6 @@ export function DeliveryArea() {
             return isToday;
           }).length;
           
-          // Atualizar todas as estatísticas de uma vez
           setStats({
             readyForDelivery: ready,
             outForDelivery: outFor,
@@ -152,10 +143,9 @@ export function DeliveryArea() {
       }
 
       if (driversResponse.success && driversResponse.drivers) {
-        // Filtrar apenas drivers online do dia COM TIMEOUT
         const todayStr = new Date().toISOString().split('T')[0];
         const now = new Date();
-        const TIMEOUT_HOURS = 9; // Considerar offline após 9 horas sem atividade
+        const TIMEOUT_HOURS = 9;
         
         console.log('🚗 [DELIVERY AREA] Total de drivers recebidos:', driversResponse.drivers.length);
         console.log('🚗 [DELIVERY AREA] Drivers recebidos:', JSON.stringify(driversResponse.drivers, null, 2));
@@ -169,12 +159,10 @@ export function DeliveryArea() {
           const loginDate = d.lastLogin.split('T')[0];
           const isToday = loginDate === todayStr;
           
-          // Verificar timeout: se o último login foi há mais de 9 horas, considerar offline
           const lastLoginTime = new Date(d.lastLogin);
           const hoursSinceLogin = (now.getTime() - lastLoginTime.getTime()) / (1000 * 60 * 60);
           const isWithinTimeout = hoursSinceLogin < TIMEOUT_HOURS;
           
-          // Só considerar ativo se: login foi hoje + status é online + dentro do timeout
           const isActive = isToday && d.status === 'online' && isWithinTimeout;
           
           console.log(`🔍 [DELIVERY AREA] Driver ${d.name}:`, {
@@ -240,7 +228,7 @@ export function DeliveryArea() {
   const getTimeSinceReady = (dateString: string) => {
     const now = new Date();
     const orderDate = new Date(dateString);
-    const diff = Math.floor((now.getTime() - orderDate.getTime()) / 1000 / 60); // minutos
+    const diff = Math.floor((now.getTime() - orderDate.getTime()) / 1000 / 60);
     
     if (diff < 5) return { text: 'Acabou de ficar pronto', color: 'text-green-600' };
     if (diff < 10) return { text: `${diff} min atrás`, color: 'text-green-600' };
@@ -256,7 +244,7 @@ export function DeliveryArea() {
       
       if (response.success) {
         console.log('✅ [DELIVERY AREA] Status atualizado');
-        await loadData(); // Recarregar dados
+        await loadData();
       } else {
         console.error('❌ [DELIVERY AREA] Erro ao atualizar:', response.error);
         alert('Erro ao atualizar status do pedido');
@@ -270,9 +258,6 @@ export function DeliveryArea() {
   const handleSaveConfig = async () => {
     try {
       setIsSavingConfig(true);
-      // Se tiver cores selecionadas, o limite é o número de cores
-      // Se não tiver, o limite é 0 (fechado) ou o que for definido.
-      // Com a nova UI, activeColors define tudo.
       
       const configToSave = {
         activeColors: deliveryConfig.activeColors,
@@ -306,7 +291,7 @@ export function DeliveryArea() {
       
       if (response.success) {
         alert(`✅ Entregador "${driver.name}" desconectado com sucesso!`);
-        await loadData(); // Recarregar lista
+        await loadData();
       } else {
         alert('❌ Erro ao desconectar entregador: ' + (response.error || 'Erro desconhecido'));
       }
@@ -325,20 +310,17 @@ export function DeliveryArea() {
     );
   }
 
-  // Agrupar setores com pedidos prontos
   const sectorsWithOrders = sectors.filter(sector => {
     const ordersInSector = getOrdersBySector(sector.id);
     return ordersInSector.length > 0;
   });
 
-  // Pedidos sem setor definido
   const ordersWithoutSector = orders.filter(
     o => !o.deliverySector && o.status === 'ready_for_delivery'
   );
 
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -354,7 +336,7 @@ export function DeliveryArea() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                  loadConfig(); // Refresh config when opening modal
+                  loadConfig();
                   setShowConfigModal(true);
               }}
               className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition-colors shadow-sm"
@@ -372,7 +354,6 @@ export function DeliveryArea() {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
             <div className="flex items-center gap-3">
@@ -406,7 +387,6 @@ export function DeliveryArea() {
         </div>
       </div>
 
-      {/* Alertas */}
       {stats.readyForDelivery > 5 && (
         <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
           <div className="flex items-center gap-3">
@@ -421,7 +401,6 @@ export function DeliveryArea() {
         </div>
       )}
 
-      {/* Tabs Navigation */}
       <div className="mb-6 bg-white rounded-lg border-2 border-gray-200 p-1 flex gap-1">
         <button
           onClick={() => setActiveTab('ready')}
@@ -480,10 +459,8 @@ export function DeliveryArea() {
         </button>
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'ready' && (
         <div className="space-y-4">
-          {/* Pedidos Sem Setor */}
           {ordersWithoutSector.length > 0 && (
             <div className="mb-6 bg-yellow-50 border border-yellow-300 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -519,7 +496,6 @@ export function DeliveryArea() {
             </div>
           )}
 
-          {/* Lista de Setores */}
           <div className="space-y-4">
             {sectorsWithOrders.length === 0 && ordersWithoutSector.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
@@ -534,7 +510,6 @@ export function DeliveryArea() {
                 
                 return (
                   <div key={sector.id} className="bg-white rounded-lg border-2 shadow-sm overflow-hidden">
-                    {/* Header do Setor */}
                     <div
                       className="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
                       style={{ borderLeftWidth: '6px', borderLeftColor: sector.color }}
@@ -561,7 +536,6 @@ export function DeliveryArea() {
                       </div>
                       
                       <div className="flex items-center gap-4">
-                         {/* Status do Grupo */}
                          {ordersInSector.length > 0 && (
                            <div className="flex flex-col items-end">
                              <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full animate-pulse">
@@ -578,7 +552,6 @@ export function DeliveryArea() {
                       </div>
                     </div>
 
-                    {/* Pedidos do Setor (Expandido) */}
                     {isExpanded && (
                       <div className="border-t border-gray-200 bg-gray-50">
                         <div className="p-4 space-y-3">
@@ -590,7 +563,6 @@ export function DeliveryArea() {
                                 key={order.orderId} 
                                 className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                               >
-                                {/* Header do Pedido */}
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
@@ -621,7 +593,6 @@ export function DeliveryArea() {
                                   </div>
                                 </div>
 
-                                {/* Endereço */}
                                 <div className="bg-gray-50 rounded p-2 mb-3">
                                   <div className="flex items-start gap-2">
                                     <MapPin className="w-4 h-4 text-gray-600 mt-0.5" />
@@ -629,7 +600,6 @@ export function DeliveryArea() {
                                   </div>
                                 </div>
 
-                                {/* Itens do Pedido */}
                                 <div className="mb-3">
                                   <p className="text-xs font-bold text-gray-600 mb-1">ITENS:</p>
                                   <div className="space-y-1">
@@ -642,16 +612,6 @@ export function DeliveryArea() {
                                   </div>
                                 </div>
 
-                                {/* Botão de Ação (Individual removido em favor do grupo, mas mantido como fallback ou visualização) */}
-                                {/* 
-                                <button
-                                  onClick={() => updateOrderStatus(order.orderId, 'out_for_delivery')}
-                                  className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                                >
-                                  <Truck className="w-4 h-4" />
-                                  Marcar como "Saiu para Entrega"
-                                </button>
-                                */}
                                 <div className="mt-2 text-center text-xs text-gray-500 italic bg-gray-50 p-2 rounded flex items-center justify-center gap-2">
                                     <Clock className="w-3 h-3" />
                                     Aguardando entregador iniciar rota
@@ -672,10 +632,8 @@ export function DeliveryArea() {
 
       {activeTab === 'inRoute' && (
         <div className="space-y-4">
-          {/* 🎨 NOVA VISUALIZAÇÃO: Cestinhas por Cor do Entregador */}
           {orders.filter(o => o.status === 'out_for_delivery').length > 0 ? (
             (() => {
-              // Agrupar pedidos por cor do entregador
               const ordersByDriverColor: Record<string, { driver: { name: string; phone: string; color: string }, orders: Order[], sectors: Set<string> }> = {};
               
               orders.filter(o => o.status === 'out_for_delivery').forEach(order => {
@@ -692,7 +650,6 @@ export function DeliveryArea() {
                   
                   ordersByDriverColor[color].orders.push(order);
                   
-                  // Adicionar setor à lista
                   if (order.deliverySector) {
                     ordersByDriverColor[color].sectors.add(order.deliverySector);
                   }
@@ -701,7 +658,6 @@ export function DeliveryArea() {
               
               return (
                 <div className="space-y-4">
-                  {/* Título e instrução */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Navigation className="w-5 h-5 text-blue-700" />
@@ -712,7 +668,6 @@ export function DeliveryArea() {
                     </p>
                   </div>
                   
-                  {/* Cestinhas por Cor */}
                   {Object.entries(ordersByDriverColor).map(([color, data]) => {
                     const sectorNames = Array.from(data.sectors).map(sectorId => {
                       const sector = sectors.find(s => s.id === sectorId);
@@ -725,7 +680,6 @@ export function DeliveryArea() {
                         className="bg-white rounded-xl shadow-lg border-4 overflow-hidden"
                         style={{ borderColor: color }}
                       >
-                        {/* Header da Cestinha - Cor e Entregador */}
                         <div 
                           className="p-4 text-white"
                           style={{ backgroundColor: color }}
@@ -748,7 +702,6 @@ export function DeliveryArea() {
                             </div>
                           </div>
                           
-                          {/* Setores Atribuídos */}
                           <div className="mt-3 pt-3 border-t border-white/20">
                             <p className="text-xs text-white/80 font-bold mb-2">🗺️ SETORES DESTA ROTA:</p>
                             <div className="flex flex-wrap gap-2">
@@ -764,7 +717,6 @@ export function DeliveryArea() {
                           </div>
                         </div>
                         
-                        {/* Lista de Pedidos da Cestinha */}
                         <div className="p-4 space-y-3">
                           {data.orders.map(order => (
                             <div 
@@ -812,7 +764,6 @@ export function DeliveryArea() {
                                 </div>
                               </div>
                               
-                              {/* Itens do Pedido (compacto) */}
                               <div className="mt-2 pt-2 border-t border-gray-200">
                                 <p className="text-xs font-bold text-gray-500 mb-1">ITENS:</p>
                                 <div className="space-y-0.5">
@@ -824,7 +775,6 @@ export function DeliveryArea() {
                                   ))}
                                 </div>
                                 
-                                {/* 🆕 Informação de Troco */}
                                 {order.paymentMethod?.toLowerCase().includes('cash') && (order as any).changeFor && (
                                   <div className="mt-2 p-2 bg-green-100 border-2 border-green-400 rounded">
                                     <div className="flex items-center gap-1 mb-1">
@@ -865,7 +815,6 @@ export function DeliveryArea() {
 
       {activeTab === 'completed' && (
         <div className="space-y-4">
-          {/* Pedidos Concluídos do Histórico */}
           {completedOrders.length > 0 ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -934,7 +883,6 @@ export function DeliveryArea() {
                       </div>
                     </div>
                     
-                    {/* Informações do Entregador */}
                     {order.driver && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex items-center gap-2">
@@ -978,7 +926,6 @@ export function DeliveryArea() {
 
       {activeTab === 'drivers' && (
         <div className="space-y-4">
-          {/* Lista de Entregadores */}
           {drivers.length > 0 ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -1029,7 +976,6 @@ export function DeliveryArea() {
                       </div>
                     </div>
                     
-                    {/* Botão de Forçar Logout */}
                     {driver.status === 'online' && (
                       <div className="pt-3 border-t border-gray-200">
                         <button
@@ -1056,12 +1002,10 @@ export function DeliveryArea() {
         </div>
       )}
 
-      {/* Footer Info */}
       <div className="mt-6 text-center text-sm text-gray-500">
         <p>🔄 Atualização automática a cada 1 segundo</p>
       </div>
 
-      {/* Config Modal */}
       {showConfigModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">

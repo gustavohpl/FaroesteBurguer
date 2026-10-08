@@ -1,14 +1,8 @@
-// ==========================================
-// 🛡️ MIDDLEWARE DE AUTENTICAÇÃO
-// requireAdmin, requireMaster, requireDriver, requireAdminOrDriver
-// ==========================================
-
 import type { Context, Next } from "npm:hono";
 import * as kv from "./kv_retry.tsx";
 import { definirEscopo } from "./kv_retry.tsx";
 import { franquia, entrarNaUnidade } from "./franquia.tsx";
 
-// com franquia ligada, Admin e entregador ficam presos à unidade em que fizeram login (o cabeçalho não muda isso)
 async function prenderNaUnidade(session: any): Promise<boolean> {
   if (!(await franquia())) { definirEscopo(null, null); return true; }
   return !!session?.unitId && await entrarNaUnidade(session.unitId);
@@ -21,8 +15,6 @@ import {
   RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_LOCKOUT_MS,
 } from "./server_utils.tsx";
-
-// ---- Rate Limiting ----
 
 export async function checkRateLimit(route: string, ip: string): Promise<{ allowed: boolean; retryAfterSec?: number }> {
   const key = `rate_limit:${route}:${ip}`;
@@ -74,8 +66,6 @@ export async function clearRateLimit(route: string, ip: string): Promise<void> {
   await kv.del(`rate_limit:${route}:${ip}`);
 }
 
-// ---- Session Cleanup ----
-
 let lastCleanupTime = 0;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -112,12 +102,9 @@ export async function cleanupExpiredSessions(): Promise<number> {
   return cleaned;
 }
 
-/** Reseta o throttle de limpeza (usado pela rota master/cleanup-sessions) */
 export function resetCleanupThrottle(): void {
   lastCleanupTime = 0;
 }
-
-// ---- Auth Middleware ----
 
 export const requireAdmin = async (c: Context, next: Next) => {
   const token = c.req.header('X-Admin-Token');
@@ -140,7 +127,6 @@ export const requireAdmin = async (c: Context, next: Next) => {
 
   if (!(await prenderNaUnidade(session))) return error(c, SEM_UNIDADE, 401);
 
-  // CSRF validation for mutation requests
   if (['POST', 'PUT', 'DELETE'].includes(c.req.method)) {
     const csrfToken = c.req.header('X-CSRF-Token');
     if (session.csrfToken && csrfToken !== session.csrfToken) {
@@ -158,7 +144,6 @@ export const requireAdmin = async (c: Context, next: Next) => {
   await next();
 };
 
-// consulta feita por POST (ex.: /meta/acao de leitura): exige a sessão sem girar o CSRF, senão leituras em paralelo se derrubam
 export const requireAdminLeitura = async (c: Context, next: Next) => {
   const token = c.req.header('X-Admin-Token');
   const session = token ? await kv.get(`admin_session:${token}`) as AdminSession | null : null;
@@ -213,13 +198,11 @@ export const requireDriver = async (c: Context, next: Next) => {
 };
 
 export const requireAdminOrDriver = async (c: Context, next: Next) => {
-  // Try admin first
   const adminToken = c.req.header('X-Admin-Token');
   if (adminToken) {
     const session = await kv.get(`admin_session:${adminToken}`) as AdminSession | null;
     if (session && (!session.expiresAt || new Date(session.expiresAt) > new Date())) {
       if (!(await prenderNaUnidade(session))) return error(c, SEM_UNIDADE, 401);
-      // CSRF for mutations
       if (['POST', 'PUT', 'DELETE'].includes(c.req.method)) {
         const csrf = c.req.header('X-CSRF-Token');
         if (session.csrfToken && csrf !== session.csrfToken) {
@@ -236,7 +219,6 @@ export const requireAdminOrDriver = async (c: Context, next: Next) => {
     }
   }
 
-  // Try driver
   const driverToken = c.req.header('X-Driver-Token');
   if (driverToken) {
     const session = await kv.get(`driver_session:${driverToken}`) as DriverSession | null;

@@ -25,7 +25,6 @@ interface GeoInfo {
   isVpn?: boolean;
   isProxy?: boolean;
   isHosting?: boolean;
-  // Multi-source v3 (Precision Engine)
   geoSources?: number;
   geoSourcesAgree?: number;
   geoSourceList?: string;
@@ -40,13 +39,11 @@ interface GeoInfo {
   geoVpnSources?: string | null;
   geoSourceDetails?: Array<{ source: string; city: string; lat: number; lon: number; distToAvg: number; inCluster: boolean; weight: number; effectiveWeight?: number; refined?: boolean; vpn: boolean; zip?: string; countryFiltered?: boolean }>;
   source?: string;
-  // v3 — Precision Engine
   geoZipConfirmed?: boolean;
   geoConfirmedZip?: string | null;
   geoIspType?: string;
   geoRansacRefined?: number;
   geoCountryFiltered?: number;
-  // v4.1 — Precisao em metros
   geoEstimatedAccuracyM?: number;
   geoP68RadiusM?: number;
   geoP95RadiusM?: number;
@@ -68,11 +65,9 @@ interface AuditLog {
   geo?: GeoInfo | null;
   resource?: string;
   resourceId?: string;
-  // WebRTC Leak Detection
   realIp?: string | null;
   realGeo?: GeoInfo | null;
   webrtcLeak?: boolean;
-  // Browser Fingerprint (segunda camada)
   browserInfo?: {
     timezone?: string;
     timezoneOffset?: number;
@@ -85,14 +80,11 @@ interface AuditLog {
   timezoneMismatch?: boolean;
   languageMismatch?: boolean;
   mismatchDetails?: string;
-  // Whitelist
   whitelisted?: boolean;
 }
 
 interface AuditLogsProps {
-  /** Funcao de fetch customizada (default: masterFetch) */
   fetchFn?: (url: string, options?: RequestInit) => Promise<Response>;
-  /** Endpoint base (default: /master/audit-logs) */
   endpoint?: string;
 }
 
@@ -221,7 +213,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
     return parts.length > 0 ? parts.join(', ') : null;
   };
 
-  // Helper: confiança alta, muito-alta, ou exata
   const isHighConfidence = (conf?: string) => conf === 'alta' || conf === 'muito-alta' || conf === 'exata';
 
   const parseBrowser = (ua: string | undefined) => {
@@ -241,7 +232,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
     return 'Desktop';
   };
 
-  // Handler para bloquear IP (usado pela SecurityAlerts)
   const handleBlockIp = async (ip: string, reason: string) => {
     try {
       const res = await fetchFn('/master/ip-blacklist', {
@@ -260,7 +250,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
     }
   };
 
-  // Handler para permitir IP (whitelist) - usado pela SecurityAlerts
   const handleAllowIp = async (ip: string, reason: string) => {
     try {
       const res = await fetchFn('/master/ip-whitelist', {
@@ -280,7 +269,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
     }
   };
 
-  // Handler para zerar logs (mantendo resumo de bloqueados/permitidos)
   const handleResetLogs = async () => {
     try {
       setResetting(true);
@@ -288,7 +276,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
       const data = await res.json();
       if (data.success) {
         setShowResetModal(false);
-        // Atualizar logs com os resumos retornados
         const sorted = (data.logs || []).sort((a: AuditLog, b: AuditLog) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
@@ -305,14 +292,12 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
     }
   };
 
-  // Contadores
   const failedLogins = logs.filter(l => l.action === 'LOGIN_FAILED' || l.action === 'LOGIN_RATE_LIMITED').length;
   const successLogins = logs.filter(l => l.action === 'LOGIN_SUCCESS' || l.action === 'DELIVERY_LOGIN_SUCCESS').length;
   const uniqueIps = new Set(logs.map(l => l.ip).filter(ip => ip && ip !== 'unknown')).size;
 
   return (
     <div className="space-y-6">
-      {/* Sub-tabs de navegacao */}
       <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
         <button
           onClick={() => setActiveSubTab('logs')}
@@ -349,20 +334,16 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
         </button>
       </div>
 
-      {/* ===== SUB-TAB: BLACKLIST DE IPS ===== */}
       {activeSubTab === 'blacklist' && (
         <IpBlacklist fetchFn={fetchFn} />
       )}
 
-      {/* ===== SUB-TAB: CENTRAL DE SEGURANCA (ALERTAS) ===== */}
       {activeSubTab === 'alerts' && (
         <SecurityAlerts embedded onBlockIp={handleBlockIp} onAllowIp={handleAllowIp} />
       )}
 
-      {/* ===== SUB-TAB: LOGS DE AUDITORIA ===== */}
       {activeSubTab === 'logs' && (
         <>
-          {/* Header */}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Logs de Auditoria</h2>
@@ -388,7 +369,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
             </div>
           </div>
 
-          {/* Modal de confirmacao para zerar logs */}
           {showResetModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !resetting && setShowResetModal(false)}>
               <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -464,7 +444,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
             </div>
           )}
 
-          {/* Alerta de tentativas suspeitas */}
           {failedLogins > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -479,7 +458,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
             </div>
           )}
 
-          {/* Filtros */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-2 mb-3">
               <Filter className="w-4 h-4 text-gray-600" />
@@ -559,7 +537,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
             </div>
           </div>
 
-          {/* Estatisticas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <div className="flex items-center gap-3">
@@ -610,12 +587,10 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
             </div>
           </div>
 
-          {/* MAPA DE GEOLOCALIZACAO */}
           {!loading && logs.length > 0 && (
             <AuditMap logs={logs} />
           )}
 
-          {/* Lista de Logs */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-4 border-b border-gray-200">
               <h3 className="font-medium text-gray-900">
@@ -650,7 +625,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                       } ${log.action === 'LOGIN_RATE_LIMITED' ? 'bg-purple-50/30' : ''} ${log.action === 'AUDIT_LOGS_RESET' ? 'bg-gray-50 border-l-4 border-l-gray-400' : ''} ${log.action === 'IP_STATUS_BLOCKED' ? 'bg-red-50/30 border-l-4 border-l-red-400' : ''} ${log.action === 'IP_STATUS_ALLOWED' ? 'bg-emerald-50/30 border-l-4 border-l-emerald-400' : ''} ${log.whitelisted && log.action !== 'IP_STATUS_ALLOWED' ? 'border-l-4 border-l-emerald-400' : ''}`}
                     >
                       <div className="flex items-start gap-3">
-                        {/* Icon */}
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                           log.action === 'LOGIN_RATE_LIMITED' ? 'bg-purple-100' :
                           log.action === 'FINGERPRINT_MULTI_IP' ? 'bg-indigo-100' :
@@ -677,7 +651,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          {/* Acao e Badge */}
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
                               getActionColor(log.action, log.status)
@@ -692,7 +665,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                               </span>
                             )}
 
-                            {/* VPN / Proxy / Datacenter badges */}
                             {log.geo?.isVpn && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400 text-black">
                                 <Wifi className="w-3 h-3" />
@@ -723,14 +695,12 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                 IDIOMA SUSPEITO
                               </span>
                             )}
-                            {/* ✅ Badge PERMITIDO para IPs na whitelist */}
                             {log.whitelisted && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white" title="Este IP esta na whitelist — acesso permitido">
                                 <ShieldCheck className="w-3 h-3" />
                                 PERMITIDO
                               </span>
                             )}
-                            {/* 🚫 Badge BLOQUEADO para registros pos-reset de IPs na blacklist */}
                             {(log as any).ipStatus === 'blocked' && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white" title="Este IP esta na blacklist — acesso bloqueado">
                                 <Ban className="w-3 h-3" />
@@ -745,12 +715,10 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                             )}
                           </div>
 
-                          {/* Detalhes */}
                           <p className="text-sm text-gray-900 mt-1 break-words">
                             {log.details}
                           </p>
 
-                          {/* Metadados principais */}
                           <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
                             <span className="flex items-center gap-1">
                               <User className="w-3 h-3" />
@@ -761,7 +729,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                               {formatDate(log.timestamp)}
                             </span>
                             
-                            {/* IP Badge */}
                             {log.ip && log.ip !== 'unknown' ? (
                               <span 
                                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-xs ${
@@ -781,7 +748,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                               </span>
                             )}
 
-                            {/* Geo inline (resumido) + indicador de confiança */}
                             {geoStr && (
                               <span className="flex items-center gap-1 text-gray-500" title={
                                 isHighConfidence(log.geo?.geoConfidence)
@@ -794,7 +760,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                 {isHighConfidence(log.geo?.geoConfidence) ? '' : '~'}{geoStr}
                               </span>
                             )}
-                            {/* Badge de confiança da geolocalização */}
                             {log.geo?.geoSources && log.geo.geoSources > 1 && (
                               <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
                                 log.geo.geoConfidence === 'exata'
@@ -821,20 +786,17 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                 )}
                               </span>
                             )}
-                            {/* Badge de CEP confirmado */}
                             {log.geo?.geoZipConfirmed && (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-indigo-100 text-indigo-700" title={`CEP ${log.geo.geoConfirmedZip} confirmado por múltiplas fontes independentes`}>
                                 CEP ✓
                               </span>
                             )}
-                            {/* Badge ISP mobile */}
                             {log.geo?.geoIspType === 'mobile' && (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-medium bg-orange-50 text-orange-600" title="IP de operadora móvel — precisão limitada ao nível de cidade/região">
                                 📱
                               </span>
                             )}
 
-                            {/* Browser inline */}
                             {browser && (
                               <span className="flex items-center gap-1 text-gray-500">
                                 <Monitor className="w-3 h-3" />
@@ -842,7 +804,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                               </span>
                             )}
 
-                            {/* Expandir detalhes */}
                             {hasExtraInfo && (
                               <button
                                 onClick={() => setExpandedLog(isExpanded ? null : log.id)}
@@ -854,7 +815,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                             )}
                           </div>
 
-                          {/* Painel expandido com detalhes de rastreamento */}
                           {isExpanded && (
                             <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-2 animate-in fade-in slide-in-from-top-2">
                               <p className="font-semibold text-gray-700 flex items-center gap-1.5">
@@ -862,7 +822,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                 Informacoes de Rastreamento
                               </p>
 
-                              {/* Indicador de confiança multi-source */}
                               {log.geo?.geoSources && log.geo.geoSources > 1 ? (
                                 <div className={`p-2.5 rounded border text-[10px] flex items-start gap-1.5 ${
                                   log.geo.geoConfidence === 'exata'
@@ -901,7 +860,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                         <>{' '}<b>Estimativa: &plusmn;{log.geo.geoEstimatedAccuracyM < 1000 ? `${log.geo.geoEstimatedAccuracyM}m` : `${(log.geo.geoEstimatedAccuracyM / 1000).toFixed(1)}km`}</b> (p95: {(log.geo.geoP95RadiusM || 0) < 1000 ? `${log.geo.geoP95RadiusM}m` : `${((log.geo.geoP95RadiusM || 0) / 1000).toFixed(1)}km`}).</>
                                       )}
                                     </span>
-                                    {/* Indicadores v3/v4.1 */}
                                     <div className="flex flex-wrap gap-1.5 mt-0.5">
                                       {log.geo.geoZipConfirmed && (
                                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
@@ -934,13 +892,11 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                         </span>
                                       )}
                                     </div>
-                                    {/* Outliers */}
                                     {log.geo.geoOutliers != null && log.geo.geoOutliers > 0 && (
                                       <div className="text-orange-600 text-[9px]">
                                         ⚠ {log.geo.geoOutliers} fonte(s) descartada(s) como outlier: {log.geo.geoOutlierSources}
                                       </div>
                                     )}
-                                    {/* Detalhe por fonte (v4.1: peso efetivo, flags, IWCR) */}
                                     {log.geo.geoSourceDetails && (
                                       <div className="mt-1 pt-1 border-t border-current/10 grid grid-cols-1 gap-0.5">
                                         {log.geo.geoSourceDetails.map((sd: any, idx: number) => {
@@ -977,13 +933,11 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                               )}
                               
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {/* IP */}
                                 <div className="bg-white p-2 rounded border border-gray-100">
                                   <span className="text-gray-500 block mb-0.5">Endereco IP</span>
                                   <span className="font-mono font-semibold text-gray-900">{log.ip || 'N/A'}</span>
                                 </div>
 
-                                {/* Timestamp completo */}
                                 <div className="bg-white p-2 rounded border border-gray-100">
                                   <span className="text-gray-500 block mb-0.5">Data/Hora Exata</span>
                                   <span className="font-mono font-semibold text-gray-900">
@@ -994,7 +948,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                   </span>
                                 </div>
 
-                                {/* Geolocalizacao */}
                                 {log.geo && (
                                   <>
                                     {log.geo.city && (
@@ -1082,7 +1035,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                   </>
                                 )}
 
-                                {/* Analise de Rede / VPN */}
                                 {log.geo && (log.geo.isVpn || log.geo.isProxy || log.geo.isHosting) && (
                                   <div className="bg-yellow-50 p-2.5 rounded border border-yellow-200 md:col-span-2">
                                     <span className="text-yellow-800 font-semibold block mb-1 flex items-center gap-1.5">
@@ -1110,7 +1062,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                   </div>
                                 )}
 
-                                {/* WebRTC Leak — IP Real Detectado */}
                                 {log.webrtcLeak && log.realIp && (
                                   <div className="bg-red-50 p-2.5 rounded border-2 border-red-300 md:col-span-2">
                                     <span className="text-red-800 font-bold block mb-1.5 flex items-center gap-1.5">
@@ -1154,7 +1105,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                   </div>
                                 )}
 
-                                {/* User Agent */}
                                 {log.userAgent && log.userAgent !== 'unknown' && (
                                   <div className="bg-white p-2 rounded border border-gray-100 md:col-span-2">
                                     <span className="text-gray-500 block mb-0.5">Navegador / Dispositivo (User-Agent)</span>
@@ -1164,7 +1114,6 @@ export function AuditLogs({ fetchFn = masterFetch, endpoint = '/master/audit-log
                                   </div>
                                 )}
 
-                                {/* Browser Fingerprint */}
                                 {log.browserInfo && (
                                   <div className="bg-white p-2 rounded border border-gray-100 md:col-span-2">
                                     <span className="text-gray-500 block mb-0.5">Fingerprint do Navegador</span>

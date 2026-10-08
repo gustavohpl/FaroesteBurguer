@@ -23,7 +23,6 @@ export function ProductPerformance() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      // 🆕 Usar getFullOrderHistory para incluir histórico completo
       const response = await api.getFullOrderHistory();
       
       if (response.success && response.orders && response.orders.length > 0) {
@@ -43,13 +42,11 @@ export function ProductPerformance() {
   const processOrders = (orders: any[]) => {
     const productMap = new Map<string, ProductStats>();
 
-    // Filtrar apenas pedidos válidos (não cancelados)
     const validOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'rejected');
 
     validOrders.forEach(order => {
       if (order.items && Array.isArray(order.items)) {
         order.items.forEach((item: any) => {
-          // Usar ID se disponível, senão usar nome como chave
           const key = item.id || item.name;
           
           if (!productMap.has(key)) {
@@ -71,19 +68,14 @@ export function ProductPerformance() {
 
     const allProducts = Array.from(productMap.values());
     
-    // Sort by count descending
     allProducts.sort((a, b) => b.count - a.count);
 
-    // Top 5
     setTopProducts(allProducts.slice(0, 5));
 
-    // Bottom 5 (reverse of top, but filtered to show actual low performers)
-    // Se tiver menos de 5 produtos, bottom será vazio ou duplicado, então tratamos isso
     if (allProducts.length > 5) {
-      // Pegar os últimos 5
       setBottomProducts([...allProducts].reverse().slice(0, 5));
     } else {
-      setBottomProducts([]); // Não faz sentido mostrar "menos vendidos" se só tem 3 produtos
+      setBottomProducts([]);
     }
   };
 
@@ -99,7 +91,6 @@ export function ProductPerformance() {
   if (!hasData) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        {/* Placeholder Mais Pedidos */}
         <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-gray-300">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-gray-100 rounded-lg">
@@ -114,7 +105,6 @@ export function ProductPerformance() {
           </div>
         </div>
 
-        {/* Placeholder Menos Pedidos */}
         <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-gray-300">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-gray-100 rounded-lg">
@@ -134,7 +124,6 @@ export function ProductPerformance() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-      {/* Mais Pedidos */}
       <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-green-500">
         <div className="flex items-center gap-2 mb-6">
           <div className="p-2 bg-green-100 rounded-lg">
@@ -165,7 +154,6 @@ export function ProductPerformance() {
         </div>
       </div>
 
-      {/* Menos Pedidos */}
       <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-red-500">
         <div className="flex items-center gap-2 mb-6">
           <div className="p-2 bg-red-100 rounded-lg">

@@ -1,8 +1,3 @@
-// ==========================================
-// 📊 SECURITY ANALYTICS ENGINE
-// Métricas agregadas, timeline, threat distribution
-// ==========================================
-
 import * as kv from "./kv_retry.tsx";
 import type { SecurityMetrics } from "./types.tsx";
 import { getTopThreats } from "./reputation.tsx";
@@ -24,7 +19,6 @@ export async function generateSecurityAnalytics(): Promise<SecurityMetrics> {
   const vpnLogs = last7d.filter(l => (l.geo as Record<string, unknown>)?.isVpn || (l.geo as Record<string, unknown>)?.isProxy);
   const leakLogs = last7d.filter(l => l.webrtcLeak);
   
-  // Timeline por hora (últimas 24h)
   const hourBuckets: Record<string, { success: number; failure: number; vpn: number }> = {};
   for (let h = 23; h >= 0; h--) {
     const d = new Date(now - h * 60 * 60 * 1000);
@@ -42,7 +36,6 @@ export async function generateSecurityAnalytics(): Promise<SecurityMetrics> {
   }
   const eventTimeline = Object.entries(hourBuckets).map(([hour, data]) => ({ hour, ...data }));
   
-  // Distribuição geográfica
   const geoMap: Record<string, number> = {};
   for (const log of last7d) {
     const country = ((log.geo as Record<string, unknown>)?.country as string) || 'Desconhecido';
@@ -53,20 +46,16 @@ export async function generateSecurityAnalytics(): Promise<SecurityMetrics> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
   
-  // Top threats
   const topThreats = await getTopThreats(10);
   
-  // Threat tier distribution
   const tierMap: Record<string, number> = { trusted: 0, neutral: 0, suspicious: 0, dangerous: 0, critical: 0 };
   for (const t of topThreats) {
     tierMap[t.tier] = (tierMap[t.tier] || 0) + 1;
   }
   const threatDistribution = Object.entries(tierMap).map(([tier, count]) => ({ tier, count }));
   
-  // Avg reputation
   const allReps = topThreats.length > 0 ? topThreats.reduce((s, t) => s + t.score, 0) / topThreats.length : 0;
   
-  // Security Health Score
   let healthScore = 100;
   const failRate = loginLogs.length > 0 ? failedLogins.length / loginLogs.length : 0;
   healthScore -= failRate * 30;

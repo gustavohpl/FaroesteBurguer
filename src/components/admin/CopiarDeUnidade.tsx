@@ -6,7 +6,6 @@ import { useFranchise } from '../../FranchiseContext';
 
 const PARTES = [['produtos', 'Produtos'], ['categorias', 'Categorias'], ['estoque', 'Estoque (ingredientes)']] as const;
 
-// franquia: traz o cadastro de outra unidade da mesma cidade; depois de copiado, a unidade edita à vontade
 export function CopiarDeUnidade({ onCopiado }: { onCopiado: () => void }) {
   const { franchiseEnabled, selectedCity, selectedUnit } = useFranchise();
   const [aberto, setAberto] = useState(false);

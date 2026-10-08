@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* o index.html confere esta marca: sem ela o CSS veio estragado do cache do app */
 :root { --css-ok: 1; }
 
 @custom-variant dark (&:is(.dark *));
@@ -136,14 +135,7 @@
   }
 }
 
-/* ==========================================================================
-   Acessibilidade global (aditivo — não altera nenhum layout na tela)
-   - Foco visível apenas via teclado (:focus-visible): quem usa mouse/toque
-     não vê mudança, então o design Clássico continua idêntico.
-   - Alvos de toque mínimos (44x44) só em ponteiro grosso (celular/tablet).
-   ========================================================================== */
 @layer base {
-  /* Não mostra o anel em clique de mouse/toque; só em navegação por teclado. */
   :focus:not(:focus-visible) {
     outline: none;
   }
@@ -170,9 +162,6 @@
   }
 }
 
-/**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
- */
 @layer base {
   :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
     h1 {
@@ -223,7 +212,6 @@ html {
   font-size: var(--font-size);
 }
 
-/* Admin e Master no celular: nada passa da largura da tela (linhas quebram, itens encolhem, tabela rola sozinha) */
 @media (max-width: 767px) {
   .painel .flex:not(.flex-col):not(.flex-nowrap):not(.inline-flex):not(.overflow-x-auto):not(.overflow-x-scroll) { flex-wrap: wrap; }
   .painel input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), .painel select { min-width: 7rem; flex-grow: 1; }

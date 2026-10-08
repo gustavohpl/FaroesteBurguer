@@ -3,7 +3,6 @@ import { useConfig } from '../ConfigContext';
 import { useFranchise } from '../FranchiseContext';
 import { useDesign } from '../useDesign';
 
-// mostrado quando o horário não foi configurado no Master (todos os designs)
 export const HORARIO_PADRAO = 'Todos os dias a partir das 18h30';
 
 interface StatusBarProps {
@@ -22,10 +21,8 @@ export function StatusBar({ isStoreOpen = true }: StatusBarProps) {
     <div className={`py-4 ${isClean ? 'border-b border-zinc-200 bg-zinc-50' : 'border-b border-white/5'}`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-center">
-          {/* Status Central com animações */}
           <div className="flex flex-col items-center gap-3">
             {isClean ? (
-              /* ===== DESIGN CLEAN: dot minimalista + horário leve ===== */
               <>
                 <div className="flex items-center gap-2">
                   <span className={`relative flex h-2.5 w-2.5`}>
@@ -46,9 +43,7 @@ export function StatusBar({ isStoreOpen = true }: StatusBarProps) {
                 </div>
               </>
             ) : (
-              /* ===== DESIGN CLÁSSICO: badge original (inalterado) ===== */
               <>
-            {/* Status Aberto/Fechado */}
             {isStoreOpen ? (
               <div className="relative">
                 <div className="relative px-4 py-1.5 bg-green-600 rounded-full shadow-md">
@@ -73,12 +68,10 @@ export function StatusBar({ isStoreOpen = true }: StatusBarProps) {
               </div>
             )}
 
-            {/* Horário de funcionamento */}
             <div 
               className="group relative px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 overflow-hidden"
               style={{ background: `linear-gradient(to right, ${themeColor}, ${themeColor}dd)` }}
             >
-              {/* Shine effect interno */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               
               <div className="bg-white/20 p-1.5 rounded-lg backdrop-blur-sm">

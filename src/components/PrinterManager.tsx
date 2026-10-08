@@ -2,9 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import * as api from '../utils/api';
 import { useConfig } from '../ConfigContext';
 
-// 🖨️ URL do servidor de impressão local (roda no PC com a impressora)
 const PRINT_SERVER_URL = 'http://localhost:9100';
-// só o aparelho da loja sonda a impressora: em cliente, acessar localhost faz o Chrome pedir permissão de rede local
 const IMPRESSORA_AQUI = 'impressora_local';
 const deveSondar = () => /^\/(admin|master)/.test(window.location.pathname) || localStorage.getItem(IMPRESSORA_AQUI) === '1';
 
@@ -31,7 +29,6 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   const { config } = useConfig();
   const [isConnected, setIsConnected] = useState(false);
 
-  // Verifica se o servidor de impressão está online
   const checkServer = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch(PRINT_SERVER_URL, { method: 'GET', signal: AbortSignal.timeout(3000) });
@@ -43,7 +40,6 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Checa o servidor periodicamente
   useEffect(() => {
     if (!deveSondar()) return;
     let active = true;
@@ -52,7 +48,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
       if (active) setIsConnected(online);
     };
     check();
-    const interval = setInterval(check, 10000); // a cada 10s
+    const interval = setInterval(check, 10000);
     return () => { active = false; clearInterval(interval); };
   }, [checkServer]);
 
@@ -111,7 +107,6 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   }, [sendToPrintServer, config]);
 
   const printOrder = useCallback(async (order: any): Promise<boolean> => {
-    // Buscar nome do setor
     let sectorName = '';
     if (order.deliverySector) {
       try {
@@ -129,7 +124,6 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     const isDelivery = order.deliveryType === 'delivery';
     const deliveryFee = isDelivery ? (order.deliveryFee ?? 0) : 0;
 
-    // Calcular subtotal incluindo adicionais
     const subtotal = (order.items || []).reduce((sum: number, item: any) => {
       const addonsTotal = (item.selectedAddons || []).reduce((a: number, ad: any) => a + (ad.price || 0), 0);
       return sum + (item.price + addonsTotal) * item.quantity;

@@ -4,7 +4,6 @@ import * as api from '../../utils/api';
 
 type Estado = { temToken: boolean; temSegredo: boolean; webhookUrl: string; conta?: { nome?: string; email?: string } | null; erroConta?: string };
 
-// credenciais vão direto para o servidor e nunca voltam para a tela (só "configurado" / "faltando")
 export function MercadoPagoConfig() {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [token, setToken] = useState('');
