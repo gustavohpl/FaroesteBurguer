@@ -11,7 +11,6 @@ export function ThemeInjector() {
       :root {
       }
       
-      /* Sobrescreve classes amber-* para usar nossas variáveis */
       
       .bg-amber-50 { background-color: var(--color-primary-50); }
       .bg-amber-100 { background-color: var(--color-primary-100); }
