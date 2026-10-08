@@ -147,7 +147,6 @@ export function applyTheme(
     if (modeConfig.backgroundColor && modeConfig.backgroundColor !== '#f9fafb') {
       css += `
         ${scope} { background-color: ${modeConfig.backgroundColor} !important; }
-        /* Apenas sobrescreve se não estiver no modo escuro do tailwind ou se for uma cor específica */
         :not(.dark) ${scope} .bg-gray-50, :not(.dark) ${scope} .bg-gray-100 { background-color: ${modeConfig.backgroundColor} !important; }
       `;
     }

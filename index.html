@@ -19,14 +19,12 @@
       html[data-abre="escuro"] .carregando-inicial > div { border-color: #fff; }
     </style>
     <script>
-      // Prime e app instalado abrem no preto da abertura, sem piscar branco antes do JS
       try {
         var d = new URLSearchParams(location.search).get('design') || JSON.parse(localStorage.getItem('faroeste_system_config') || '{}').designStyle;
         if (d === 'prime' || matchMedia('(display-mode: standalone)').matches) document.documentElement.dataset.abre = 'escuro';
       } catch (e) {}
     </script>
     <script>
-      // CSS do build sem aplicar = cópia estragada no cache do app: limpa cache e service worker e recarrega uma vez
       addEventListener('load', function () {
         if (!document.querySelector('link[rel=stylesheet][href^="/assets/"]') || sessionStorage.getItem('reparo-css')) return;
         if (getComputedStyle(document.documentElement).getPropertyValue('--css-ok')) return;

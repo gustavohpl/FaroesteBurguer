@@ -9,8 +9,6 @@ export function ThemeInjector() {
   return (
     <style dangerouslySetInnerHTML={{ __html: `
       :root {
-        /* As variáveis já são aplicadas pelo ConfigProvider via themeUtils */
-        /* Aqui vamos sobrescrever as classes do Tailwind v4 se necessário */
       }
       
       /* Sobrescreve classes amber-* para usar nossas variáveis */
@@ -54,7 +52,6 @@ export function ThemeInjector() {
       .to-amber-700 { --tw-gradient-to: var(--color-primary-700); }
       .to-amber-800 { --tw-gradient-to: var(--color-primary-800); }
 
-      /* Ajustes de hover automático */
       .hover\\:bg-amber-600:hover { background-color: var(--color-primary-600) !important; }
       .hover\\:bg-amber-700:hover { background-color: var(--color-primary-700) !important; }
       
