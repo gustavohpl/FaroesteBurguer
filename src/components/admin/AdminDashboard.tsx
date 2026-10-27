@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { 
   LayoutDashboard, 
   Package, 
@@ -9,7 +9,8 @@ import {
   Megaphone,
   Truck,
   Warehouse,
-  Building2
+  Building2,
+  Radio
 } from 'lucide-react';
 import { useConfig } from '../../ConfigContext';
 import { BarraCelular } from '../BarraCelular';
@@ -23,13 +24,14 @@ import { Settings } from './Settings';
 import { AnunciosMeta } from './AnunciosMeta';
 import { DeliveryArea } from './DeliveryArea';
 import { StockManager } from './StockManager';
+const AoVivo = lazy(() => import('./AoVivo').then((m) => ({ default: m.AoVivo })));
 
 interface AdminDashboardProps {
   onLogout: () => void;
   onProductsChange?: () => void;
 }
 
-type MenuOption = 'dashboard' | 'products' | 'orders' | 'delivery' | 'customers' | 'settings' | 'ads' | 'stock';
+type MenuOption = 'dashboard' | 'products' | 'orders' | 'live' | 'delivery' | 'customers' | 'settings' | 'ads' | 'stock';
 
 export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardProps) {
   const { config } = useConfig();
@@ -50,6 +52,7 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
     { id: 'dashboard' as MenuOption, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'products' as MenuOption, label: 'Produtos', icon: Package },
     { id: 'orders' as MenuOption, label: 'Pedidos', icon: ShoppingBag },
+    { id: 'live' as MenuOption, label: 'Ao vivo', icon: Radio },
     ...(config.features?.stockControl ? [{ id: 'stock' as MenuOption, label: 'Estoque', icon: Warehouse }] : []),
     ...(config.features?.paidTraffic !== false ? [{ id: 'ads' as MenuOption, label: 'Meta Ads', icon: Megaphone }] : []),
     ...(config.features?.deliverySystem !== false ? [{ id: 'delivery' as MenuOption, label: 'Área de Entrega', icon: Truck }] : []),
@@ -161,6 +164,7 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
           {currentMenu === 'dashboard' && <DashboardHome />}
           {currentMenu === 'products' && <ProductsManagement onProductsChange={handleProductsChange} />}
           {currentMenu === 'orders' && <OrderManager />}
+          {currentMenu === 'live' && <Suspense fallback={<div className="flex h-[60vh] items-center justify-center text-sm text-gray-500">Abrindo a cena ao vivo…</div>}><AoVivo /></Suspense>}
           {currentMenu === 'ads' && config.features?.paidTraffic !== false && <AnunciosMeta />}
           {currentMenu === 'delivery' && config.features?.deliverySystem !== false && <DeliveryArea />}
           {currentMenu === 'stock' && config.features?.stockControl && <StockManager />}
@@ -170,7 +174,7 @@ export function AdminDashboard({ onLogout, onProductsChange }: AdminDashboardPro
       </main>
 
       <BarraCelular
-        itens={['orders', 'products', 'delivery', 'dashboard', 'stock', 'ads', 'customers', 'settings'].map((id) => menuItems.find((m) => m.id === id)).filter(Boolean).map((m) => ({ ...m!, label: m!.id === 'delivery' ? 'Entregas' : m!.id === 'dashboard' ? 'Painel' : m!.id === 'settings' ? 'Ajustes' : m!.label }))}
+        itens={['orders', 'live', 'products', 'delivery', 'dashboard', 'stock', 'ads', 'customers', 'settings'].map((id) => menuItems.find((m) => m.id === id)).filter(Boolean).map((m) => ({ ...m!, label: m!.id === 'delivery' ? 'Entregas' : m!.id === 'dashboard' ? 'Painel' : m!.id === 'settings' ? 'Ajustes' : m!.label }))}
         ativo={currentMenu}
         aoEscolher={(id) => { setCurrentMenu(id as MenuOption); window.scrollTo(0, 0); }}
         cor={themeColor}
