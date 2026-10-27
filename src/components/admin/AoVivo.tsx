@@ -170,7 +170,7 @@ export function AoVivo() {
   }, [mapa]);
   const loteSalvo = useMemo(() => {
     if (!mapa) return null;
-    const [x, z] = localConfig ? geoParaCena(mapa, localConfig.lat, localConfig.lng) : [0, 0];
+    const [x, z] = localConfig ? geoParaCena(mapa, localConfig.lat, localConfig.lng) : mapa.lanchonete ?? [0, 0];
     return encaixarLote(mapa, x, z);
   }, [mapa, localConfig?.lat, localConfig?.lng]);
   const lote = posicionando && provisorio ? provisorio.lote : loteSalvo;
@@ -450,7 +450,7 @@ export function AoVivo() {
           </div>
         )}
       </Falha>
-      {(posicionando || (mapa && !localConfig)) && (
+      {(posicionando || (mapa && !localConfig && !mapa.lanchonete)) && (
         <div className="absolute left-1/2 top-[7.6rem] z-40 w-[min(26rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-2xl bg-white/95 p-3 text-xs shadow-xl ring-1 ring-black/5 backdrop-blur md:top-24">
           {posicionando ? (
             <>
