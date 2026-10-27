@@ -58,6 +58,7 @@ export function DeliverymanPage() {
   const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<'off' | 'on' | 'denied' | 'unavailable'>('off');
   
   useEffect(() => {
     loadColors();
@@ -102,6 +103,71 @@ export function DeliverymanPage() {
     if (!isLoggedIn) return;
     loadData();
   }, [isLoggedIn, activeTab, viewMode]);
+
+  useEffect(() => {
+    if (!isLoggedIn) { setGpsStatus('off'); return; }
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) { setGpsStatus('unavailable'); return; }
+
+    let cancelled = false;
+    let watchId: number | null = null;
+    let wakeLock: any = null;
+    let lastSent = 0;
+    let lastLat: number | null = null;
+    let lastLng: number | null = null;
+
+    const distancia = (aLat: number, aLng: number, bLat: number, bLng: number) => {
+      const R = 6371000, rad = (d: number) => (d * Math.PI) / 180;
+      const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
+      const s = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(s));
+    };
+
+    const aoReceber = (pos: GeolocationPosition) => {
+      if (cancelled) return;
+      setGpsStatus('on');
+      const agora = Date.now();
+      const { latitude, longitude } = pos.coords;
+      const moveu = lastLat === null || lastLng === null || distancia(lastLat, lastLng, latitude, longitude) > 15;
+      if (!moveu && agora - lastSent < 10000) return;
+      lastSent = agora;
+      lastLat = latitude;
+      lastLng = longitude;
+      api.sendDriverLocation(pos).catch(() => {});
+    };
+
+    const aoErrar = (err: GeolocationPositionError) => {
+      if (cancelled) return;
+      setGpsStatus(err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable');
+    };
+
+    watchId = navigator.geolocation.watchPosition(aoReceber, aoErrar, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 20000,
+    });
+
+    (async () => {
+      try {
+        if ('wakeLock' in navigator) wakeLock = await (navigator as any).wakeLock.request('screen');
+      } catch {}
+    })();
+
+    const reativarWakeLock = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      try {
+        if ('wakeLock' in navigator) wakeLock = await (navigator as any).wakeLock.request('screen');
+      } catch {}
+    };
+    document.addEventListener('visibilitychange', reativarWakeLock);
+
+    return () => {
+      cancelled = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      document.removeEventListener('visibilitychange', reativarWakeLock);
+      if (wakeLock) { try { wakeLock.release(); } catch {} }
+      setGpsStatus('off');
+    };
+  }, [isLoggedIn]);
 
   const { isRealtimeConnected } = useDeliveryRealtime(useCallback(() => {
     if (isLoggedIn) loadData();
@@ -428,9 +494,32 @@ export function DeliverymanPage() {
               <p className="text-xs text-white/90">{currentUser?.phone}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="bg-white/10 p-2 rounded-lg hover:bg-white/20 transition-colors">
-            <LogOut className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col items-end">
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-xs font-bold">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    gpsStatus === 'on' ? 'bg-green-400 animate-pulse'
+                    : gpsStatus === 'denied' ? 'bg-red-400'
+                    : gpsStatus === 'unavailable' ? 'bg-amber-400'
+                    : 'bg-white/50'
+                  }`}
+                />
+                {gpsStatus === 'on' ? 'GPS ligado'
+                  : gpsStatus === 'denied' ? 'GPS bloqueado'
+                  : gpsStatus === 'unavailable' ? 'GPS indisponível'
+                  : 'GPS...'}
+              </span>
+              <span className="text-[10px] text-white/70 mt-0.5 leading-tight">
+                {gpsStatus === 'denied' ? 'Libere a localização no navegador'
+                  : gpsStatus === 'unavailable' ? 'Localização sem sinal'
+                  : 'Só envia enquanto você estiver online'}
+              </span>
+            </div>
+            <button onClick={handleLogout} className="bg-white/10 p-2 rounded-lg hover:bg-white/20 transition-colors">
+              <LogOut className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
 

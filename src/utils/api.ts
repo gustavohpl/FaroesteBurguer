@@ -1643,6 +1643,48 @@ export async function getDeliverymanHistory(phone: string) {
   }
 }
 
+export interface DriverLocation {
+  phone: string;
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speed?: number | null;
+  accuracy?: number;
+  at: string;
+}
+
+export async function sendDriverLocation(pos: {
+  coords: { latitude: number; longitude: number; accuracy?: number; heading?: number | null; speed?: number | null };
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { latitude, longitude, accuracy, heading, speed } = pos.coords;
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    const response = await driverFetch('/delivery/location', {
+      method: 'POST',
+      body: JSON.stringify({
+        lat: num(latitude),
+        lng: num(longitude),
+        accuracy: num(accuracy),
+        heading: num(heading),
+        speed: num(speed),
+      }),
+    });
+    return response.json();
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function getDriverLocations(): Promise<{ success: boolean; locations: DriverLocation[]; error?: string }> {
+  try {
+    const response = await authFetch(`/delivery/locations?t=${Date.now()}`);
+    const data = await response.json();
+    return { success: !!data.success, locations: Array.isArray(data.locations) ? data.locations : [], error: data.error };
+  } catch (error) {
+    return { success: false, locations: [], error: String(error) };
+  }
+}
+
 export async function assignOrderToDriver(orderId: string, driver: { name: string, phone: string, color?: string }) {
   console.log('🛵 [API] Atribuindo pedido ao entregador:', { orderId, driver });
   try {

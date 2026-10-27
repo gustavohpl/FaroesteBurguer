@@ -7,7 +7,7 @@ import {
   DELIVERY_RATE_LIMIT_MAX, DELIVERY_RATE_LIMIT_WINDOW_MS,
   DRIVER_SESSION_DURATION_MS,
 } from "./server_utils.tsx";
-import { requireAdmin, requireMaster } from "./middleware.tsx";
+import { requireAdmin, requireMaster, requireDriver } from "./middleware.tsx";
 import { writeAuditLogWithGeo, checkIpBlacklist } from "./security_helpers.tsx";
 import type { DeliveryConfig, DeliverySector } from "./types.tsx";
 
@@ -318,6 +318,47 @@ router.post('/settings/delivery-fee', requireAdmin, async (c) => {
     return success(c, { fee });
   } catch (e) {
     return error(c, `Erro ao salvar taxa de entrega: ${e}`);
+  }
+});
+
+router.post('/delivery/location', requireDriver, async (c) => {
+  try {
+    const phone = String(c.get('driverPhone' as never) || '').replace(/\D/g, '');
+    if (!phone) return error(c, 'Entregador não identificado', 401);
+    const body = await c.req.json().catch(() => ({}));
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    const lat = num(body.lat), lng = num(body.lng);
+    if (lat === null || lng === null) return error(c, 'Coordenadas inválidas', 400);
+    await kv.set(`driver_location:${phone}`, {
+      phone, lat, lng,
+      accuracy: num(body.accuracy),
+      heading: num(body.heading),
+      speed: num(body.speed),
+      at: new Date().toISOString(),
+    });
+    return success(c, {});
+  } catch (e) {
+    return error(c, `Erro ao gravar localização: ${e}`, 500);
+  }
+});
+
+router.get('/delivery/locations', requireAdmin, async (c) => {
+  try {
+    const registros = await kv.getByPrefix('driver_location:');
+    const limite = Date.now() - 10 * 60 * 1000;
+    const locations = (registros || [])
+      .filter((v: any) => v && typeof v.lat === 'number' && typeof v.lng === 'number' && v.at && new Date(v.at).getTime() >= limite)
+      .map((v: any) => ({
+        phone: String(v.phone || '').replace(/\D/g, ''),
+        lat: v.lat, lng: v.lng,
+        heading: typeof v.heading === 'number' ? v.heading : null,
+        speed: typeof v.speed === 'number' ? v.speed : null,
+        accuracy: typeof v.accuracy === 'number' ? v.accuracy : undefined,
+        at: v.at,
+      }));
+    return success(c, { locations });
+  } catch (e) {
+    return error(c, `Erro ao listar localizações: ${e}`, 500);
   }
 });
 
