@@ -238,6 +238,28 @@ export function criarRoteador(mapa: MapaCidade) {
     return { nome, tipo: todas.find((p) => PALAVRAS_DE_TIPO.has(p)) ?? '', nucleo: nucleo(todas) };
   });
   const bairros = mapa.rotulos.filter(([tipo]) => tipo === 'bairro').map(([, x, z, nome]) => ({ x, z, nucleo: nucleo(palavras(mapa.nomes[nome])) }));
+  const chavesEndereco = mapa.enderecos ? Object.keys(mapa.enderecos).map((chave) => { const todas = palavras(chave); return { chave, tipo: todas.find((p) => PALAVRAS_DE_TIPO.has(p)) ?? '', nucleo: nucleo(todas) }; }) : [];
+  const bairrosReais = (mapa.bairros ?? []).map(([nome, x, z]) => ({ x, z, nucleo: nucleo(palavras(nome)) }));
+  function pontoPorNumero(lista: number[], numero: number | null): Ponto {
+    const total = lista.length;
+    const meio = () => { const m = Math.floor(total / 3 / 2) * 3; return [lista[m + 1], lista[m + 2]] as Ponto; };
+    if (numero === null || numero <= 0) return meio();
+    let lo = -1, hi = -1, loNum = 0, hiNum = 0;
+    for (let i = 0; i < total; i += 3) {
+      const num = lista[i];
+      if (num <= 0) continue;
+      if (num <= numero) { lo = i; loNum = num; }
+      if (num >= numero) { hi = i; hiNum = num; break; }
+    }
+    if (lo >= 0 && hi >= 0) {
+      if (lo === hi || hiNum === loNum) return [lista[lo + 1], lista[lo + 2]];
+      const t = (numero - loNum) / (hiNum - loNum);
+      return [lista[lo + 1] + (lista[hi + 1] - lista[lo + 1]) * t, lista[lo + 2] + (lista[hi + 2] - lista[lo + 2]) * t];
+    }
+    if (lo >= 0) return [lista[lo + 1], lista[lo + 2]];
+    if (hi >= 0) return [lista[hi + 1], lista[hi + 2]];
+    return meio();
+  }
   function pontoDaRuaComNome(nome: number, metros: number | null): Ponto {
     const pedacos: Array<[Ponto, Ponto, number]> = [];
     for (const rua of ruasPorNome.get(nome) ?? []) {
@@ -260,7 +282,7 @@ export function criarRoteador(mapa: MapaCidade) {
     }
     return pedacos[pedacos.length - 1][1];
   }
-  function enderecoNaCena(endereco: string): { ponto: Ponto; achou: 'rua' | 'bairro' | 'nada' } {
+  function enderecoNaCena(endereco: string): { ponto: Ponto; achou: 'numero' | 'rua' | 'bairro' | 'nada' } {
     const partes = endereco.split(/[-,–]/).map((p) => p.trim()).filter(Boolean);
     const primeira = normalizar(partes[0] ?? endereco);
     const trechoRua = primeira.replace(/\b(qd|quadra|lt|lote|n|no|numero|casa)\b.*$/, '').replace(/\b\d.*$/, '').trim();
@@ -270,6 +292,26 @@ export function criarRoteador(mapa: MapaCidade) {
     const procuradas = palavras(trechoRua);
     const tipoProcurado = procuradas.find((p) => PALAVRAS_DE_TIPO.has(p)) ?? '';
     const nucleoProcurado = nucleo(procuradas);
+    if (mapa.enderecos && chavesEndereco.length) {
+      const temQuadra = /\b(qd|quadra|lt|lote)\b/.test(normalizar(endereco));
+      const numeroReal = temQuadra ? null : numero;
+      const porPalavra = normalizar(endereco).match(/\b(setor|jardim|jd|vila|vl|bairro|conjunto|residencial|parque|pq|loteamento|distrito|chacara|cond|condominio)\b.*$/)?.[0] ?? '';
+      const restoBairro = normalizar(partes.slice(1).join(' ')).replace(/\b(qd|quadra|lt|lote|n|no|numero|casa)\b/g, ' ').replace(/\b\d+\b/g, ' ').replace(/\s+/g, ' ').trim();
+      const textoBairro = porPalavra || restoBairro;
+      let melhorEnd: { lista: number[]; nota: number } | null = null;
+      for (const c of chavesEndereco) {
+        const nota = semelhanca(nucleoProcurado, c.nucleo) + (tipoProcurado && c.tipo === tipoProcurado ? 0.05 : 0);
+        if (!melhorEnd || nota > melhorEnd.nota) melhorEnd = { lista: mapa.enderecos[c.chave], nota };
+      }
+      if (melhorEnd && melhorEnd.nota >= 0.72 && melhorEnd.lista.length >= 3) return { ponto: pontoPorNumero(melhorEnd.lista, numeroReal), achou: numeroReal != null && numeroReal > 0 ? 'numero' : 'rua' };
+      const nucleoBairroReal = nucleo(palavras(textoBairro));
+      let melhorBairroReal: { x: number; z: number; nota: number } | null = null;
+      for (const b of bairrosReais) {
+        const nota = semelhanca(nucleoBairroReal, b.nucleo);
+        if (!melhorBairroReal || nota > melhorBairroReal.nota) melhorBairroReal = { x: b.x, z: b.z, nota };
+      }
+      if (melhorBairroReal && melhorBairroReal.nota >= 0.72) return { ponto: [melhorBairroReal.x, melhorBairroReal.z], achou: 'bairro' };
+    }
     let melhor: { nome: number; nota: number } | null = null;
     for (const candidato of nomesDeRua) {
       const nota = semelhanca(nucleoProcurado, candidato.nucleo) + (tipoProcurado && candidato.tipo === tipoProcurado ? 0.05 : 0);
