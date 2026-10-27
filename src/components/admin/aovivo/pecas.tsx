@@ -43,7 +43,7 @@ export function Instancias({ itens, geometria, sombra = true, cor = '#ffffff', e
   if (!itens.length) return null;
   return (
     <instancedMesh ref={ref} args={[geometria, undefined, itens.length]} castShadow={sombra} receiveShadow>
-      <meshStandardMaterial color={cor} roughness={0.85} emissive={emissiva ?? '#000000'} emissiveIntensity={intensidade} />
+      <meshLambertMaterial color={cor} emissive={emissiva ?? '#000000'} emissiveIntensity={intensidade} />
     </instancedMesh>
   );
 }

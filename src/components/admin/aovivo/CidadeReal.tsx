@@ -3,8 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { Building2, Church, Cross, Fuel, GraduationCap, Landmark, MapPin, Pill, Shield, ShoppingCart, Trees } from 'lucide-react';
-import { GEO, Instancias, cliqueValido, type Item, type Vetor } from './pecas';
+import { BedDouble, Building2, Church, Cross, Fuel, GraduationCap, Landmark, MapPin, Pill, Shield, ShoppingCart, Trees, UtensilsCrossed } from 'lucide-react';
+import { Bloco as Peca, GEO, Instancias, cliqueValido, type Item, type Vetor } from './pecas';
 import { LARGURAS, type MapaCidade } from './tiposMapa';
 import { dentroDoLote, type Lote } from './lote';
 import { sorteio } from './trajetos';
@@ -15,10 +15,45 @@ const TOLDOS = ['#e11d48', '#2563eb', '#16a34a', '#f59e0b', '#7c3aed'];
 const FOLHAS = ['#8cc084', '#7bb26f', '#9fcd8a', '#6fa765'];
 const PASSEIOS = new Set(['footway', 'path', 'cycleway', 'steps', 'pedestrian']);
 const LADO_DO_BLOCO = 450;
-const TIPOS_DE_MARCO = ['igreja', 'escola', 'prefeitura', 'hospital', 'saude', 'posto', 'banco', 'mercado', 'farmacia', 'policia'] as const;
+const TIPOS_DE_MARCO = ['igreja', 'escola', 'prefeitura', 'hospital', 'saude', 'posto', 'banco', 'mercado', 'farmacia', 'policia', 'hotel', 'restaurante'] as const;
 type TipoDeMarco = (typeof TIPOS_DE_MARCO)[number];
 type Livre = { x: number; z: number; raio: number };
-const ICONES_ROTULO: Record<string, typeof MapPin> = { igreja: Church, escola: GraduationCap, hospital: Cross, saude: Cross, posto: Fuel, banco: Landmark, prefeitura: Building2, policia: Shield, mercado: ShoppingCart, farmacia: Pill, praca: Trees, bairro: MapPin };
+const ICONES_ROTULO: Record<string, typeof MapPin> = { igreja: Church, escola: GraduationCap, hospital: Cross, saude: Cross, posto: Fuel, banco: Landmark, prefeitura: Building2, policia: Shield, mercado: ShoppingCart, farmacia: Pill, praca: Trees, bairro: MapPin, hotel: BedDouble, restaurante: UtensilsCrossed };
+function Hotel() {
+  return (
+    <group>
+      <Peca p={[0, 3.6, -0.5]} e={[7, 7.2, 5]} cor="#f2ede4" />
+      {[2.2, 4.4, 6.6].map((y) => <Peca key={y} p={[0, y, 2.03]} e={[6.4, 0.9, 0.06]} cor="#7fa6c4" sombra={false} />)}
+      <Peca p={[0, 7.3, -0.5]} e={[7.3, 0.25, 5.3]} cor="#d8d2c8" />
+      <Peca p={[0, 7.95, 1.4]} e={[3.6, 0.9, 0.15]} cor="#1f3b5c" />
+      <Peca p={[0, 2.3, 2.75]} e={[3, 0.15, 1.5]} cor="#8a5a36" />
+      {[-1.3, 1.3].map((x) => <Peca key={x} p={[x, 1.15, 3.35]} e={[0.12, 2.3, 0.12]} cor="#6b4226" />)}
+      <Peca p={[0, 0.04, -3.9]} e={[4.2, 0.08, 2.2]} cor="#eae4d8" sombra={false} />
+      <Peca p={[0, 0.09, -3.9]} e={[3.4, 0.06, 1.5]} cor="#4fb3e6" sombra={false} />
+    </group>
+  );
+}
+function Restaurante() {
+  return (
+    <group>
+      <Peca p={[0, 1.6, -0.6]} e={[6, 3.2, 4.4]} cor="#f4e7c5" />
+      <Peca p={[0, 3.35, -0.6]} e={[6.3, 0.3, 4.7]} cor="#a0502f" />
+      <Peca p={[0, 1.3, 1.63]} e={[4.6, 1.6, 0.06]} cor="#a9c9e6" sombra={false} />
+      <Peca p={[0, 2.6, 2.2]} e={[6, 0.12, 1.2]} cor="#2f9e44" />
+      <Peca p={[0, 3.25, 1.72]} e={[3.4, 0.6, 0.12]} cor="#2f9e44" sombra={false} />
+      {[-1.6, 1.6].map((x) => (
+        <group key={x} position={[x, 0, 3.5]}>
+          <Peca p={[0, 0.45, 0]} e={[0.9, 0.08, 0.9]} cor="#ffffff" />
+          <Peca p={[0, 0.85, 0]} e={[0.08, 1.7, 0.08]} cor="#6b4226" sombra={false} />
+          <mesh position={[0, 1.75, 0]} castShadow>
+            <coneGeometry args={[0.85, 0.45, 8]} />
+            <meshStandardMaterial color="#f4c430" roughness={0.8} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
 function geometriaPlana(posicoes: number[]) {
   const geometria = new THREE.BufferGeometry();
   geometria.setAttribute('position', new THREE.Float32BufferAttribute(posicoes, 3));
@@ -105,15 +140,16 @@ function montarEnfeites(mapa: MapaCidade) {
   const livres: Livre[] = [...marcos.map(({ x, z }) => ({ x, z, raio: 4.5 })), ...pracas.map(({ x, z, raio }) => ({ x, z, raio: raio + 0.6 })), ...rotatorias.map(({ x, z, raio }) => ({ x, z, raio }))];
   return { marcos, pracas, rotatorias, livres };
 }
-type Bloco = { caixas: Item[]; telhados: Item[]; troncos: Item[]; copas: Item[] };
+type Bloco = { caixas: Item[]; detalhes: Item[]; telhados: Item[]; troncos: Item[]; copas: Item[] };
 function montarBlocos(mapa: MapaCidade, lote: Lote | null, livres: Livre[]) {
   const ocupado = (x: number, z: number) => livres.some((l) => Math.hypot(x - l.x, z - l.z) < l.raio);
   const blocos = new Map<string, Bloco>();
   const bloco = (x: number, z: number) => {
-    const chave = `${Math.floor(x / LADO_DO_BLOCO)},${Math.floor(z / LADO_DO_BLOCO)}`;
+    const lado = Math.abs(x) < 1600 && Math.abs(z) < 1600 ? LADO_DO_BLOCO : 2000;
+    const chave = `${lado}:${Math.floor(x / lado)},${Math.floor(z / lado)}`;
     let atual = blocos.get(chave);
     if (!atual) {
-      atual = { caixas: [], telhados: [], troncos: [], copas: [] };
+      atual = { caixas: [], detalhes: [], telhados: [], troncos: [], copas: [] };
       blocos.set(chave, atual);
     }
     return atual;
@@ -131,7 +167,12 @@ function montarBlocos(mapa: MapaCidade, lote: Lote | null, livres: Livre[]) {
     if (estilo === 3) {
       b.caixas.push({ p: [x, 4.6, z], e: [5, 9.2, 5], g, cor: parede });
       b.caixas.push({ p: [x, 9.35, z], e: [5.3, 0.3, 5.3], g, cor: '#d9d4cc' });
-      for (const y of [2.4, 4.8, 7.2]) b.caixas.push({ p: [x, y, z], e: [5.06, 0.7, 5.06], g, cor: '#a9c9e6' });
+      for (const y of [2.4, 4.8, 7.2]) b.detalhes.push({ p: [x, y, z], e: [5.06, 0.7, 5.06], g, cor: '#a9c9e6' });
+      continue;
+    }
+    if (estilo === 5) {
+      b.caixas.push({ p: [x, 1, z], e: [2.6, 2, 2.4], g, cor: parede });
+      b.telhados.push({ p: [x, 2, z], e: [2.1, 1, 1.9], g, cor: TELHADOS[tomTelhado % TELHADOS.length] });
       continue;
     }
     if (estilo === 4) {
@@ -141,16 +182,16 @@ function montarBlocos(mapa: MapaCidade, lote: Lote | null, livres: Livre[]) {
     if (estilo === 2) {
       b.caixas.push({ p: [x, 1.7, z], e: [4, 3.4, 3.6], g, cor: parede });
       b.caixas.push({ p: [x, 3.5, z], e: [4.3, 0.3, 3.9], g, cor: '#d9d4cc' });
-      b.caixas.push({ p: local(0, 2.35, 2.15), e: [3.8, 0.12, 1], g, cor: TOLDOS[tomTelhado % TOLDOS.length] });
-      b.caixas.push({ p: local(0, 1.1, 1.82), e: [3.2, 1.7, 0.06], g, cor: '#a9c9e6' });
+      b.detalhes.push({ p: local(0, 2.35, 2.15), e: [3.8, 0.12, 1], g, cor: TOLDOS[tomTelhado % TOLDOS.length] });
+      b.detalhes.push({ p: local(0, 1.1, 1.82), e: [3.2, 1.7, 0.06], g, cor: '#a9c9e6' });
       continue;
     }
     const alto = estilo === 1;
     b.caixas.push({ p: [x, alto ? 2.3 : 1.2, z], e: [3.6, alto ? 4.6 : 2.4, 3.2], g, cor: parede });
     b.telhados.push({ p: [x, alto ? 4.6 : 2.4, z], e: [2.9, alto ? 1.3 : 1.5, 2.6], g, cor: TELHADOS[tomTelhado % TELHADOS.length] });
-    b.caixas.push({ p: local(0.75, 0.65, 1.62), e: [0.7, 1.3, 0.08], g, cor: '#8b5a3c' });
-    b.caixas.push({ p: local(-0.75, 1.45, 1.62), e: [0.9, 0.7, 0.08], g, cor: '#bcd7f0' });
-    if (alto) b.caixas.push({ p: local(0, 3.5, 1.62), e: [1.6, 0.8, 0.08], g, cor: '#bcd7f0' });
+    b.detalhes.push({ p: local(0.75, 0.65, 1.62), e: [0.7, 1.3, 0.08], g, cor: '#8b5a3c' });
+    b.detalhes.push({ p: local(-0.75, 1.45, 1.62), e: [0.9, 0.7, 0.08], g, cor: '#bcd7f0' });
+    if (alto) b.detalhes.push({ p: local(0, 3.5, 1.62), e: [1.6, 0.8, 0.08], g, cor: '#bcd7f0' });
   }
   const aleatorio = sorteio(5);
   const a = mapa.arvores;
@@ -199,7 +240,7 @@ function montarChao(mapa: MapaCidade) {
     predios: predios(mapa.predios),
   };
 }
-function MarcosPerto({ marcos, lote, perto }: { marcos: ReturnType<typeof montarEnfeites>['marcos']; lote: Lote | null; perto: boolean }) {
+function usePerto(itens: Array<{ x: number; z: number; raio?: number }>, limite: number, lote: Lote | null) {
   const controles = useThree((s) => s.controls) as unknown as { target: { x: number; z: number } } | null;
   const [visiveis, setVisiveis] = useState<number[]>([]);
   const ultimo = useRef({ x: NaN, z: NaN, zoom: NaN, quando: 0 });
@@ -210,17 +251,31 @@ function MarcosPerto({ marcos, lote, perto }: { marcos: ReturnType<typeof montar
     if (agora - ultimo.current.quando < 400) return;
     if (Math.hypot(x - ultimo.current.x, z - ultimo.current.z) < 15 && Math.abs(camera.zoom - ultimo.current.zoom) < 0.2) return;
     ultimo.current = { x, z, zoom: camera.zoom, quando: agora };
-    const raio = Math.min(320, 900 / camera.zoom + 60);
-    const novos = marcos
+    const raio = camera.zoom < 1.8 ? 0 : Math.min(320, 900 / camera.zoom + 60);
+    const novos = itens
       .flatMap((m, i) => {
         const d = Math.hypot(m.x - x, m.z - z);
-        return d < raio && (!lote || !dentroDoLote(lote, m.x, m.z, 6)) ? [[i, d]] : [];
+        return d < raio && (!lote || !dentroDoLote(lote, m.x, m.z, m.raio ?? 6)) ? [[i, d]] : [];
       })
       .sort((a, b) => a[1] - b[1])
-      .slice(0, 30)
+      .slice(0, limite)
       .map(([i]) => i);
     setVisiveis((atuais) => (novos.length === atuais.length && novos.every((n, k) => n === atuais[k]) ? atuais : novos));
   });
+  return visiveis;
+}
+function EnfeitesPerto({ pracas, rotatorias, lote }: { pracas: Array<{ x: number; z: number; raio: number }>; rotatorias: Array<{ x: number; z: number; raio: number }>; lote: Lote | null }) {
+  const pracasVisiveis = usePerto(pracas, 6, lote);
+  const rotatoriasVisiveis = usePerto(rotatorias, 6, lote);
+  return (
+    <>
+      {pracasVisiveis.map((i) => <EnfeitePraca key={`p${i}`} {...pracas[i]} />)}
+      {rotatoriasVisiveis.map((i) => <MonumentoRotatoria key={`r${i}`} {...rotatorias[i]} />)}
+    </>
+  );
+}
+function MarcosPerto({ marcos, lote, perto }: { marcos: ReturnType<typeof montarEnfeites>['marcos']; lote: Lote | null; perto: boolean }) {
+  const visiveis = usePerto(marcos, 14, lote);
   return (
     <>
       {visiveis.map((i, ordem) => {
@@ -228,7 +283,11 @@ function MarcosPerto({ marcos, lote, perto }: { marcos: ReturnType<typeof montar
         const Icone = ICONES_ROTULO[tipo] ?? MapPin;
         return (
           <group key={i}>
-            <Marco tipo={tipo} x={x} z={z} giro={giro} />
+            {tipo === 'hotel' || tipo === 'restaurante' ? (
+              <group position={[x, 0, z]} rotation={[0, giro, 0]}>{tipo === 'hotel' ? <Hotel /> : <Restaurante />}</group>
+            ) : (
+              <Marco tipo={tipo} x={x} z={z} giro={giro} />
+            )}
             {perto && ordem < 10 && (
               <Html position={[x, 9, z]} center zIndexRange={[15, 0]} className="pointer-events-none select-none">
                 <div className="flex max-w-[14rem] items-center gap-1 whitespace-nowrap rounded-full bg-white/85 px-2 py-0.5 text-[10px] font-semibold text-gray-700 shadow-sm ring-1 ring-black/5"><Icone className="h-3 w-3 shrink-0" /><span className="truncate">{nome}</span></div>
@@ -243,7 +302,7 @@ function MarcosPerto({ marcos, lote, perto }: { marcos: ReturnType<typeof montar
 function Superficie({ geometria, cor }: { geometria: THREE.BufferGeometry; cor: string }) {
   return (
     <mesh geometry={geometria} receiveShadow>
-      <meshStandardMaterial color={cor} roughness={1} />
+      <meshLambertMaterial color={cor} />
     </mesh>
   );
 }
@@ -264,7 +323,7 @@ export function CidadeReal({ mapa, lote, rotulos, aoClicarChao }: { mapa: MapaCi
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onClick={(e) => cliqueValido(e) && aoClicarChao(e.point.x, e.point.z)}>
         <planeGeometry args={[40000, 40000]} />
-        <meshStandardMaterial color="#efeae1" roughness={1} />
+        <meshLambertMaterial color="#efeae1" />
       </mesh>
       <Superficie geometria={chao.matas} cor="#b7d39f" />
       <Superficie geometria={chao.pracas} cor="#cfe3b4" />
@@ -279,15 +338,15 @@ export function CidadeReal({ mapa, lote, rotulos, aoClicarChao }: { mapa: MapaCi
       <Superficie geometria={chao.ilhas} cor="#b9d89e" />
       {chao.predios && (
         <mesh geometry={chao.predios} castShadow receiveShadow>
-          <meshStandardMaterial color="#e4ded4" roughness={0.9} />
+          <meshLambertMaterial color="#e4ded4" />
         </mesh>
       )}
       <MarcosPerto marcos={enfeites.marcos} lote={lote} perto={rotulos} />
-      {enfeites.pracas.map(({ x, z, raio }, i) => <EnfeitePraca key={`p${i}`} x={x} z={z} raio={raio} />)}
-      {enfeites.rotatorias.map(({ x, z, raio }, i) => <MonumentoRotatoria key={`r${i}`} x={x} z={z} raio={raio} />)}
+      <EnfeitesPerto pracas={enfeites.pracas} rotatorias={enfeites.rotatorias} lote={lote} />
       {blocos.map(([chave, b]) => (
         <group key={chave}>
           <Instancias itens={b.caixas} geometria={GEO.caixa} />
+          {rotulos && <Instancias itens={b.detalhes} geometria={GEO.caixa} sombra={false} />}
           <Instancias itens={b.telhados} geometria={GEO.telhado} />
           <Instancias itens={b.troncos} geometria={GEO.tronco} cor="#9b7653" />
           <Instancias itens={b.copas} geometria={GEO.copa} />

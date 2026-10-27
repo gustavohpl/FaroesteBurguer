@@ -1,27 +1,35 @@
 import { LARGURAS, type MapaCidade } from './tiposMapa';
 import type { Ponto } from './trajetos';
-export type Lote = { x: number; z: number; giro: number };
+export type Lote = { x: number; z: number; giro: number; escala: number };
 export const CENTRO_LOTE: Ponto = [-20, -12.65];
-export const VAGAS_LOCAIS: Ponto[] = [-21, -18.6, -16.2, -13.8, -11.4, -9].map((x) => [x, -6.2]);
+export const ESCALA_LANCHONETE = 0.4;
+export const FILA_DE_VAGAS = [-5, -3, -1, 1, 3, 5];
 const MEIA_LARGURA = 12.5;
 const MEIA_FUNDO = 8.85;
+const FAIXA_DAS_VAGAS = 3.6;
 const TIPOS_DE_FRENTE = new Set(['trunk', 'primary', 'secondary', 'tertiary', 'residential', 'unclassified', 'living_street']);
-export function paraMundo(lote: Lote, [lx, lz]: Ponto): Ponto {
-  const dx = lx - CENTRO_LOTE[0];
-  const dz = lz - CENTRO_LOTE[1];
+function girar(lote: Lote, lx: number, lz: number): Ponto {
   const c = Math.cos(lote.giro);
   const s = Math.sin(lote.giro);
-  return [lote.x + dx * c + dz * s, lote.z - dx * s + dz * c];
+  return [lote.x + lx * c + lz * s, lote.z - lx * s + lz * c];
+}
+export function frenteDasVagas(lote: Lote) {
+  return MEIA_FUNDO * lote.escala + FAIXA_DAS_VAGAS / 2;
+}
+export function paraMundo(lote: Lote, [lx, lz]: Ponto): Ponto {
+  return girar(lote, (lx - CENTRO_LOTE[0]) * lote.escala, (lz - CENTRO_LOTE[1]) * lote.escala);
 }
 export function dentroDoLote(lote: Lote, px: number, pz: number, folga: number) {
   const dx = px - lote.x;
   const dz = pz - lote.z;
   const c = Math.cos(lote.giro);
   const s = Math.sin(lote.giro);
-  return Math.abs(dx * c - dz * s) < MEIA_LARGURA + folga && Math.abs(dx * s + dz * c) < MEIA_FUNDO + folga;
+  const lx = dx * c - dz * s;
+  const lz = dx * s + dz * c;
+  return Math.abs(lx) < Math.max(MEIA_LARGURA * lote.escala, 6.2) + folga && lz > -MEIA_FUNDO * lote.escala - folga && lz < MEIA_FUNDO * lote.escala + FAIXA_DAS_VAGAS + folga;
 }
 export function vagasDoLote(lote: Lote) {
-  return VAGAS_LOCAIS.map((v) => paraMundo(lote, v));
+  return FILA_DE_VAGAS.map((dx) => girar(lote, dx, frenteDasVagas(lote)));
 }
 export function encaixarLote(mapa: MapaCidade, px: number, pz: number): Lote {
   let melhor = { d: Infinity, qx: px, qz: pz, meia: 2, nx: 0, nz: 1 };
@@ -53,6 +61,6 @@ export function encaixarLote(mapa: MapaCidade, px: number, pz: number): Lote {
     nx = melhor.nx;
     nz = melhor.nz;
   }
-  const recuo = melhor.meia + 1.2 + MEIA_FUNDO;
-  return { x: melhor.qx + nx * recuo, z: melhor.qz + nz * recuo, giro: Math.atan2(-nx, -nz) };
+  const recuo = melhor.meia + 1 + FAIXA_DAS_VAGAS + MEIA_FUNDO * ESCALA_LANCHONETE;
+  return { x: melhor.qx + nx * recuo, z: melhor.qz + nz * recuo, giro: Math.atan2(-nx, -nz), escala: ESCALA_LANCHONETE };
 }

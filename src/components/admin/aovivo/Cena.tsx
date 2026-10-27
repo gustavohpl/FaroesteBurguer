@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { Bell, CheckCircle2, Flame, ShoppingBag, Store } from 'lucide-react';
 import { Bloco, Etiqueta, apontar, cliqueValido, type Vetor } from './pecas';
 import { CidadeReal } from './CidadeReal';
-import { CENTRO_LOTE, VAGAS_LOCAIS, type Lote } from './lote';
+import { CENTRO_LOTE, FILA_DE_VAGAS, frenteDasVagas, type Lote } from './lote';
 import { amostrar, rotaDoCaminho, type Ponto, type Rota } from './trajetos';
 import type { MapaCidade } from './tiposMapa';
 export type Etapa = 'novo' | 'preparo' | 'pronto' | 'rua' | 'entregue';
@@ -218,27 +218,29 @@ function Cozinha({ cor, estado }: { cor: string; estado: EstadoCozinha }) {
     </group>
   );
 }
-function Estacionamento() {
-  const meio = (VAGAS_LOCAIS[0][0] + VAGAS_LOCAIS[VAGAS_LOCAIS.length - 1][0]) / 2;
-  const largura = VAGAS_LOCAIS[VAGAS_LOCAIS.length - 1][0] - VAGAS_LOCAIS[0][0] + 2.6;
+function Estacionamento({ frente }: { frente: number }) {
   return (
     <group>
-      <Bloco p={[meio, 0.14, VAGAS_LOCAIS[0][1]]} e={[largura, 0.08, 4.4]} cor="#d5d9e0" sombra={false} />
-      {VAGAS_LOCAIS.map(([vx], i) => i > 0 && <Bloco key={vx} p={[vx - 1.2, 0.19, VAGAS_LOCAIS[0][1]]} e={[0.08, 0.02, 3]} cor="#ffffff" sombra={false} />)}
+      <Bloco p={[0, 0.14, frente]} e={[FILA_DE_VAGAS.length * 2 + 0.6, 0.08, 3.2]} cor="#d5d9e0" sombra={false} />
+      {FILA_DE_VAGAS.slice(1).map((vx) => <Bloco key={vx} p={[vx - 1, 0.19, frente]} e={[0.08, 0.02, 2.4]} cor="#ffffff" sombra={false} />)}
     </group>
   );
 }
 function LoteLanchonete({ lote, cor, nome, cozinha, perto }: { lote: Lote; cor: string; nome: string; cozinha: EstadoCozinha; perto: boolean }) {
+  const frente = frenteDasVagas(lote);
+  const fundo = 18.4 * lote.escala;
   return (
     <group position={[lote.x, 0, lote.z]} rotation={[0, lote.giro, 0]}>
-      <Bloco p={[0, 0.06, 0]} e={[26, 0.12, 18.4]} cor="#e6e0d6" sombra={false} />
-      <group position={[-CENTRO_LOTE[0], 0, -CENTRO_LOTE[1]]}>
-        <Estacionamento />
-        <Lanchonete cor={cor} nome={nome} novos={cozinha.novos} />
-        <Cozinha cor={cor} estado={cozinha} />
+      <Bloco p={[0, 0.06, (frente + 1.8 - fundo / 2) / 2]} e={[Math.max(26 * lote.escala, FILA_DE_VAGAS.length * 2 + 0.6), 0.12, frente + 1.8 + fundo / 2]} cor="#e6e0d6" sombra={false} />
+      <group scale={lote.escala}>
+        <group position={[-CENTRO_LOTE[0], 0, -CENTRO_LOTE[1]]}>
+          <Lanchonete cor={cor} nome={nome} novos={cozinha.novos} />
+          <Cozinha cor={cor} estado={cozinha} />
+        </group>
       </group>
+      <Estacionamento frente={frente} />
       {!perto && (
-        <Html position={[0, 10, 0]} center zIndexRange={[25, 0]} className="pointer-events-none select-none">
+        <Html position={[0, 6, 0]} center zIndexRange={[25, 0]} className="pointer-events-none select-none">
           <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-lg" style={{ background: cor }}><Store className="h-3.5 w-3.5" />{nome}</div>
         </Html>
       )}
@@ -481,7 +483,7 @@ function Camera({ foco, posicoes, comando, centro, aoMudarPerto }: { foco: Foco;
   const camera = useThree((s) => s.camera) as THREE.OrthographicCamera;
   const controles = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update: () => void } | null;
   const largura = useThree((s) => s.size.width);
-  const zoomInicial = Math.min(14, Math.max(6.5, largura / 100));
+  const zoomInicial = Math.min(20, Math.max(8, largura / 70));
   const passo = useMemo(() => new THREE.Vector3(), []);
   const destino = useMemo(() => new THREE.Vector3(), []);
   const perto = useRef(true);

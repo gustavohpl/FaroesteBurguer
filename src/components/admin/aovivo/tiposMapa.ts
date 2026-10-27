@@ -17,6 +17,7 @@ export type MapaCidade = {
   bairros?: Array<[nome: string, x: number, z: number]>;
   marcos?: Array<[tipo: string, x: number, z: number, giro: number, nome: string]>;
   lanchonete?: [number, number];
+  loteLanchonete?: [x: number, z: number, giro: number, escala: number];
 };
 export const URL_MAPA = '/mapa/goiatuba.json';
 export const LARGURAS: Record<string, number> = { trunk: 6, primary: 5.6, secondary: 5, tertiary: 4.6, residential: 4, unclassified: 4, living_street: 3.6, service: 2.4, track: 2.2, pedestrian: 2.4, footway: 1, path: 1, cycleway: 1.2, steps: 1 };

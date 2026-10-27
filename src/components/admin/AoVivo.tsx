@@ -170,6 +170,10 @@ export function AoVivo() {
   }, [mapa]);
   const loteSalvo = useMemo(() => {
     if (!mapa) return null;
+    if (!localConfig && mapa.loteLanchonete) {
+      const [x, z, giro, escala] = mapa.loteLanchonete;
+      return { x, z, giro, escala };
+    }
     const [x, z] = localConfig ? geoParaCena(mapa, localConfig.lat, localConfig.lng) : mapa.lanchonete ?? [0, 0];
     return encaixarLote(mapa, x, z);
   }, [mapa, localConfig?.lat, localConfig?.lng]);
