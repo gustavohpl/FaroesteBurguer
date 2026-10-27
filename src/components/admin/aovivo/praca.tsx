@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GEO, Instancias, type Item } from './pecas';
 import { dentroDoLote, type Lote } from './lote';
+import type { MapaCidade } from './tiposMapa';
 type P2 = [number, number];
 const RAIO_BANCO = 1.1;
 const ALTURA_PALMEIRA = 3.4;
@@ -31,6 +32,9 @@ function dentroDoPoligono(anel: number[], x: number, z: number) {
   }
   return dentro;
 }
+export function anelDaPraca(mapa: MapaCidade, x: number, z: number) {
+  return mapa.verdes.find(([tipo, , anel]) => tipo === 'praca' && dentroDoPoligono(anel, x, z))?.[2] ?? null;
+}
 function useMosaico() {
   const textura = useMemo(() => {
     const tela = document.createElement('canvas');
@@ -40,7 +44,7 @@ function useMosaico() {
     ctx.fillStyle = '#9a6446';
     ctx.fillRect(0, 0, 256, 256);
     ctx.strokeStyle = '#f2ece2';
-    ctx.lineWidth = 14;
+    ctx.lineWidth = 10;
     for (let linha = 0; linha < 2; linha++) {
       ctx.beginPath();
       for (let x = 0; x <= 256; x += 4) {
@@ -63,7 +67,7 @@ function useMosaico() {
 function quadrilatero(pontos: P2[], y: number) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pontos.flatMap(([x, z]) => [x, y, z]), 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(pontos.flatMap(([x, z]) => [x / 2.4, z / 2.4]), 2));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(pontos.flatMap(([x, z]) => [x / 1.5, z / 1.5]), 2));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(pontos.flatMap(() => [0, 1, 0]), 3));
   geo.setIndex([0, 1, 2, 0, 2, 3]);
   return geo.toNonIndexed();
@@ -78,7 +82,7 @@ function disco([cx, cz]: P2, raio: number, y: number) {
   const geo = new THREE.CircleGeometry(raio, 28).rotateX(-Math.PI / 2).translate(cx, y, cz);
   const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / 2.4, pos.getZ(i) / 2.4);
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / 1.5, pos.getZ(i) / 1.5);
   return geo.toNonIndexed();
 }
 function montarPraca(anel: number[], lote: Lote) {

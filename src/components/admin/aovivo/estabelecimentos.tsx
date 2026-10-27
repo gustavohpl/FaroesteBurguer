@@ -115,8 +115,87 @@ export function BananeirasBurger() {
     </group>
   );
 }
-export const MODELOS_PROPRIOS: Array<{ nome: RegExp; Modelo: () => React.ReactElement; raio: number }> = [
-  { nome: /bananeira'?s burger/i, Modelo: BananeirasBurger, raio: 7.5 },
+function useLetreiroVertical(texto: string, fundo: string, cor: string) {
+  const textura = useMemo(() => {
+    const tela = document.createElement('canvas');
+    tela.width = 256;
+    tela.height = 1024;
+    const ctx = tela.getContext('2d')!;
+    ctx.fillStyle = fundo;
+    ctx.fillRect(0, 0, tela.width, tela.height);
+    ctx.fillStyle = cor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 110px Georgia, serif';
+    const letras = texto.split('');
+    letras.forEach((letra, i) => ctx.fillText(letra, 128, 140 + i * (820 / letras.length)));
+    const nova = new THREE.CanvasTexture(tela);
+    nova.colorSpace = THREE.SRGBColorSpace;
+    return nova;
+  }, [texto, fundo, cor]);
+  useEffect(() => () => textura.dispose(), [textura]);
+  return textura;
+}
+function Palmeira({ x, z, altura = 2.6 }: { x: number; z: number; altura?: number }) {
+  return (
+    <group position={[x, 0, z]}>
+      <mesh position={[0, altura / 2, 0]} castShadow>
+        <cylinderGeometry args={[0.08, 0.12, altura, 6]} />
+        <meshStandardMaterial color="#8a7356" roughness={0.9} />
+      </mesh>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <mesh key={i} position={[Math.sin((i * Math.PI) / 3) * 0.55, altura - 0.1, Math.cos((i * Math.PI) / 3) * 0.55]} rotation={[0.55 * Math.cos((i * Math.PI) / 3), (i * Math.PI) / 3, -0.55 * Math.sin((i * Math.PI) / 3)]} castShadow>
+          <boxGeometry args={[0.28, 0.04, 1.2]} />
+          <meshStandardMaterial color="#4f8f3a" roughness={0.9} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+function montarJanelasHotel() {
+  const janelas: Item[] = [];
+  const aparelhos: Item[] = [];
+  for (const y of [1.5, 3.7]) {
+    for (let x = -19.8; x <= -7.5; x += 1.55) {
+      janelas.push({ p: [x, y, 2.27], e: [0.55, 0.55, 0.06] });
+      if (y > 3) aparelhos.push({ p: [x + 0.45, y - 0.55, 2.38], e: [0.4, 0.28, 0.24] });
+    }
+  }
+  for (const x of [-5.6, -4.4]) janelas.push({ p: [x, 1.5, 2.27], e: [0.6, 0.6, 0.06] }, { p: [x, 3.7, 2.27], e: [0.6, 0.6, 0.06] });
+  return { janelas, aparelhos };
+}
+const JANELAS_HOTEL = montarJanelasHotel();
+export function HotelBaeza() {
+  const totem = useLetreiroVertical('HOTEL BAEZA', '#9aa0a8', '#ffffff');
+  const marquise = useLetreiro([{ texto: 'HOTEL BAEZA', tamanho: 150, cor: '#2f3640', fonte: '700' }], '#a3a8ae');
+  return (
+    <group>
+      <Bloco p={[-8.5, 0.05, 3.3]} e={[24, 0.1, 2.4]} cor="#d9d4c8" sombra={false} />
+      <Bloco p={[-8.5, 2.5, -0.9]} e={[24, 5, 6.2]} cor="#eadfb2" />
+      <Bloco p={[-8.5, 5.12, -0.9]} e={[24.3, 0.35, 6.5]} cor="#b8bcd6" />
+      {[-20.3, -13.2, -6.8, -2.4, 3.3].map((x) => <Bloco key={x} p={[x, 2.5, 2.3]} e={[0.4, 5, 0.16]} cor="#b8bcd6" sombra={false} />)}
+      {[-3.4, 1.2].map((x) => <Bloco key={x} p={[x, 2.5, 2.28]} e={[1.6, 4.9, 0.12]} cor="#c98a6a" sombra={false} />)}
+      <Bloco p={[-0.9, 3.8, 2.29]} e={[3.4, 1.4, 0.06]} cor="#1f2d3d" sombra={false} />
+      <Instancias itens={JANELAS_HOTEL.janelas} geometria={GEO.caixa} cor="#2c3e50" sombra={false} />
+      <Instancias itens={JANELAS_HOTEL.aparelhos} geometria={GEO.caixa} cor="#f2f2f2" sombra={false} />
+      <Bloco p={[0.4, 1.1, 2.29]} e={[2.4, 2.1, 0.06]} cor="#5d7381" sombra={false} />
+      <Bloco p={[0.4, 2.35, 3.2]} e={[4.2, 0.25, 2]} cor="#a3a8ae" />
+      <Bloco p={[0.4, 2.35, 4.21]} e={[4.2, 0.25, 0.04]} cor="#ffffff" mapa={marquise} sombra={false} />
+      {[-1.5, 2.3].map((x) => <Bloco key={x} p={[x, 1.1, 4.05]} e={[0.12, 2.2, 0.12]} cor="#8f949b" />)}
+      <Bloco p={[3, 2.1, 4.4]} e={[0.9, 4.2, 0.25]} cor="#ffffff" mapa={totem} />
+      {[2.53, 3.47].map((x) => <Bloco key={x} p={[x, 2.1, 4.4]} e={[0.07, 4.2, 0.28]} cor="#c0392b" sombra={false} />)}
+      <Bloco p={[3, 4.38, 4.4]} e={[0.6, 0.35, 0.3]} cor="#c0392b" />
+      <Bloco p={[-6.5, 0.12, 3.1]} e={[11, 0.14, 1.3]} cor="#7fb069" sombra={false} />
+      {[-9.5, -7.4, -5.6, -4.2].map((x, i) => <Palmeira key={x} x={x} z={3.1} altura={2.4 + (i % 2) * 0.5} />)}
+      <Bloco p={[-19, 0.6, 3.2]} e={[3, 1.2, 0.15]} cor="#f5f5f5" />
+      <Bloco p={[-11, 0.04, -6]} e={[5.6, 0.08, 2.8]} cor="#eae4d8" sombra={false} />
+      <Bloco p={[-11, 0.09, -6]} e={[4.8, 0.06, 2.1]} cor="#4fb3e6" sombra={false} />
+    </group>
+  );
+}
+export const MODELOS_PROPRIOS: Array<{ nome: RegExp; Modelo: () => React.ReactElement; livres: Array<[number, number, number]> }> = [
+  { nome: /bananeira'?s burger/i, Modelo: BananeirasBurger, livres: [[0, 0.5, 7.5]] },
+  { nome: /hotel baeza/i, Modelo: HotelBaeza, livres: [[-16.5, -1, 6.8], [-8.5, -1, 6.8], [-0.5, -1, 6.8], [-11, -5.5, 4]] },
 ];
 export function modeloProprio(nome: string) {
   return MODELOS_PROPRIOS.find((m) => m.nome.test(nome)) ?? null;

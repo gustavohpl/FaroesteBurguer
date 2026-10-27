@@ -1,7 +1,6 @@
 import { LARGURAS, type MapaCidade } from './tiposMapa';
 import type { Ponto } from './trajetos';
 export type Lote = { x: number; z: number; giro: number; escala: number };
-export const CENTRO_LOTE: Ponto = [-20, -12.65];
 export const ESCALA_LANCHONETE = 0.4;
 export const FILA_DE_VAGAS = [-5, -3, -1, 1, 3, 5];
 const MEIA_LARGURA = 12.5;
@@ -15,9 +14,6 @@ function girar(lote: Lote, lx: number, lz: number): Ponto {
 }
 export function frenteDasVagas(lote: Lote) {
   return MEIA_FUNDO * lote.escala + FAIXA_DAS_VAGAS / 2;
-}
-export function paraMundo(lote: Lote, [lx, lz]: Ponto): Ponto {
-  return girar(lote, (lx - CENTRO_LOTE[0]) * lote.escala, (lz - CENTRO_LOTE[1]) * lote.escala);
 }
 export function dentroDoLote(lote: Lote, px: number, pz: number, folga: number) {
   const dx = px - lote.x;

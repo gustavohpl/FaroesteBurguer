@@ -10,6 +10,7 @@ import { dentroDoLote, type Lote } from './lote';
 import { sorteio } from './trajetos';
 import { EnfeitePraca, Marco, MonumentoRotatoria } from './marcos';
 import { modeloProprio } from './estabelecimentos';
+import { anelDaPraca } from './praca';
 const PAREDES = ['#fde3c8', '#e2ecf7', '#f6d9d6', '#e1efe2', '#f3ead0', '#ece2f4'];
 const TELHADOS = ['#c2693e', '#8a5a44', '#6b7f99', '#a04a3a', '#7a8b5b'];
 const TOLDOS = ['#e11d48', '#2563eb', '#16a34a', '#f59e0b', '#7c3aed'];
@@ -123,7 +124,8 @@ function montarEnfeites(mapa: MapaCidade) {
   const marcos = (mapa.marcos ?? [])
     .filter(([tipo]) => (TIPOS_DE_MARCO as readonly string[]).includes(tipo))
     .map(([tipo, x, z, giro, nome]) => ({ tipo: tipo as TipoDeMarco, x, z, giro, nome }));
-  const pracas = mapa.verdes.filter(([tipo]) => tipo === 'praca').flatMap(([, , anel]) => {
+  const pracaDoFaroeste = mapa.loteLanchonete ? anelDaPraca(mapa, mapa.loteLanchonete[0], mapa.loteLanchonete[1]) : null;
+  const pracas = mapa.verdes.filter(([tipo, , anel]) => tipo === 'praca' && anel !== pracaDoFaroeste).flatMap(([, , anel]) => {
     let area = 0;
     let cx = 0;
     let cz = 0;
@@ -138,7 +140,13 @@ function montarEnfeites(mapa: MapaCidade) {
     return [{ x: cx / n, z: cz / n, raio: Math.min(8, Math.max(2.5, Math.sqrt(area / Math.PI) * 0.45)) }];
   });
   const rotatorias = mapa.rotatorias.filter(([, , raio]) => raio > 1.5).map(([x, z, raio]) => ({ x, z, raio }));
-  const livres: Livre[] = [...marcos.map(({ x, z, nome }) => ({ x, z, raio: modeloProprio(nome)?.raio ?? 4.5 })), ...pracas.map(({ x, z, raio }) => ({ x, z, raio: raio + 0.6 })), ...rotatorias.map(({ x, z, raio }) => ({ x, z, raio }))];
+  const livres: Livre[] = [...marcos.flatMap(({ x, z, giro, nome }) => {
+    const proprio = modeloProprio(nome);
+    if (!proprio) return [{ x, z, raio: 4.5 }];
+    const c = Math.cos(giro);
+    const s = Math.sin(giro);
+    return proprio.livres.map(([lx, lz, raio]) => ({ x: x + lx * c + lz * s, z: z - lx * s + lz * c, raio }));
+  }), ...pracas.map(({ x, z, raio }) => ({ x, z, raio: raio + 0.6 })), ...rotatorias.map(({ x, z, raio }) => ({ x, z, raio }))];
   return { marcos, pracas, rotatorias, livres };
 }
 type Bloco = { caixas: Item[]; detalhes: Item[]; telhados: Item[]; troncos: Item[]; copas: Item[] };

@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { Bell, CheckCircle2, Flame, ShoppingBag, Store } from 'lucide-react';
 import { Bloco, Etiqueta, apontar, cliqueValido, type Vetor } from './pecas';
 import { CidadeReal } from './CidadeReal';
-import { CENTRO_LOTE, FILA_DE_VAGAS, frenteDasVagas, type Lote } from './lote';
+import { PracaFaroeste, anelDaPraca } from './praca';
+import { FILA_DE_VAGAS, frenteDasVagas, type Lote } from './lote';
 import { amostrar, rotaDoCaminho, type Ponto, type Rota } from './trajetos';
 import type { MapaCidade } from './tiposMapa';
 export type Etapa = 'novo' | 'preparo' | 'pronto' | 'rua' | 'entregue';
@@ -23,8 +24,6 @@ const CORES_ETAPA: Record<Exclude<Etapa, 'rua'>, string> = { novo: '#f59e0b', pr
 export function corDaEtapa(etapa: Etapa, cor: string) {
   return etapa === 'rua' ? cor : CORES_ETAPA[etapa];
 }
-const LANCHONETE = { x: -27, z: -16, largura: 10, fundo: 10 };
-const COZINHA = { x: -17, z: -15 };
 const AFASTAMENTO = new THREE.Vector3(30, 34, 30);
 export const ZOOM_PERTO = 2.5;
 function useTexturaPlaca(texto: string, cor: string) {
@@ -55,47 +54,6 @@ function useTexturaPlaca(texto: string, cor: string) {
   }, [texto, cor]);
   useEffect(() => () => textura.dispose(), [textura]);
   return textura;
-}
-function Lanchonete({ cor, nome, novos }: { cor: string; nome: string; novos: number }) {
-  const placa = useTexturaPlaca(nome.toUpperCase(), cor);
-  const { x, z, largura, fundo } = LANCHONETE;
-  const frente = z + fundo / 2;
-  const sino = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    if (sino.current) sino.current.position.y = 10 + Math.sin(clock.elapsedTime * 3) * 0.25;
-  });
-  return (
-    <group>
-      <Bloco p={[x, 2.3, z]} e={[largura, 4.6, fundo]} cor="#b8763e" />
-      {[0.9, 1.8, 2.7, 3.6].map((y) => <Bloco key={`f${y}`} p={[x + largura / 2 + 0.03, y, z]} e={[0.06, 0.08, fundo]} cor="#9c6233" sombra={false} />)}
-      <Bloco p={[x, 4.75, z]} e={[largura + 0.6, 0.35, fundo + 0.6]} cor="#6d4a33" />
-      <Bloco p={[x, 3.7, frente + 0.25]} e={[largura + 1, 7.4, 0.5]} cor="#d49a5c" />
-      <Bloco p={[x, 7.55, frente + 0.25]} e={[largura + 1.4, 0.45, 0.7]} cor={cor} />
-      <Bloco p={[x, 5.85, frente + 0.56]} e={[8.2, 2, 0.12]} cor="#ffffff" mapa={placa} sombra={false} />
-      {[1.1, 2.0, 2.9].map((y) => <Bloco key={`t${y}`} p={[x, y + 0.42, frente + 0.51]} e={[largura + 0.98, 0.06, 0.04]} cor="#b9824a" sombra={false} />)}
-      <Bloco p={[x, 1.35, frente + 0.52]} e={[1.9, 2.7, 0.06]} cor="#2a1a10" sombra={false} />
-      <Bloco p={[x - 0.48, 1.45, frente + 0.6]} e={[0.88, 1.4, 0.08]} cor="#8a5a36" sombra={false} />
-      <Bloco p={[x + 0.48, 1.45, frente + 0.6]} e={[0.88, 1.4, 0.08]} cor="#8a5a36" sombra={false} />
-      {[-3.2, 3.2].map((dx) => <Bloco key={`j${dx}`} p={[x + dx, 2.1, frente + 0.53]} e={[2.3, 1.6, 0.06]} cor="#33465a" emissiva="#ffcf8a" intensidade={0.35} sombra={false} />)}
-      <mesh position={[x, 4.35, frente + 1.05]} rotation={[0.35, 0, 0]} castShadow>
-        <boxGeometry args={[largura + 0.6, 0.12, 1.2]} />
-        <meshStandardMaterial color={cor} roughness={0.7} />
-      </mesh>
-      <Bloco p={[x, 0.12, frente + 1.3]} e={[largura + 0.6, 0.24, 2.2]} cor="#8a5a36" sombra={false} />
-      {[-4.6, -1.6, 1.6, 4.6].map((dx) => <Bloco key={`b${dx}`} p={[x + dx, 0.75, frente + 2.15]} e={[0.12, 1.1, 0.12]} cor="#6b4226" />)}
-      {[-3.1, 3.1].map((dx) => <Bloco key={`c${dx}`} p={[x + dx, 1.3, frente + 2.15]} e={[3.2, 0.1, 0.12]} cor="#6b4226" />)}
-      {novos > 0 && (
-        <group ref={sino} position={[x, 10, frente]}>
-          <Html center zIndexRange={[20, 0]} className="pointer-events-none select-none">
-            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-lg ring-4 ring-amber-300/50">
-              <Bell className="h-3.5 w-3.5" />
-              {novos === 1 ? '1 pedido novo' : `${novos} pedidos novos`}
-            </div>
-          </Html>
-        </group>
-      )}
-    </group>
-  );
 }
 function Fumaca({ ativo, x, y, z }: { ativo: boolean; x: number; y: number; z: number }) {
   const bolhas = useRef<THREE.Mesh[]>([]);
@@ -162,62 +120,6 @@ function Sacola({ p, cor }: { p: Vetor; cor: string }) {
     </group>
   );
 }
-function Cozinha({ cor, estado }: { cor: string; estado: EstadoCozinha }) {
-  const { x, z } = COZINHA;
-  const chapa = useRef<THREE.MeshStandardMaterial>(null);
-  const carnes = useRef<THREE.Group>(null);
-  const preparando = estado.preparando > 0;
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    if (chapa.current) chapa.current.emissiveIntensity = preparando ? 0.45 + Math.sin(t * 6) * 0.15 : 0;
-    carnes.current?.children.forEach((c, i) => { c.position.y = 1.2 + Math.abs(Math.sin(t * 7 + i)) * 0.04; });
-  });
-  const vigas = [-3.6, -2.4, -1.2, 0, 1.2, 2.4, 3.6];
-  const totalCarnes = Math.min(estado.preparando * 2, 8);
-  return (
-    <group>
-      <Bloco p={[x, 0.1, z]} e={[8, 0.2, 8]} cor="#ece7df" sombra={false} />
-      {[[-3.85, -3.85], [3.85, -3.85], [-3.85, 3.85], [3.85, 3.85]].map(([dx, dz]) => <Bloco key={`${dx}${dz}`} p={[x + dx, 2.1, z + dz]} e={[0.24, 4, 0.24]} cor="#6b4226" />)}
-      {vigas.map((dz) => <Bloco key={dz} p={[x, 4.15, z + dz]} e={[8.3, 0.18, 0.22]} cor="#7a4c2c" />)}
-      {[-3.85, 3.85].map((dx) => <Bloco key={dx} p={[x + dx, 4.0, z]} e={[0.26, 0.26, 8.3]} cor="#6b4226" />)}
-      <Bloco p={[x - 1.4, 0.6, z - 0.6]} e={[3.4, 1, 1.5]} cor="#5b6270" />
-      <mesh position={[x - 1.4, 1.14, z - 0.6]} receiveShadow>
-        <boxGeometry args={[3.2, 0.08, 1.3]} />
-        <meshStandardMaterial ref={chapa} color="#2b2e33" emissive="#ff6a00" emissiveIntensity={0} roughness={0.5} />
-      </mesh>
-      <group ref={carnes}>
-        {Array.from({ length: totalCarnes }, (_, i) => (
-          <mesh key={i} position={[x - 2.6 + (i % 4) * 0.75, 1.2, z - 0.95 + Math.floor(i / 4) * 0.65]} castShadow>
-            <cylinderGeometry args={[0.26, 0.26, 0.1, 14]} />
-            <meshStandardMaterial color="#6b3b1f" roughness={0.9} />
-          </mesh>
-        ))}
-      </group>
-      <Fumaca ativo={preparando} x={x - 1.4} y={1.3} z={z - 0.6} />
-      <Bloco p={[x + 1.9, 0.55, z - 0.7]} e={[1.5, 1.1, 1.3]} cor="#8d96a3" />
-      <Bloco p={[x + 1.9, 1.11, z - 0.7]} e={[1.2, 0.04, 1]} cor="#f2c14e" emissiva="#f2a33a" intensidade={preparando ? 0.4 : 0.05} sombra={false} />
-      <group position={[x - 1.4, 0.2, z - 2]}>
-        <Pessoa camisa="#f4f4f4" chapeu ativo={preparando} />
-      </group>
-      <Bloco p={[x, 0.62, z + 3.3]} e={[6.6, 1.04, 0.85]} cor="#8a5a36" />
-      <Bloco p={[x, 1.17, z + 3.3]} e={[6.8, 0.08, 1]} cor="#efe8dc" />
-      <group position={[x + 2.2, 0.2, z + 2.1]}>
-        <Pessoa camisa={cor} ativo={estado.prontos > 0} aceno />
-      </group>
-      {Array.from({ length: Math.min(estado.prontos, 6) }, (_, i) => <Sacola key={i} p={[x - 2.7 + i * 0.95, 1.21, z + 3.3]} cor={cor} />)}
-      {preparando && (
-        <group position={[x - 1.4, 6.2, z - 0.6]}>
-          <Etiqueta y={0}><span className="flex items-center gap-1 text-orange-600"><Flame className="h-3.5 w-3.5" />{estado.preparando} na chapa</span></Etiqueta>
-        </group>
-      )}
-      {estado.prontos > 0 && (
-        <group position={[x - 1.2, 2.4, z + 4.6]}>
-          <Etiqueta y={0}><span className="flex items-center gap-1 text-blue-600"><ShoppingBag className="h-3.5 w-3.5" />{estado.prontos} pronto{estado.prontos > 1 ? 's' : ''}</span></Etiqueta>
-        </group>
-      )}
-    </group>
-  );
-}
 function Estacionamento({ frente }: { frente: number }) {
   return (
     <group>
@@ -226,18 +128,119 @@ function Estacionamento({ frente }: { frente: number }) {
     </group>
   );
 }
+function useTexturaDesenhada(chave: string, largura: number, altura: number, desenhar: (ctx: CanvasRenderingContext2D) => void) {
+  const textura = useMemo(() => {
+    const tela = document.createElement('canvas');
+    tela.width = largura;
+    tela.height = altura;
+    desenhar(tela.getContext('2d')!);
+    const nova = new THREE.CanvasTexture(tela);
+    nova.colorSpace = THREE.SRGBColorSpace;
+    return nova;
+  }, [chave]);
+  useEffect(() => () => textura.dispose(), [textura]);
+  return textura;
+}
+function Quiosque({ cor, nome, estado }: { cor: string; nome: string; estado: EstadoCozinha }) {
+  const madeira = useTexturaDesenhada('madeira', 256, 256, (ctx) => {
+    ctx.fillStyle = '#9b6a3c';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let x = 0; x < 256; x += 32) {
+      ctx.fillStyle = x % 64 ? '#a87545' : '#94643a';
+      ctx.fillRect(x + 2, 0, 28, 256);
+      ctx.fillStyle = '#6e4626';
+      ctx.fillRect(x, 0, 2, 256);
+    }
+  });
+  const telha = useTexturaDesenhada('telha', 256, 256, (ctx) => {
+    for (let x = 0; x < 256; x += 16) {
+      ctx.fillStyle = '#b4b2ab';
+      ctx.fillRect(x, 0, 8, 256);
+      ctx.fillStyle = '#93918b';
+      ctx.fillRect(x + 8, 0, 8, 256);
+    }
+  });
+  const placa = useTexturaPlaca(nome.toUpperCase(), cor);
+  const chapa = useRef<THREE.MeshStandardMaterial>(null);
+  const carnes = useRef<THREE.Group>(null);
+  const sino = useRef<THREE.Group>(null);
+  const preparando = estado.preparando > 0;
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    if (chapa.current) chapa.current.emissiveIntensity = preparando ? 0.45 + Math.sin(t * 6) * 0.15 : 0;
+    carnes.current?.children.forEach((c, i) => { c.position.y = 1.08 + Math.abs(Math.sin(t * 7 + i)) * 0.03; });
+    if (sino.current) sino.current.position.y = 5 + Math.sin(t * 3) * 0.2;
+  });
+  return (
+    <group>
+      <Bloco p={[0, 0.07, 0]} e={[4.4, 0.14, 3.3]} cor="#b8ad9c" sombra={false} />
+      <Bloco p={[0, 1.2, -1.45]} e={[4, 2.3, 0.12]} cor="#ffffff" mapa={madeira} />
+      {[-1.95, 1.95].map((x) => <Bloco key={x} p={[x, 1.2, -0.1]} e={[0.12, 2.3, 2.75]} cor="#ffffff" mapa={madeira} />)}
+      <Bloco p={[0, 0.62, 1.25]} e={[3.8, 1.1, 0.35]} cor="#ffffff" mapa={madeira} />
+      <Bloco p={[0, 1.2, 1.25]} e={[4, 0.06, 0.45]} cor="#d9c9a8" />
+      {[-1.95, 1.95].map((x) => <Bloco key={x} p={[x, 1.2, 1.35]} e={[0.13, 2.3, 0.13]} cor="#6b4226" />)}
+      {[1, -1].map((lado) => (
+        <mesh key={lado} position={[0, 2.56, lado * 1.01]} rotation={[lado * 0.28, 0, 0]} castShadow receiveShadow>
+          <boxGeometry args={[4.8, 0.06, 2.15]} />
+          <meshStandardMaterial color="#ffffff" map={telha} roughness={0.9} />
+        </mesh>
+      ))}
+      <Bloco p={[0, 2.12, 1.62]} e={[2.2, 0.38, 0.06]} cor="#ffffff" mapa={placa} sombra={false} />
+      <Bloco p={[-0.6, 0.55, -0.95]} e={[1.6, 0.95, 0.6]} cor="#5b6270" />
+      <mesh position={[-0.6, 1.04, -0.95]}>
+        <boxGeometry args={[1.5, 0.05, 0.5]} />
+        <meshStandardMaterial ref={chapa} color="#2b2e33" emissive="#ff6a00" emissiveIntensity={0} roughness={0.5} />
+      </mesh>
+      <group ref={carnes}>
+        {Array.from({ length: Math.min(estado.preparando * 2, 5) }, (_, i) => (
+          <mesh key={i} position={[-1.15 + i * 0.28, 1.08, -0.95]} castShadow>
+            <cylinderGeometry args={[0.11, 0.11, 0.05, 12]} />
+            <meshStandardMaterial color="#6b3b1f" roughness={0.9} />
+          </mesh>
+        ))}
+      </group>
+      <Fumaca ativo={preparando} x={-0.6} y={1.2} z={-0.95} />
+      <Bloco p={[1.1, 0.55, -1]} e={[0.7, 0.95, 0.5]} cor="#8d96a3" />
+      <Bloco p={[1.1, 1.04, -1]} e={[0.55, 0.03, 0.38]} cor="#f2c14e" emissiva="#f2a33a" intensidade={preparando ? 0.4 : 0.05} sombra={false} />
+      <group position={[-0.6, 0.14, -0.25]} rotation={[0, Math.PI, 0]} scale={0.72}>
+        <Pessoa camisa="#f4f4f4" chapeu ativo={preparando} />
+      </group>
+      <group position={[1.15, 0.14, 0.55]} scale={0.72}>
+        <Pessoa camisa={cor} ativo={estado.prontos > 0} aceno />
+      </group>
+      {Array.from({ length: Math.min(estado.prontos, 6) }, (_, i) => (
+        <group key={i} scale={0.6}>
+          <Sacola p={[(-1.6 + i * 0.5) / 0.6, 1.23 / 0.6, 1.25 / 0.6]} cor={cor} />
+        </group>
+      ))}
+      {estado.novos > 0 && (
+        <group ref={sino} position={[0, 5, 0]}>
+          <Html center zIndexRange={[20, 0]} className="pointer-events-none select-none">
+            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-lg ring-4 ring-amber-300/50">
+              <Bell className="h-3.5 w-3.5" />
+              {estado.novos === 1 ? '1 pedido novo' : `${estado.novos} pedidos novos`}
+            </div>
+          </Html>
+        </group>
+      )}
+      {preparando && (
+        <group position={[-0.6, 3.7, -0.95]}>
+          <Etiqueta y={0}><span className="flex items-center gap-1 text-orange-600"><Flame className="h-3.5 w-3.5" />{estado.preparando} na chapa</span></Etiqueta>
+        </group>
+      )}
+      {estado.prontos > 0 && (
+        <group position={[0, 2, 2.4]}>
+          <Etiqueta y={0}><span className="flex items-center gap-1 text-blue-600"><ShoppingBag className="h-3.5 w-3.5" />{estado.prontos} pronto{estado.prontos > 1 ? 's' : ''}</span></Etiqueta>
+        </group>
+      )}
+    </group>
+  );
+}
 function LoteLanchonete({ lote, cor, nome, cozinha, perto }: { lote: Lote; cor: string; nome: string; cozinha: EstadoCozinha; perto: boolean }) {
   const frente = frenteDasVagas(lote);
-  const fundo = 18.4 * lote.escala;
   return (
     <group position={[lote.x, 0, lote.z]} rotation={[0, lote.giro, 0]}>
-      <Bloco p={[0, 0.06, (frente + 1.8 - fundo / 2) / 2]} e={[Math.max(26 * lote.escala, FILA_DE_VAGAS.length * 2 + 0.6), 0.12, frente + 1.8 + fundo / 2]} cor="#e6e0d6" sombra={false} />
-      <group scale={lote.escala}>
-        <group position={[-CENTRO_LOTE[0], 0, -CENTRO_LOTE[1]]}>
-          <Lanchonete cor={cor} nome={nome} novos={cozinha.novos} />
-          <Cozinha cor={cor} estado={cozinha} />
-        </group>
-      </group>
+      <Quiosque cor={cor} nome={nome} estado={cozinha} />
       <Estacionamento frente={frente} />
       {!perto && (
         <Html position={[0, 6, 0]} center zIndexRange={[25, 0]} className="pointer-events-none select-none">
@@ -533,6 +536,7 @@ export function Cena({ mapa, lote, cor, nome, motos, marcas, cozinha, selecionad
   const [perto, setPerto] = useState(true);
   const centro = useMemo<Ponto>(() => [lote.x, lote.z], [lote]);
   const trajetos = useMemo(() => trajetosDeCarros(mapa, centro), [mapa, centro]);
+  const anelPraca = useMemo(() => anelDaPraca(mapa, lote.x, lote.z), [mapa, lote]);
   return (
     <>
       <color attach="background" args={['#efeae1']} />
@@ -542,6 +546,7 @@ export function Cena({ mapa, lote, cor, nome, motos, marcas, cozinha, selecionad
       <Camera foco={foco} posicoes={posicoes} comando={comando} centro={centro} aoMudarPerto={setPerto} />
       <CidadeReal mapa={mapa} lote={lote} rotulos={perto} aoClicarChao={aoClicarChao} />
       <LoteLanchonete lote={lote} cor={cor} nome={nome} cozinha={cozinha} perto={perto} />
+      {anelPraca && <PracaFaroeste anel={anelPraca} lote={lote} />}
       <Transito trajetos={trajetos} />
       <Rotas motos={motos} />
       {motos.map((m) => (

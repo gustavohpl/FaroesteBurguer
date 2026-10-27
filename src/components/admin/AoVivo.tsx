@@ -6,7 +6,7 @@ import { useConfig } from '../../ConfigContext';
 import { useDeliveryRealtime } from '../../hooks/useRealtime';
 import { Cena, corDaEtapa, type Comando, type Etapa, type Foco, type MarcaCasa, type MotoCena, type PlanoMoto } from './aovivo/Cena';
 import { duracaoViagem, hashTexto, rotaDoCaminho, type Ponto, type Rota } from './aovivo/trajetos';
-import { encaixarLote, paraMundo, vagasDoLote, type Lote } from './aovivo/lote';
+import { encaixarLote, vagasDoLote, type Lote } from './aovivo/lote';
 import { URL_MAPA, cenaParaGeo, geoParaCena, type MapaCidade } from './aovivo/tiposMapa';
 import { indiceDeCasas } from './aovivo/vizinhanca';
 type Roteador = { rota(de: Ponto, para: Ponto): Ponto[] | null; pontoNaRua(x: number, z: number): Ponto; enderecoNaCena(endereco: string): { ponto: Ponto; achou: 'rua' | 'bairro' | 'nada' } };
@@ -377,7 +377,7 @@ export function AoVivo() {
     const moto = motos.find((m) => m.pedidoId === selecionado || `moto:${m.chave}` === selecionado);
     if (moto && (moto.plano.modo !== 'vaga' || !atual)) return { tipo: 'moto', chave: moto.chave };
     if (lote && atual && (atual.etapa === 'preparo' || atual.etapa === 'pronto' || !atual.entrega)) {
-      const [x, z] = paraMundo(lote, [-17, -15]);
+      const { x, z } = lote;
       return { tipo: 'ponto', x, z };
     }
     const destino = destinoDe.get(selecionado);
