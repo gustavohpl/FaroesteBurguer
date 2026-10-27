@@ -9,6 +9,7 @@ import { LARGURAS, type MapaCidade } from './tiposMapa';
 import { dentroDoLote, type Lote } from './lote';
 import { sorteio } from './trajetos';
 import { EnfeitePraca, Marco, MonumentoRotatoria } from './marcos';
+import { modeloProprio } from './estabelecimentos';
 const PAREDES = ['#fde3c8', '#e2ecf7', '#f6d9d6', '#e1efe2', '#f3ead0', '#ece2f4'];
 const TELHADOS = ['#c2693e', '#8a5a44', '#6b7f99', '#a04a3a', '#7a8b5b'];
 const TOLDOS = ['#e11d48', '#2563eb', '#16a34a', '#f59e0b', '#7c3aed'];
@@ -137,7 +138,7 @@ function montarEnfeites(mapa: MapaCidade) {
     return [{ x: cx / n, z: cz / n, raio: Math.min(8, Math.max(2.5, Math.sqrt(area / Math.PI) * 0.45)) }];
   });
   const rotatorias = mapa.rotatorias.filter(([, , raio]) => raio > 1.5).map(([x, z, raio]) => ({ x, z, raio }));
-  const livres: Livre[] = [...marcos.map(({ x, z }) => ({ x, z, raio: 4.5 })), ...pracas.map(({ x, z, raio }) => ({ x, z, raio: raio + 0.6 })), ...rotatorias.map(({ x, z, raio }) => ({ x, z, raio }))];
+  const livres: Livre[] = [...marcos.map(({ x, z, nome }) => ({ x, z, raio: modeloProprio(nome)?.raio ?? 4.5 })), ...pracas.map(({ x, z, raio }) => ({ x, z, raio: raio + 0.6 })), ...rotatorias.map(({ x, z, raio }) => ({ x, z, raio }))];
   return { marcos, pracas, rotatorias, livres };
 }
 type Bloco = { caixas: Item[]; detalhes: Item[]; telhados: Item[]; troncos: Item[]; copas: Item[] };
@@ -283,7 +284,9 @@ function MarcosPerto({ marcos, lote, perto }: { marcos: ReturnType<typeof montar
         const Icone = ICONES_ROTULO[tipo] ?? MapPin;
         return (
           <group key={i}>
-            {tipo === 'hotel' || tipo === 'restaurante' ? (
+            {modeloProprio(nome) ? (
+              <group position={[x, 0, z]} rotation={[0, giro, 0]}>{React.createElement(modeloProprio(nome)!.Modelo)}</group>
+            ) : tipo === 'hotel' || tipo === 'restaurante' ? (
               <group position={[x, 0, z]} rotation={[0, giro, 0]}>{tipo === 'hotel' ? <Hotel /> : <Restaurante />}</group>
             ) : (
               <Marco tipo={tipo} x={x} z={z} giro={giro} />
