@@ -15,6 +15,7 @@ export type MapaCidade = {
   rotulos: Array<[tipo: string, x: number, z: number, nome: number]>;
 };
 export const URL_MAPA = '/mapa/goiatuba.json';
+export const LARGURAS: Record<string, number> = { trunk: 6, primary: 5.6, secondary: 5, tertiary: 4.6, residential: 4, unclassified: 4, living_street: 3.6, service: 2.4, track: 2.2, pedestrian: 2.4, footway: 1, path: 1, cycleway: 1.2, steps: 1 };
 export const RUAS_DE_CARRO = ['trunk', 'primary', 'secondary', 'tertiary', 'residential', 'unclassified', 'living_street', 'service', 'track'];
 export function geoParaCena(mapa: MapaCidade, lat: number, lng: number): [number, number] {
   const [lat0, lng0] = mapa.origem;

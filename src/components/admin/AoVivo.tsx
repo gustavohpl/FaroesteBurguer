@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Bell, Bike, Check, ChefHat, Clock, Crosshair, Home, Minus, Plus, ShoppingBag, Sparkles, Timer, X } from 'lucide-react';
+import { Bell, Bike, Check, ChefHat, Clock, Crosshair, Home, Loader2, MapPin, Minus, Plus, ShoppingBag, Sparkles, Timer, X } from 'lucide-react';
 import * as api from '../../utils/api';
 import { useConfig } from '../../ConfigContext';
 import { useDeliveryRealtime } from '../../hooks/useRealtime';
-import { CAMERA_INICIAL, Cena, corDaEtapa, type Comando, type Etapa, type Foco, type MarcaCasa, type MotoCena } from './aovivo/Cena';
-import { CASAS, COZINHA, VAGAS, duracaoViagem, hashTexto, rotaEntrega } from './aovivo/cidade';
+import { Cena, corDaEtapa, type Comando, type Etapa, type Foco, type MarcaCasa, type MotoCena, type PlanoMoto } from './aovivo/Cena';
+import { duracaoViagem, hashTexto, rotaDoCaminho, type Ponto, type Rota } from './aovivo/trajetos';
+import { encaixarLote, paraMundo, vagasDoLote, type Lote } from './aovivo/lote';
+import { URL_MAPA, cenaParaGeo, geoParaCena, type MapaCidade } from './aovivo/tiposMapa';
+import { indiceDeCasas } from './aovivo/vizinhanca';
+type Roteador = { rota(de: Ponto, para: Ponto): Ponto[] | null; pontoNaRua(x: number, z: number): Ponto; enderecoNaCena(endereco: string): { ponto: Ponto; achou: 'rua' | 'bairro' | 'nada' } };
+type Destino = { casa: Ponto; rua: Ponto };
+type Gps = { de: Ponto; para: Ponto; inicio: number; duracao: number; em: number };
+const modulosRoteador = import.meta.glob('./aovivo/rotas.ts');
 type PedidoApi = { orderId: string; customerName?: string; items?: Array<{ name: string; quantity: number }>; total?: number; status: string; deliveryType?: string; address?: string; createdAt: string; updatedAt?: string; completedAt?: string; driver?: { name?: string; phone?: string; color?: string } };
 type Motoboy = { name?: string; phone?: string; color?: string; status?: string };
 type Entregador = { chave: string; nome: string; cor: string };
@@ -20,7 +27,8 @@ const NOMES = ['Ana', 'Bruno', 'Carla', 'Diego', 'Eduarda', 'Felipe', 'Gabriela'
 const LANCHES: Array<[string, number]> = [['X-Bacon', 32], ['X-Salada', 26], ['X-Tudo', 38], ['Batata frita', 18], ['Refrigerante', 8], ['Milk-shake', 19], ['Onion rings', 22]];
 const CORES_TESTE = ['#2563eb', '#16a34a', '#9333ea', '#db2777', '#0891b2'];
 const COR_NEUTRA = '#64748b';
-const SIMULACAO = { preparo: 4000, pronto: 13000, rua: 17000, viagem: 14000, fim: 33500 };
+const SIMULACAO = { preparo: 4000, pronto: 13000, rua: 17000, viagem: 18000, fim: 37500 };
+const VALIDADE_GPS = 120000;
 const DURACAO_ENTREGUE = 16000;
 function tempo(iso?: string) {
   const t = iso ? Date.parse(iso) : NaN;
@@ -77,6 +85,10 @@ function useTelaPequena() {
   }, []);
   return pequena;
 }
+function posicaoGps(g: Gps, agora: number): Ponto {
+  const t = Math.min(1, (agora - g.inicio) / g.duracao);
+  return [g.de[0] + (g.para[0] - g.de[0]) * t, g.de[1] + (g.para[1] - g.de[1]) * t];
+}
 function chaveDoEntregador(p: Pedido) {
   return p.entregador?.chave ?? `pedido:${p.id}`;
 }
@@ -126,9 +138,76 @@ export function AoVivo() {
   const [aba, setAba] = useState<'pedidos' | 'entregadores'>('pedidos');
   const [comando, setComando] = useState<Comando>(null);
   const telaPequena = useTelaPequena();
+  const [mapa, setMapa] = useState<MapaCidade | null>(null);
+  const [falhaMapa, setFalhaMapa] = useState(false);
+  const [roteador, setRoteador] = useState<Roteador | null>(null);
+  const [gps, setGps] = useState<Map<string, Gps>>(() => new Map());
+  const [localSalvo, setLocalSalvo] = useState<{ lat: number; lng: number } | null>(null);
+  const [posicionando, setPosicionando] = useState(false);
+  const [provisorio, setProvisorio] = useState<{ lote: Lote; x: number; z: number } | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState('');
   const anteriores = useRef(new Map<string, Pedido>());
-  const casas = useRef(new Map<string, number>());
+  const destinos = useRef(new Map<string, Destino>());
+  const destinosBase = useRef<unknown>(null);
   const vagas = useRef(new Map<string, number>());
+  const rotas = useRef(new Map<string, { ida: Rota; volta: Rota }>());
+  const roteadorAtual = useRef<Roteador | null>(null);
+  roteadorAtual.current = roteador;
+  const localConfig: { lat: number; lng: number } | null = localSalvo ?? (config as { localLanchonete?: { lat: number; lng: number } }).localLanchonete ?? null;
+  useEffect(() => {
+    let vivo = true;
+    fetch(URL_MAPA).then((r) => r.json()).then((dados: MapaCidade) => { if (vivo) setMapa(dados); }).catch(() => { if (vivo) setFalhaMapa(true); });
+    return () => { vivo = false; };
+  }, []);
+  useEffect(() => {
+    const carregarModulo = Object.values(modulosRoteador)[0];
+    if (!mapa || !carregarModulo) return;
+    carregarModulo().then((m) => {
+      const modulo = m as { criarRoteador?: (mapa: MapaCidade) => Roteador };
+      if (modulo.criarRoteador) setRoteador(modulo.criarRoteador(mapa));
+    }).catch(() => {});
+  }, [mapa]);
+  const loteSalvo = useMemo(() => {
+    if (!mapa) return null;
+    const [x, z] = localConfig ? geoParaCena(mapa, localConfig.lat, localConfig.lng) : [0, 0];
+    return encaixarLote(mapa, x, z);
+  }, [mapa, localConfig?.lat, localConfig?.lng]);
+  const lote = posicionando && provisorio ? provisorio.lote : loteSalvo;
+  const vizinhanca = useMemo(() => (mapa && lote ? indiceDeCasas(mapa, lote) : null), [mapa, lote]);
+  const vagasMundo = useMemo(() => (lote ? vagasDoLote(lote) : []), [lote]);
+  useEffect(() => {
+    const buscar = (api as unknown as { getDriverLocations?: () => Promise<{ success?: boolean; locations?: Array<{ phone: string; lat: number; lng: number; at: string }> }> }).getDriverLocations;
+    if (typeof buscar !== 'function' || !mapa) return;
+    let vivo = true;
+    const atualizar = async () => {
+      try {
+        const resposta = await buscar();
+        if (!vivo || !resposta?.success) return;
+        setGps((anterior) => {
+          const novo = new Map(anterior);
+          const instante = Date.now();
+          for (const l of resposta.locations || []) {
+            const chave = soDigitos(l.phone);
+            const em = tempo(l.at);
+            if (!chave || instante - em > VALIDADE_GPS || !Number.isFinite(l.lat) || !Number.isFinite(l.lng)) continue;
+            const velho = anterior.get(chave);
+            if (velho && velho.em === em) continue;
+            let alvo = geoParaCena(mapa, l.lat, l.lng);
+            if (roteadorAtual.current) alvo = roteadorAtual.current.pontoNaRua(alvo[0], alvo[1]);
+            novo.set(chave, { de: velho ? posicaoGps(velho, instante) : alvo, para: alvo, inicio: instante, duracao: velho ? Math.min(12000, Math.max(2000, em - velho.em)) : 1, em });
+          }
+          for (const [chave, g] of novo) if (instante - g.em > VALIDADE_GPS) novo.delete(chave);
+          return novo;
+        });
+      } catch {
+        return;
+      }
+    };
+    atualizar();
+    const intervalo = setInterval(atualizar, 5000);
+    return () => { vivo = false; clearInterval(intervalo); };
+  }, [mapa]);
   const historicoBuscado = useRef(0);
   const contadorTeste = useRef(0);
   const buscarHistorico = useCallback(async () => {
@@ -179,24 +258,37 @@ export function AoVivo() {
     const testes = simulacoes.map((s) => simulado(s, relogioSimulacao || Date.now()));
     return [...testes, ...reais].sort((a, b) => b.criado - a.criado);
   }, [pedidosApi, simulacoes, relogioSimulacao]);
-  const casaDe = useMemo(() => {
+  const destinoDe = useMemo(() => {
+    if (!vizinhanca) return new Map<string, Destino>();
+    const base = destinosBase.current as { vizinhanca: unknown; roteador: unknown } | null;
+    if (!base || base.vizinhanca !== vizinhanca || base.roteador !== roteador) destinos.current.clear();
+    destinosBase.current = { vizinhanca, roteador };
     const ativos = new Set([...vivos.map((p) => p.id), ...entregas.map((e) => e.pedido.id)]);
-    for (const id of [...casas.current.keys()]) if (!ativos.has(id)) casas.current.delete(id);
-    const ocupadas = new Set(casas.current.values());
-    for (const p of [...vivos].reverse()) {
-      if (!p.entrega || casas.current.has(p.id)) continue;
-      let i = hashTexto(p.endereco || p.id) % CASAS.length;
-      for (let n = 0; n < CASAS.length && ocupadas.has(i); n++) i = (i + 1) % CASAS.length;
-      casas.current.set(p.id, i);
-      ocupadas.add(i);
+    for (const id of [...destinos.current.keys()]) if (!ativos.has(id)) destinos.current.delete(id);
+    for (const p of vivos) {
+      if (!p.entrega || destinos.current.has(p.id)) continue;
+      const ponto = roteador && p.endereco && !p.simulado ? roteador.enderecoNaCena(p.endereco).ponto : vizinhanca.sortear(hashTexto(p.endereco || p.id), p.simulado ? 260 : 420);
+      const casa = vizinhanca.perto(ponto[0], ponto[1]) ?? ponto;
+      destinos.current.set(p.id, { casa, rua: roteador ? roteador.pontoNaRua(casa[0], casa[1]) : casa });
     }
-    return new Map(casas.current);
-  }, [vivos, entregas]);
+    return new Map(destinos.current);
+  }, [vivos, entregas, vizinhanca, roteador]);
+  const rotaPara = useCallback((vaga: Ponto, destino: Destino) => {
+    const chave = `${vaga.join()}|${destino.rua.join()}|${roteador ? 1 : 0}`;
+    const pronta = rotas.current.get(chave);
+    if (pronta) return pronta;
+    const caminho = roteador?.rota(vaga, destino.rua) ?? [vaga, destino.rua];
+    const nova = { ida: rotaDoCaminho(caminho), volta: rotaDoCaminho([...caminho].reverse()) };
+    if (rotas.current.size > 300) rotas.current.clear();
+    rotas.current.set(chave, nova);
+    return nova;
+  }, [roteador]);
   const motos = useMemo<MotoCena[]>(() => {
+    if (!lote) return [];
     const equipe = new Map<string, Entregador>();
     for (const d of motoboys) {
       const chave = soDigitos(d.phone);
-      if (d.status === 'online' && chave) equipe.set(chave, { chave, nome: primeiroNome(d.name, 'Entregador'), cor: d.color || COR_NEUTRA });
+      if (chave && (d.status === 'online' || gps.has(chave))) equipe.set(chave, { chave, nome: primeiroNome(d.name, 'Entregador'), cor: d.color || COR_NEUTRA });
     }
     for (const s of simulacoes) equipe.set(s.entregador.chave, s.entregador);
     const naRua = [...vivos.filter((p) => p.etapa === 'rua'), ...entregas.filter((e) => e.pedido.etapa === 'rua').map((e) => e.pedido)];
@@ -209,45 +301,60 @@ export function AoVivo() {
     for (const chave of equipe.keys()) {
       if (vagas.current.has(chave)) continue;
       let vaga = 0;
-      while (usadas.has(vaga) && vaga < VAGAS.length) vaga++;
-      if (vaga >= VAGAS.length) vaga = hashTexto(chave) % VAGAS.length;
+      while (usadas.has(vaga) && vaga < vagasMundo.length) vaga++;
+      if (vaga >= vagasMundo.length) vaga = hashTexto(chave) % vagasMundo.length;
       vagas.current.set(chave, vaga);
       usadas.add(vaga);
     }
     return [...equipe.values()].map((e): MotoCena => {
-      const vaga = vagas.current.get(e.chave) ?? 0;
-      const pedido = vivos.find((p) => p.etapa === 'rua' && chaveDoEntregador(p) === e.chave && casaDe.has(p.id));
+      const vaga = vagasMundo[vagas.current.get(e.chave) ?? 0];
+      const base = { ...e, vaga, giroVaga: lote.giro };
+      const sinal = gps.get(e.chave);
+      const pedido = vivos.find((p) => p.etapa === 'rua' && chaveDoEntregador(p) === e.chave && destinoDe.has(p.id));
+      const planoGps: PlanoMoto | null = sinal ? { modo: 'gps', de: sinal.de, para: sinal.para, inicio: sinal.inicio, duracao: sinal.duracao } : null;
       if (pedido) {
-        const rotas = rotaEntrega(vaga, casaDe.get(pedido.id)!);
-        return { ...e, vaga, pedidoId: pedido.id, rotulo: `#${pedido.id}`, plano: { modo: 'ida', rota: rotas.ida, inicio: pedido.mudou, duracao: pedido.viagem ?? duracaoViagem(rotas.ida) } };
+        const destino = destinoDe.get(pedido.id)!;
+        const { ida } = rotaPara(vaga, destino);
+        const trajeto = sinal ? rotaPara(sinal.para, destino).ida : undefined;
+        return { ...base, pedidoId: pedido.id, rotulo: `#${pedido.id}`, trajeto, plano: planoGps ?? { modo: 'ida', rota: ida, inicio: pedido.mudou, duracao: pedido.viagem ?? duracaoViagem(ida) } };
       }
-      const entrega = [...entregas].reverse().find((x) => x.pedido.etapa === 'rua' && chaveDoEntregador(x.pedido) === e.chave && casaDe.has(x.pedido.id));
+      const entrega = [...entregas].reverse().find((x) => x.pedido.etapa === 'rua' && chaveDoEntregador(x.pedido) === e.chave && destinoDe.has(x.pedido.id));
       if (entrega) {
-        const rotas = rotaEntrega(vaga, casaDe.get(entrega.pedido.id)!);
-        const duracao = entrega.pedido.viagem ?? duracaoViagem(rotas.ida);
-        return { ...e, vaga, pedidoId: entrega.pedido.id, rotulo: 'voltando', plano: { modo: 'volta', ida: rotas.ida, volta: rotas.volta, inicio: entrega.em, progressoIda: Math.min(1, Math.max(0, (entrega.em - entrega.pedido.mudou) / duracao)) } };
+        const { ida, volta } = rotaPara(vaga, destinoDe.get(entrega.pedido.id)!);
+        const duracao = entrega.pedido.viagem ?? duracaoViagem(ida);
+        return { ...base, pedidoId: entrega.pedido.id, rotulo: 'voltando', plano: planoGps ?? { modo: 'volta', ida, volta, inicio: entrega.em, progressoIda: Math.min(1, Math.max(0, (entrega.em - entrega.pedido.mudou) / duracao)) } };
       }
-      return { ...e, vaga, plano: { modo: 'vaga' } };
+      return { ...base, plano: planoGps ?? { modo: 'vaga' } };
     });
-  }, [motoboys, simulacoes, vivos, entregas, casaDe]);
+  }, [lote, vagasMundo, motoboys, simulacoes, vivos, entregas, destinoDe, rotaPara, gps]);
   const previsaoDe = useCallback((id: string) => {
     const moto = motos.find((m) => m.pedidoId === id);
-    return moto && moto.plano.modo === 'ida' ? moto.plano.inicio + moto.plano.duracao : null;
-  }, [motos]);
+    if (!moto) return null;
+    if (moto.plano.modo === 'ida') return moto.plano.inicio + moto.plano.duracao;
+    const destino = destinoDe.get(id);
+    if (moto.plano.modo !== 'gps' || !destino) return null;
+    return Date.now() + (Math.hypot(destino.rua[0] - moto.plano.para[0], destino.rua[1] - moto.plano.para[1]) * 1.3 / 2.8) * 1000;
+  }, [motos, destinoDe]);
+  const naPorta = useCallback((id: string) => {
+    const moto = motos.find((m) => m.pedidoId === id);
+    const destino = destinoDe.get(id);
+    if (!moto || !destino) return false;
+    if (moto.plano.modo === 'ida') return Date.now() >= moto.plano.inicio + moto.plano.duracao;
+    return moto.plano.modo === 'gps' && Math.hypot(destino.rua[0] - moto.plano.para[0], destino.rua[1] - moto.plano.para[1]) < 8;
+  }, [motos, destinoDe]);
   const marcas = useMemo<MarcaCasa[]>(() => {
     const lista: MarcaCasa[] = [];
     for (const p of vivos) {
-      const casa = casaDe.get(p.id);
-      if (casa === undefined) continue;
-      const previsao = previsaoDe(p.id);
-      lista.push({ casa, pedidoId: p.id, etapa: p.etapa, titulo: `#${p.id} ${p.nome}`, legenda: previsao && agora >= previsao ? 'Na porta' : LEGENDAS[p.etapa] });
+      const destino = destinoDe.get(p.id);
+      if (!destino) continue;
+      lista.push({ x: destino.casa[0], z: destino.casa[1], pedidoId: p.id, etapa: p.etapa, titulo: `#${p.id} ${p.nome}`, legenda: p.etapa === 'rua' && naPorta(p.id) ? 'Na porta' : LEGENDAS[p.etapa] });
     }
     for (const e of entregas) {
-      const casa = casaDe.get(e.pedido.id);
-      if (casa !== undefined) lista.push({ casa, pedidoId: e.pedido.id, etapa: 'entregue', titulo: `#${e.pedido.id} ${e.pedido.nome}`, legenda: 'Entregue' });
+      const destino = destinoDe.get(e.pedido.id);
+      if (destino) lista.push({ x: destino.casa[0], z: destino.casa[1], pedidoId: e.pedido.id, etapa: 'entregue', titulo: `#${e.pedido.id} ${e.pedido.nome}`, legenda: 'Entregue' });
     }
     return lista;
-  }, [vivos, entregas, casaDe, previsaoDe, agora]);
+  }, [vivos, entregas, destinoDe, naPorta, agora]);
   const cozinha = useMemo(() => ({
     novos: vivos.filter((p) => p.etapa === 'novo').length,
     preparando: vivos.filter((p) => p.etapa === 'preparo').length,
@@ -265,10 +372,37 @@ export function AoVivo() {
     if (!selecionado) return null;
     const moto = motos.find((m) => m.pedidoId === selecionado || `moto:${m.chave}` === selecionado);
     if (moto && (moto.plano.modo !== 'vaga' || !atual)) return { tipo: 'moto', chave: moto.chave };
-    if (atual && (atual.etapa === 'preparo' || atual.etapa === 'pronto' || !atual.entrega)) return { tipo: 'ponto', x: COZINHA.x, z: COZINHA.z };
-    const casa = casaDe.get(selecionado);
-    return casa === undefined ? null : { tipo: 'ponto', x: CASAS[casa].x, z: CASAS[casa].z };
-  }, [selecionado, motos, atual, casaDe]);
+    if (lote && atual && (atual.etapa === 'preparo' || atual.etapa === 'pronto' || !atual.entrega)) {
+      const [x, z] = paraMundo(lote, [-17, -15]);
+      return { tipo: 'ponto', x, z };
+    }
+    const destino = destinoDe.get(selecionado);
+    return destino ? { tipo: 'ponto', x: destino.casa[0], z: destino.casa[1] } : null;
+  }, [selecionado, motos, atual, destinoDe, lote]);
+  const aoClicarChao = useCallback((x: number, z: number) => {
+    if (posicionando && mapa) {
+      setProvisorio({ lote: encaixarLote(mapa, x, z), x, z });
+      return;
+    }
+    setSelecionado(null);
+  }, [posicionando, mapa]);
+  const salvarLocal = async () => {
+    if (!provisorio || !mapa) return;
+    const [lat, lng] = cenaParaGeo(mapa, provisorio.x, provisorio.z);
+    setSalvando(true);
+    try {
+      const resposta = await api.adminFetch('/admin/config', { method: 'POST', body: JSON.stringify({ localLanchonete: { lat, lng } }) });
+      const dados = await resposta.json();
+      if (!resposta.ok || dados?.success === false) throw new Error('falhou');
+      setLocalSalvo({ lat, lng });
+      setPosicionando(false);
+      setProvisorio(null);
+      setAviso('');
+    } catch {
+      setAviso('Não deu para salvar o local. Tente de novo.');
+    }
+    setSalvando(false);
+  };
   useEffect(() => {
     if (!selecionado || atual || motoSelecionada) return;
     const espera = setTimeout(() => setSelecionado(null), 4000);
@@ -302,14 +436,42 @@ export function AoVivo() {
   const acompanhado = atual ?? vivos[0] ?? null;
   const motoDoAtual = atual ? motos.find((m) => m.pedidoId === atual.id) : undefined;
   const previsaoAtual = atual ? previsaoDe(atual.id) : null;
-  const statusDaMoto = (m: MotoCena) => (m.plano.modo === 'ida' ? `Entregando #${m.pedidoId}` : m.plano.modo === 'volta' ? 'Voltando' : 'Disponível');
+  const statusDaMoto = (m: MotoCena) => (m.pedidoId && m.rotulo !== 'voltando' ? `Entregando #${m.pedidoId}` : m.rotulo === 'voltando' ? 'Voltando' : m.plano.modo === 'gps' ? 'Com GPS ligado' : 'Disponível');
   return (
     <div className="relative h-[calc(100dvh-12.5rem)] min-h-[520px] overflow-hidden rounded-2xl bg-[#efeae1] shadow-sm ring-1 ring-black/5 md:h-[calc(100dvh-3rem)]">
       <Falha>
-        <Canvas orthographic shadows dpr={[1, 1.75]} camera={{ position: CAMERA_INICIAL, zoom: 10, near: 0.1, far: 400 }}>
-          <Cena cor={cor} nome={nomeLoja} motos={motos} marcas={marcas} cozinha={cozinha} selecionado={selecionado} foco={foco} comando={comando} compacto={telaPequena} aoSelecionar={setSelecionado} />
-        </Canvas>
+        {mapa && lote ? (
+          <Canvas orthographic shadows dpr={[1, 1.5]} camera={{ position: [lote.x + 30, 34, lote.z + 30], zoom: 10, near: -20000, far: 20000 }}>
+            <Cena mapa={mapa} lote={lote} cor={cor} nome={nomeLoja} motos={motos} marcas={marcas} cozinha={cozinha} selecionado={selecionado} foco={foco} comando={comando} compacto={telaPequena} aoSelecionar={setSelecionado} aoClicarChao={aoClicarChao} />
+          </Canvas>
+        ) : (
+          <div className="flex h-full items-center justify-center gap-2 p-6 text-sm text-gray-500">
+            {falhaMapa ? 'Não deu para carregar o mapa da cidade.' : <><Loader2 className="h-4 w-4 animate-spin" />Carregando o mapa de Goiatuba…</>}
+          </div>
+        )}
       </Falha>
+      {(posicionando || (mapa && !localConfig)) && (
+        <div className="absolute left-1/2 top-[7.6rem] z-40 w-[min(26rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-2xl bg-white/95 p-3 text-xs shadow-xl ring-1 ring-black/5 backdrop-blur md:top-24">
+          {posicionando ? (
+            <>
+              <p className="font-semibold text-gray-900">Toque no mapa no lugar da lanchonete.</p>
+              <p className="mt-0.5 text-gray-500">Ela se vira sozinha para a rua mais próxima. Afaste o zoom para achar o quarteirão.</p>
+              {aviso && <p className="mt-1 text-red-600">{aviso}</p>}
+              <div className="mt-2 flex gap-2">
+                <button disabled={!provisorio || salvando} onClick={salvarLocal} className="flex-1 rounded-lg py-2 font-semibold text-white disabled:opacity-40" style={{ background: cor }}>{salvando ? 'Salvando…' : 'Salvar local'}</button>
+                <button onClick={() => { setPosicionando(false); setProvisorio(null); setAviso(''); }} className="flex-1 rounded-lg bg-gray-100 py-2 font-semibold text-gray-700">Cancelar</button>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-3">
+              <MapPin className="h-5 w-5 shrink-0" style={{ color: cor }} />
+              <p className="flex-1 text-gray-700">O local da lanchonete ainda não foi marcado no mapa.</p>
+              <button onClick={() => setPosicionando(true)} className="shrink-0 rounded-lg px-3 py-2 font-semibold text-white" style={{ background: cor }}>Marcar</button>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="pointer-events-none absolute bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap text-[9px] text-gray-500">Mapa © colaboradores do OpenStreetMap</p>
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 grid grid-cols-4 gap-1.5 md:right-auto md:flex md:gap-2">
         {numeros.map(({ rotulo, curto, valor, Icone }) => (
           <div key={rotulo} className="pointer-events-auto flex min-w-0 items-center gap-2.5 rounded-xl bg-white/90 px-2 py-2 shadow-sm ring-1 ring-black/5 backdrop-blur md:min-w-[150px] md:px-3">
@@ -322,7 +484,10 @@ export function AoVivo() {
         ))}
       </div>
       <div className="pointer-events-none absolute right-3 top-[4.6rem] z-30 flex items-center gap-2 md:top-3">
-        <button onClick={simular} className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
+        <button onClick={() => { setPosicionando((v) => !v); setProvisorio(null); setAviso(''); }} title="Ajustar o local da lanchonete" className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
+          <MapPin className="h-3.5 w-3.5" style={{ color: cor }} /><span className="hidden md:inline">Local</span>
+        </button>
+        <button onClick={simular} disabled={!mapa} className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
           <Sparkles className="h-3.5 w-3.5" style={{ color: cor }} />Simular pedido
         </button>
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-black/5 backdrop-blur">
